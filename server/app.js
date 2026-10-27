@@ -21,7 +21,7 @@ app.get('/api/health', (req, res) => {
 
 
 app.get('/', (req, res) => {
-  res.status(200).json({message:' this is the mountain hut server'});
+  res.status(200).json({message:'this is the mountain hut server'});
 });
 
 module.exports = app;
