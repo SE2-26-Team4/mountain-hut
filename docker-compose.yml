@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  app:
+    container_name: mountain_hut_app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - DB_PATH=/app/server/data/mountain_hut.db
+    volumes:
+      - mountain_hut_sqlite_data:/app/server/data
+    restart: unless-stopped
+
+volumes:
+  mountain_hut_sqlite_data:
