@@ -2,13 +2,22 @@
   "name": "mountain-hut-server",
   "version": "1.0.0",
   "description": "Backend server for Mountain Hut application",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js"
+    "dev": "node --watch index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^5.0.5",
+    "supertest": "^7.3.1",
+    "vitest": "^5.0.5"
   }
 }
