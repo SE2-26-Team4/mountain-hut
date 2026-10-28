@@ -1,6 +1,7 @@
-# frontend
+# Frontend
 
 FROM node:20-alpine AS client-builder
+
 WORKDIR /app/client
 
 COPY client/package*.json ./
@@ -9,24 +10,26 @@ RUN npm ci
 COPY client/ ./
 RUN npm run build
 
-# backend 
+# Backend
 
 FROM node:20-alpine AS runner
-WORKDIR /app
 
-COPY server/package*.json ./server/
 WORKDIR /app/server
-RUN npm ci --only=production
+
+ENV NODE_ENV=production
+ENV PORT=8080
+ENV DB_PATH=/app/data/mountain-hut.sqlite
+
+COPY server/package*.json ./
+RUN npm ci --omit=dev
 
 COPY server/ ./
 
 COPY --from=client-builder /app/client/dist /app/client/dist
 
-RUN mkdir -p /app/server/data
+# Persistent SQLite database storage
 
-ENV NODE_ENV=production
-ENV PORT=8080
-ENV DB_PATH=/app/server/data/mountain_hut.db
+RUN mkdir -p /app/data
 
 EXPOSE 8080
 
