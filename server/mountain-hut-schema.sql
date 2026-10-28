@@ -1,6 +1,3 @@
--- TODO: Define the SQLite database schema and indexes.
-
--- [Database initialization and initial schema]: Define users, meal slots, tables, bookings, and seat allocations.
 PRAGMA foreign_keys = ON;
 
 BEGIN TRANSACTION;
