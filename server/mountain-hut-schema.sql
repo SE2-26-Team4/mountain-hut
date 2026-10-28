@@ -1,0 +1,1 @@
+-- TODO: Define the SQLite database schema and indexes.

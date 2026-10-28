@@ -1,0 +1,1 @@
+// TODO: Protect routes requiring authentication.
