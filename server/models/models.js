@@ -1,34 +1,50 @@
-// Booking Request DTO - Used when receiving booking data from the client.
+// [Define booking DTOs]: Define the booking data contracts used by the server.
+/**
+ * @typedef {Object} CreateBookingRequestDTO
+ * @property {string} bookingDate
+ * @property {number} slotId
+ * @property {number} partySize
+ */
 
-class BookingRequest {
-  constructor({ partyLeader, partySize, arrivalDate, departureDate, bookingType, notes }) {
-    this.partyLeader = partyLeader;
-    this.partySize = partySize;
-    this.arrivalDate = arrivalDate;
-    this.departureDate = departureDate;
-    this.bookingType = bookingType; // 'overnight', 'meal', 'day-trip'
-    this.notes = notes || '';
-  }
-}
+/**
+ * @typedef {Object} BookingDTO
+ * @property {number} id
+ * @property {number} mealSlotId
+ * @property {string} mealDate
+ * @property {string} startTime
+ * @property {string} endTime
+ * @property {number} partySize
+ * @property {string} status
+ * @property {number[]} tableIds
+ */
 
+// [Define meal-slot and table-capacity DTOs]: Define the data contracts for meal slots and their assigned table capacity.
+/**
+ * @typedef {Object} MealSlotDTO
+ * @property {number} id
+ * @property {string} name
+ * @property {string} startTime
+ * @property {string} endTime
+ * @property {boolean} isActive
+ */
 
-//  Booking Response DTO - Sent back to the client with server-assigned metadata and status.
+/**
+ * @typedef {Object} DiningTableDTO
+ * @property {number} id
+ * @property {string} name
+ * @property {number} seatCount
+ * @property {boolean} isActive
+ */
 
-class BookingResponse {
-  constructor({ id, partyLeader, partySize, arrivalDate, departureDate, bookingType, status, notes, createdAt }) {
-    this.id = id;
-    this.partyLeader = partyLeader;
-    this.partySize = partySize;
-    this.arrivalDate = arrivalDate;
-    this.departureDate = departureDate;
-    this.bookingType = bookingType;
-    this.status = status || 'pending'; // 'pending', 'confirmed', 'rejected', 'cancelled'
-    this.notes = notes || '';
-    this.createdAt = createdAt || new Date().toISOString();
-  }
-}
+/**
+ * @typedef {Object} UpdateMealSlotCapacityRequestDTO
+ * @property {number[]} tableIds
+ */
 
-module.exports = {
-  BookingRequest,
-  BookingResponse
-};
+/**
+ * @typedef {Object} MealSlotCapacityDTO
+ * @property {number} slotId
+ * @property {string} slotName
+ * @property {DiningTableDTO[]} tables
+ * @property {number} totalSeatCapacity
+ */

@@ -1,27 +1,50 @@
-// Booking Request DTO - Used on the client side when submitting a booking request.
-export class BookingRequest {
-  constructor({ partyLeader, partySize, arrivalDate, departureDate, bookingType, notes }) {
-    this.partyLeader = partyLeader;
-    this.partySize = partySize;
-    this.arrivalDate = arrivalDate;
-    this.departureDate = departureDate;
-    this.bookingType = bookingType;
-    this.notes = notes || '';
-  }
-}
+// [Define booking DTOs]: Define the booking data contracts used by the client.
+/**
+ * @typedef {Object} CreateBookingRequestDTO
+ * @property {string} bookingDate
+ * @property {number} slotId
+ * @property {number} partySize
+ */
 
+/**
+ * @typedef {Object} BookingDTO
+ * @property {number} id
+ * @property {number} mealSlotId
+ * @property {string} mealDate
+ * @property {string} startTime
+ * @property {string} endTime
+ * @property {number} partySize
+ * @property {string} status
+ * @property {number[]} tableIds
+ */
 
-//  * Booking Response DTO - Used on the client side to parse responses from the server API.
-export class BookingResponse {
-  constructor({ id, partyLeader, partySize, arrivalDate, departureDate, bookingType, status, notes, createdAt }) {
-    this.id = id;
-    this.partyLeader = partyLeader;
-    this.partySize = partySize;
-    this.arrivalDate = arrivalDate;
-    this.departureDate = departureDate;
-    this.bookingType = bookingType;
-    this.status = status || 'pending';
-    this.notes = notes || '';
-    this.createdAt = createdAt;
-  }
-}
+// [Define meal-slot and table-capacity DTOs]: Define the data contracts for meal slots and their assigned table capacity in the client.
+/**
+ * @typedef {Object} MealSlotDTO
+ * @property {number} id
+ * @property {string} name
+ * @property {string} startTime
+ * @property {string} endTime
+ * @property {boolean} isActive
+ */
+
+/**
+ * @typedef {Object} DiningTableDTO
+ * @property {number} id
+ * @property {string} name
+ * @property {number} seatCount
+ * @property {boolean} isActive
+ */
+
+/**
+ * @typedef {Object} UpdateMealSlotCapacityRequestDTO
+ * @property {number[]} tableIds
+ */
+
+/**
+ * @typedef {Object} MealSlotCapacityDTO
+ * @property {number} slotId
+ * @property {string} slotName
+ * @property {DiningTableDTO[]} tables
+ * @property {number} totalSeatCapacity
+ */
