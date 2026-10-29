@@ -1,1 +1,3 @@
-// TODO: Test capacity validation rules.
+import { describe } from 'vitest';
+
+describe.todo('Capacity validation rules');
