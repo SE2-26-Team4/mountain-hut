@@ -10,9 +10,9 @@ services:
       NODE_ENV: production
       PORT: 8080
       DB_PATH: /app/data/mountain-hut.sqlite
-      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env}
+      SESSION_SECRET: ${SESSION_SECRET:-mountain-hut-local-development-secret}
       COOKIE_SECURE: "false"
-      SEED_DEMO_ACCOUNTS: "true"
+      SEED_DEMO_ACCOUNTS: ${SEED_DEMO_ACCOUNTS:-true}
     volumes:
       - mountain_hut_sqlite_data:/app/data
     restart: unless-stopped
