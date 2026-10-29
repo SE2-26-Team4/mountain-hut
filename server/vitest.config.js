@@ -9,7 +9,11 @@ export default defineConfig({
     include: ['tests/**/*.test.js'],
     globalSetup: ['tests/globalSetup.js'],
     setupFiles: ['tests/setup.js'],
-    env: { NODE_ENV: 'test', DB_PATH: testDbPath },
+    env: {
+      NODE_ENV: 'test',
+      DB_PATH: testDbPath,
+      SEED_DEMO_ACCOUNTS: 'true',
+    },
     fileParallelism: false, // all test files share mh-test.sqlite, so avoid races
     coverage: {
       provider: 'v8',

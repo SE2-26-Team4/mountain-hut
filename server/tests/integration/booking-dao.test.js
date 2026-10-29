@@ -1,1 +1,3 @@
-// TODO: Test booking database operations and transactions.
+import { it } from 'vitest';
+
+it.todo('Test booking database operations and transactions.');

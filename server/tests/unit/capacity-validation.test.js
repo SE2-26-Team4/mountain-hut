@@ -1,1 +1,3 @@
-// TODO: Test capacity validation rules.
+import { it } from 'vitest';
+
+it.todo('Test capacity validation rules.');

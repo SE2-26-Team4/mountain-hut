@@ -1,1 +1,3 @@
-// TODO: Test capacity database operations.
+import { it } from 'vitest';
+
+it.todo('Test capacity database operations.');
