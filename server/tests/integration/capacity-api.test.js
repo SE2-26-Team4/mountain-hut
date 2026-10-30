@@ -1,1 +1,3 @@
-// TODO: Test capacity management API endpoints.
+import { it } from 'vitest';
+
+it.todo('Capacity management API endpoints');
