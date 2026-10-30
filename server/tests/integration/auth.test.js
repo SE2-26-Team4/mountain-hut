@@ -19,6 +19,13 @@ beforeAll(async () => {
 });
 
 describe('hiker session', () => {
+  it('rejects restoring a session when no session exists', async () => {
+    const response = await request(app).get('/api/sessions/current');
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('UNAUTHENTICATED');
+  });
+
   it('logs in, restores the hiker from the session, and logs out', async () => {
     const hikerAgent = request.agent(app);
 
@@ -64,4 +71,3 @@ describe('hiker session', () => {
     expect(response.body.error.code).toBe('INVALID_CREDENTIALS');
   });
 });
-
