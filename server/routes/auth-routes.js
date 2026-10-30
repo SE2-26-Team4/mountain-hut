@@ -5,9 +5,6 @@ import { requireAuth } from '../middleware/require-auth.js';
 
 const router = express.Router();
 
-/* AUTHENTICATION */
-
-// [Minimal login setup (backend)]: Authenticate a user and create a session.
 router.post('/sessions', (req, res, next) => {
   const { email, password } = req.body ?? {};
 
@@ -25,36 +22,42 @@ router.post('/sessions', (req, res, next) => {
     });
   }
 
-  passport.authenticate('local', (error, user) => {
-    if (error) {
-      return next(error);
-    }
-
-    if (!user) {
-      return res.status(401).json({
-        error: {
-          code: 'INVALID_CREDENTIALS',
-          message: 'Email or password is incorrect.',
-        },
-      });
-    }
-
-    req.logIn(user, (loginError) => {
-      if (loginError) {
-        return next(loginError);
+  passport.authenticate(
+    'local',
+    /**
+     * @param {unknown} error
+     * @param {Express.User | false | null | undefined} user
+     */
+    (error, user) => {
+      if (error) {
+        return next(error);
       }
 
-      return res.status(201).json({ user: req.user });
-    });
-  })(req, res, next);
+      if (!user) {
+        return res.status(401).json({
+          error: {
+            code: 'INVALID_CREDENTIALS',
+            message: 'Email or password is incorrect.',
+          },
+        });
+      }
+
+      // A custom authentication callback must establish the session explicitly.
+      req.logIn(user, (loginError) => {
+        if (loginError) {
+          return next(loginError);
+        }
+
+        return res.status(201).json({ user: req.user });
+      });
+    },
+  )(req, res, next);
 });
 
-// [Minimal login setup (backend)]: Return the user restored from the current session.
 router.get('/sessions/current', requireAuth, (req, res) => {
   return res.json({ user: req.user });
 });
 
-// [Minimal login setup (backend)]: Destroy the current login session.
 router.delete('/sessions/current', (req, res, next) => {
   if (!req.isAuthenticated()) {
     return res.status(204).end();
@@ -70,6 +73,7 @@ router.delete('/sessions/current', (req, res, next) => {
         return next(sessionError);
       }
 
+      // Match the options used when setting the session cookie.
       res.clearCookie('mountain-hut.sid', {
         httpOnly: true,
         sameSite: 'lax',
