@@ -1,164 +1,194 @@
-import { describe, test, expect, beforeEach, afterEach } from 'vitest';
-import sqlite3 from 'sqlite3';
-import CapacityDAO from '../../dao/capacity-dao.js';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-describe('CapacityDAO integration tests', () => {
-  let db;
-  let capacityDao;
+import {
+  createDiningTable,
+  createMealSlot,
+  getDiningTables,
+  getMealSlotCapacity,
+  getMealSlots,
+  setMealSlotTables,
+  updateDiningTable,
+  updateMealSlot,
+} from '../../dao/capacity-dao.js';
+import { initializeDatabase, runAsync } from '../../db.js';
 
-  beforeEach(async () => {
-    db = new sqlite3.Database(':memory:');
-    capacityDao = new CapacityDAO(db);
+const uniqueSuffix = `${Date.now()}-${Math.random()}`;
 
-    await new Promise((resolve, reject) => {
-      db.exec(`
-        PRAGMA foreign_keys = ON;
-        CREATE TABLE meal_slots (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL UNIQUE,
-          start_time TEXT NOT NULL,
-          end_time TEXT NOT NULL,
-          is_active INTEGER NOT NULL DEFAULT 1
-        );
-        CREATE TABLE dining_tables (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL UNIQUE,
-          seat_count INTEGER NOT NULL CHECK (seat_count > 0),
-          is_active INTEGER NOT NULL DEFAULT 1
-        );
-        CREATE TABLE slot_tables (
-          slot_id INTEGER NOT NULL REFERENCES meal_slots(id),
-          table_id INTEGER NOT NULL REFERENCES dining_tables(id),
-          PRIMARY KEY (slot_id, table_id)
-        );
-      `, (error) => (error ? reject(error) : resolve()));
+let slotId;
+let tableId;
+let secondTableId;
+
+beforeAll(async () => {
+  await initializeDatabase();
+
+  const slot = await createMealSlot({
+    name: `Capacity test slot ${uniqueSuffix}`,
+    startTime: '18:00',
+    endTime: '20:00',
+  });
+
+  slotId = slot.id;
+
+  const table = await createDiningTable({
+    name: `Capacity test table ${uniqueSuffix}`,
+    seatCount: 4,
+  });
+
+  tableId = table.id;
+
+  // [Slot-table assignment and capacity aggregation]: Create a second table for assignment tests.
+  const secondTable = await createDiningTable({
+    name: `Second capacity test table ${uniqueSuffix}`,
+    seatCount: 2,
+  });
+
+  secondTableId = secondTable.id;
+});
+
+afterAll(async () => {
+  if (slotId) {
+    await runAsync('DELETE FROM slot_tables WHERE slot_id = ?', [slotId]);
+    await runAsync('DELETE FROM meal_slots WHERE id = ?', [slotId]);
+  }
+
+  if (tableId) {
+    await runAsync('DELETE FROM slot_tables WHERE table_id = ?', [tableId]);
+    await runAsync('DELETE FROM dining_tables WHERE id = ?', [tableId]);
+  }
+
+  if (secondTableId) {
+    await runAsync(
+      'DELETE FROM slot_tables WHERE table_id = ?',
+      [secondTableId],
+    );
+
+    await runAsync(
+      'DELETE FROM dining_tables WHERE id = ?',
+      [secondTableId],
+    );
+  }
+});
+
+describe('meal-slot and dining-table data access', () => {
+  it('reads the created meal slot and dining table', async () => {
+    const slots = await getMealSlots();
+    const tables = await getDiningTables();
+
+    expect(slots.find((slot) => slot.id === slotId)).toMatchObject({
+      name: `Capacity test slot ${uniqueSuffix}`,
+      startTime: '18:00',
+      endTime: '20:00',
+      isActive: true,
+    });
+
+    expect(tables.find((table) => table.id === tableId)).toMatchObject({
+      name: `Capacity test table ${uniqueSuffix}`,
+      seatCount: 4,
+      isActive: true,
     });
   });
 
-  afterEach(async () => {
-    await new Promise((resolve) => db.close(resolve));
-  });
-
-  test('creates, lists, and retrieves a meal slot', async () => {
-    const saved = await capacityDao.saveMealSlot({
-      name: 'Dinner',
+  it('updates a meal slot and a dining table', async () => {
+    const updatedSlot = await updateMealSlot(slotId, {
+      name: `Updated capacity test slot ${uniqueSuffix}`,
       startTime: '19:00',
       endTime: '21:00',
       isActive: true,
     });
 
-    expect(saved.id).toBe(1);
-    expect(await capacityDao.listMealSlots()).toEqual([
-      {
-        id: 1,
-        name: 'Dinner',
-        startTime: '19:00',
-        endTime: '21:00',
-        isActive: 1,
-      },
-    ]);
-    expect(await capacityDao.getMealSlotById(1)).toMatchObject({
-      id: 1,
-      name: 'Dinner',
-      startTime: '19:00',
-      endTime: '21:00',
-    });
-  });
-
-  test('updates a meal slot and returns null for an unknown slot', async () => {
-    await capacityDao.saveMealSlot({
-      id: 1,
-      name: 'Lunch',
-      startTime: '12:00',
-      endTime: '14:00',
-      isActive: 1,
-    });
-
-    await capacityDao.saveMealSlot({
-      id: 1,
-      name: 'Late lunch',
-      startTime: '13:00',
-      endTime: '15:00',
-      isActive: 0,
-    });
-
-    expect(await capacityDao.getMealSlotById(1)).toMatchObject({
-      name: 'Late lunch',
-      startTime: '13:00',
-      isActive: 0,
-    });
-    expect(await capacityDao.getMealSlotById(999)).toBeNull();
-  });
-
-  test('creates, lists, and retrieves dining tables with seat counts', async () => {
-    await capacityDao.saveDiningTable({
-      name: 'Table 1',
+    const updatedTable = await updateDiningTable(tableId, {
+      name: `Updated capacity test table ${uniqueSuffix}`,
       seatCount: 6,
       isActive: true,
     });
 
-    expect(await capacityDao.listDiningTables()).toEqual([
-      { id: 1, name: 'Table 1', seatCount: 6, isActive: 1 },
-    ]);
-    expect(await capacityDao.getDiningTableById(1)).toMatchObject({
-      name: 'Table 1',
-      seatCount: 6,
-    });
-  });
-
-  test('updates table seat count and active status', async () => {
-    await capacityDao.saveDiningTable({
-      id: 1,
-      name: 'Table 1',
-      seatCount: 4,
-      isActive: 1,
-    });
-
-    await capacityDao.saveDiningTable({
-      id: 1,
-      name: 'Table 1',
-      seatCount: 8,
-      isActive: 0,
-    });
-
-    expect(await capacityDao.getDiningTableById(1)).toMatchObject({
-      seatCount: 8,
-      isActive: 0,
-    });
-  });
-
-  test('returns assigned tables and their total seat capacity', async () => {
-    const slot = await capacityDao.saveMealSlot({
-      name: 'Dinner',
+    expect(updatedSlot).toMatchObject({
+      id: slotId,
+      name: `Updated capacity test slot ${uniqueSuffix}`,
       startTime: '19:00',
       endTime: '21:00',
+      isActive: true,
     });
-    const firstTable = await capacityDao.saveDiningTable({
-      name: 'Table 1',
+
+    expect(updatedTable).toMatchObject({
+      id: tableId,
+      name: `Updated capacity test table ${uniqueSuffix}`,
       seatCount: 6,
+      isActive: true,
     });
-    const secondTable = await capacityDao.saveDiningTable({
-      name: 'Table 2',
-      seatCount: 4,
-    });
-
-    const capacity = await capacityDao.setMealSlotTables(slot.id, [
-      firstTable.id,
-      secondTable.id,
-    ]);
-
-    expect(capacity).toMatchObject({
-      slotId: slot.id,
-      slotName: 'Dinner',
-      totalSeatCapacity: 10,
-    });
-    expect(capacity.tables).toMatchObject([
-      { id: firstTable.id, seatCount: 6 },
-      { id: secondTable.id, seatCount: 4 },
-    ]);
   });
 
-  test('returns null capacity for an unknown meal slot', async () => {
-    expect(await capacityDao.getMealSlotCapacity(999)).toBeNull();
+  it('returns null when updating a meal slot or table that does not exist', async () => {
+    const missingSlot = await updateMealSlot(-1, {
+      name: 'Missing slot',
+      startTime: '18:00',
+      endTime: '20:00',
+      isActive: true,
+    });
+
+    const missingTable = await updateDiningTable(-1, {
+      name: 'Missing table',
+      seatCount: 2,
+      isActive: true,
+    });
+
+    expect(missingSlot).toBeNull();
+    expect(missingTable).toBeNull();
+  });
+
+  // [Slot-table assignment and capacity aggregation]: Verify table assignments and total active capacity.
+  it('assigns tables to a meal slot and calculates its capacity', async () => {
+    const capacity = await setMealSlotTables(
+      slotId,
+      [tableId, secondTableId],
+    );
+
+    const assignedTableIds = capacity.tables
+      .map((table) => table.id)
+      .sort((firstId, secondId) => firstId - secondId);
+
+    expect(assignedTableIds).toEqual(
+      [tableId, secondTableId].sort(
+        (firstId, secondId) => firstId - secondId,
+      ),
+    );
+
+    expect(capacity.totalSeatCapacity).toBe(
+      capacity.tables.reduce(
+        (total, table) => total + (table.isActive ? table.seatCount : 0),
+        0,
+      ),
+    );
+
+    const savedCapacity = await getMealSlotCapacity(slotId);
+
+    expect(savedCapacity).toEqual(capacity);
+  });
+
+  // [Slot-table assignment and capacity aggregation]: Verify failed assignments preserve the existing assignment.
+  it('preserves existing assignments when a requested table does not exist', async () => {
+    await setMealSlotTables(slotId, [tableId, secondTableId]);
+
+    await expect(
+      setMealSlotTables(slotId, [secondTableId, -1]),
+    ).rejects.toThrow('One or more dining tables were not found.');
+
+    const capacity = await getMealSlotCapacity(slotId);
+
+    const assignedTableIds = capacity.tables
+      .map((table) => table.id)
+      .sort((firstId, secondId) => firstId - secondId);
+
+    expect(assignedTableIds).toEqual(
+      [tableId, secondTableId].sort(
+        (firstId, secondId) => firstId - secondId,
+      ),
+    );
+  });
+
+  // [Slot-table assignment and capacity aggregation]: Return null for an unknown meal slot.
+  it('returns null when requesting capacity for a meal slot that does not exist', async () => {
+    await expect(getMealSlotCapacity(-1)).resolves.toBeNull();
+    await expect(setMealSlotTables(-1, [tableId])).resolves.toBeNull();
   });
 });

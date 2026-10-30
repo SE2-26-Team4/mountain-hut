@@ -8,17 +8,11 @@ import session from 'express-session';
 import passport from './config/passport.js';
 import authRoutes from './routes/auth-routes.js';
 
-import authRouter from './routes/auth-routes.js';
-import { sessionMiddleware } from './middleware/session.js';
-
 const app = express();
 
 /* JSON AND CORS */
 
 app.use(express.json());
-app.use(sessionMiddleware);
-
-app.use('/api', authRouter);
 
 const corsOptions = {
   origin: process.env.CLIENT_ORIGIN ?? 'http://localhost:5173',
