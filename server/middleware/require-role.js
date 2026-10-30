@@ -1,4 +1,9 @@
-// [Employee access for capacity management]: Allow protected routes only to authenticated users with an allowed role.
+/**
+ * Allows access only to authenticated users with an allowed role.
+ *
+ * @param {...Express.User['role']} allowedRoles
+ * @returns {import('express').RequestHandler}
+ */
 export function requireRole(...allowedRoles) {
   return (req, res, next) => {
     if (!req.isAuthenticated || !req.isAuthenticated()) {
@@ -10,7 +15,18 @@ export function requireRole(...allowedRoles) {
       });
     }
 
-    if (!allowedRoles.includes(req.user?.role)) {
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({
+        error: {
+          code: 'UNAUTHENTICATED',
+          message: 'Login is required.',
+        },
+      });
+    }
+
+    if (!allowedRoles.includes(user.role)) {
       return res.status(403).json({
         error: {
           code: 'FORBIDDEN',

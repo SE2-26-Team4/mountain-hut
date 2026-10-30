@@ -1,5 +1,3 @@
-
-// [Employee access for capacity management]: Verify that only authenticated staff can access protected routes.
 import express from 'express';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
