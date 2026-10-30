@@ -1,1 +1,3 @@
-// TODO: Test booking availability and table allocation logic.
+import { describe } from 'vitest';
+
+describe.todo('Booking availability and table allocation');
