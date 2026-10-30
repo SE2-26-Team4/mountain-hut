@@ -1,3 +1,3 @@
 import { it } from 'vitest';
 
-it.todo('Test capacity validation rules.');
+it.todo('Capacity validation rules');

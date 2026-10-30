@@ -1,7 +1,7 @@
 import { getAsync, runAsync } from '../db.js';
 import { hashPassword } from '../services/password.js';
 
-// [Minimal login setup (backend)]: Initialize demo Hiker and Employee accounts only when demo seeding is enabled.
+// Seed demo accounts only when explicitly enabled; preserve existing accounts.
 export async function initializeAccounts() {
   if (process.env.SEED_DEMO_ACCOUNTS !== 'true') {
     return;

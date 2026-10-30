@@ -1,3 +1,3 @@
 import { it } from 'vitest';
 
-it.todo('Test booking API endpoints.');
+it.todo('Booking API endpoints');
