@@ -1,88 +1,178 @@
-
 class CapacityDAO {
   constructor(db) {
     this.db = db;
   }
 
- 
   async listMealSlots() {
-    return new Promise((resolve, reject) => {
-      const query = `SELECT id, date, meal_type as mealType, max_capacity as maxCapacity, active FROM meal_slots`;
-      this.db.all(query, [], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows || []);
-      });
-    });
+    return this.all(
+      `SELECT id, name, start_time AS startTime, end_time AS endTime,
+              is_active AS isActive
+       FROM meal_slots
+       ORDER BY id`,
+    );
   }
-
 
   async getMealSlotById(id) {
-    return new Promise((resolve, reject) => {
-      const query = `SELECT id, date, meal_type as mealType, max_capacity as maxCapacity, active FROM meal_slots WHERE id = ?`;
-      this.db.get(query, [id], (err, row) => {
-        if (err) reject(err);
-        else resolve(row || null);
-      });
-    });
+    return this.get(
+      `SELECT id, name, start_time AS startTime, end_time AS endTime,
+              is_active AS isActive
+       FROM meal_slots
+       WHERE id = ?`,
+      [id],
+    );
   }
-
 
   async saveMealSlot(slot) {
-    return new Promise((resolve, reject) => {
-      const { id, date, mealType, maxCapacity, active } = slot;
-      const query = `
-        INSERT INTO meal_slots (id, date, meal_type, max_capacity, active)
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-          date = excluded.date,
-          meal_type = excluded.meal_type,
-          max_capacity = excluded.max_capacity,
-          active = excluded.active
-      `;
-      this.db.run(query, [id, date, mealType, maxCapacity, active !== undefined ? active : 1], function(err) {
-        if (err) reject(err);
-        else resolve({ id: id || this.lastID, ...slot });
-      });
-    });
-  }
+    const values = [
+      slot.name,
+      slot.startTime,
+      slot.endTime,
+      slot.isActive === undefined ? 1 : Number(slot.isActive),
+    ];
 
+    if (slot.id === undefined) {
+      const result = await this.run(
+        `INSERT INTO meal_slots (name, start_time, end_time, is_active)
+         VALUES (?, ?, ?, ?)`,
+        values,
+      );
+      return { id: result.lastID, ...slot };
+    }
+
+    await this.run(
+      `INSERT INTO meal_slots (id, name, start_time, end_time, is_active)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         name = excluded.name,
+         start_time = excluded.start_time,
+         end_time = excluded.end_time,
+         is_active = excluded.is_active`,
+      [slot.id, ...values],
+    );
+    return { ...slot };
+  }
 
   async listDiningTables() {
-    return new Promise((resolve, reject) => {
-      const query = `SELECT id, table_number as tableNumber, seat_count as seatCount, active FROM dining_tables`;
-      this.db.all(query, [], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows || []);
-      });
-    });
+    return this.all(
+      `SELECT id, name, seat_count AS seatCount, is_active AS isActive
+       FROM dining_tables
+       ORDER BY id`,
+    );
   }
-
 
   async getDiningTableById(id) {
+    return this.get(
+      `SELECT id, name, seat_count AS seatCount, is_active AS isActive
+       FROM dining_tables
+       WHERE id = ?`,
+      [id],
+    );
+  }
+
+  async saveDiningTable(table) {
+    const values = [
+      table.name,
+      table.seatCount,
+      table.isActive === undefined ? 1 : Number(table.isActive),
+    ];
+
+    if (table.id === undefined) {
+      const result = await this.run(
+        `INSERT INTO dining_tables (name, seat_count, is_active)
+         VALUES (?, ?, ?)`,
+        values,
+      );
+      return { id: result.lastID, ...table };
+    }
+
+    await this.run(
+      `INSERT INTO dining_tables (id, name, seat_count, is_active)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         name = excluded.name,
+         seat_count = excluded.seat_count,
+         is_active = excluded.is_active`,
+      [table.id, ...values],
+    );
+    return { ...table };
+  }
+
+  async setMealSlotTables(slotId, tableIds) {
+    await this.run('DELETE FROM slot_tables WHERE slot_id = ?', [slotId]);
+
+    for (const tableId of tableIds) {
+      await this.run(
+        'INSERT INTO slot_tables (slot_id, table_id) VALUES (?, ?)',
+        [slotId, tableId],
+      );
+    }
+
+    return this.getMealSlotCapacity(slotId);
+  }
+
+  async getMealSlotCapacity(slotId) {
+    const slot = await this.get(
+      'SELECT id, name FROM meal_slots WHERE id = ?',
+      [slotId],
+    );
+
+    if (!slot) {
+      return null;
+    }
+
+    const tables = await this.all(
+      `SELECT t.id, t.name, t.seat_count AS seatCount,
+              t.is_active AS isActive
+       FROM dining_tables t
+       JOIN slot_tables st ON st.table_id = t.id
+       WHERE st.slot_id = ?
+       ORDER BY t.id`,
+      [slotId],
+    );
+
+    return {
+      slotId: slot.id,
+      slotName: slot.name,
+      tables,
+      totalSeatCapacity: tables.reduce(
+        (total, table) => total + table.seatCount,
+        0,
+      ),
+    };
+  }
+
+  run(sql, parameters = []) {
     return new Promise((resolve, reject) => {
-      const query = `SELECT id, table_number as tableNumber, seat_count as seatCount, active FROM dining_tables WHERE id = ?`;
-      this.db.get(query, [id], (err, row) => {
-        if (err) reject(err);
-        else resolve(row || null);
+      this.db.run(sql, parameters, function (error) {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(this);
       });
     });
   }
 
-
-  async saveDiningTable(table) {
+  get(sql, parameters = []) {
     return new Promise((resolve, reject) => {
-      const { id, tableNumber, seatCount, active } = table;
-      const query = `
-        INSERT INTO dining_tables (id, table_number, seat_count, active)
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-          table_number = excluded.table_number,
-          seat_count = excluded.seat_count,
-          active = excluded.active
-      `;
-      this.db.run(query, [id, tableNumber, seatCount, active !== undefined ? active : 1], function(err) {
-        if (err) reject(err);
-        else resolve({ id: id || this.lastID, ...table });
+      this.db.get(sql, parameters, (error, row) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(row ?? null);
+      });
+    });
+  }
+
+  all(sql, parameters = []) {
+    return new Promise((resolve, reject) => {
+      this.db.all(sql, parameters, (error, rows) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(rows ?? []);
       });
     });
   }

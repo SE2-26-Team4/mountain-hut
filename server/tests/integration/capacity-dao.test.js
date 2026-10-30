@@ -2,96 +2,163 @@ import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import sqlite3 from 'sqlite3';
 import CapacityDAO from '../../dao/capacity-dao.js';
 
-describe('CapacityDAO Integration Tests', () => {
+describe('CapacityDAO integration tests', () => {
   let db;
   let capacityDao;
 
   beforeEach(async () => {
-
-
     db = new sqlite3.Database(':memory:');
     capacityDao = new CapacityDAO(db);
 
     await new Promise((resolve, reject) => {
-      db.serialize(() => {
-        db.run(`
-          CREATE TABLE meal_slots (
-            id INTEGER PRIMARY KEY,
-            date TEXT NOT NULL,
-            meal_type TEXT NOT NULL,
-            max_capacity INTEGER NOT NULL,
-            active INTEGER DEFAULT 1
-          )
-        `);
-        db.run(`
-          CREATE TABLE dining_tables (
-            id INTEGER PRIMARY KEY,
-            table_number INTEGER NOT NULL,
-            seat_count INTEGER NOT NULL,
-            active INTEGER DEFAULT 1
-          )
-        `, (err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
+      db.exec(`
+        PRAGMA foreign_keys = ON;
+        CREATE TABLE meal_slots (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL UNIQUE,
+          start_time TEXT NOT NULL,
+          end_time TEXT NOT NULL,
+          is_active INTEGER NOT NULL DEFAULT 1
+        );
+        CREATE TABLE dining_tables (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL UNIQUE,
+          seat_count INTEGER NOT NULL CHECK (seat_count > 0),
+          is_active INTEGER NOT NULL DEFAULT 1
+        );
+        CREATE TABLE slot_tables (
+          slot_id INTEGER NOT NULL REFERENCES meal_slots(id),
+          table_id INTEGER NOT NULL REFERENCES dining_tables(id),
+          PRIMARY KEY (slot_id, table_id)
+        );
+      `, (error) => (error ? reject(error) : resolve()));
     });
   });
 
   afterEach(async () => {
-    await new Promise((resolve) => db.close(() => resolve()));
+    await new Promise((resolve) => db.close(resolve));
   });
 
-  test('should create and retrieve a meal slot', async () => {
-    const slot = { id: 1, date: '2026-11-01', mealType: 'dinner', maxCapacity: 50, active: 1 };
-    await capacityDao.saveMealSlot(slot);
+  test('creates, lists, and retrieves a meal slot', async () => {
+    const saved = await capacityDao.saveMealSlot({
+      name: 'Dinner',
+      startTime: '19:00',
+      endTime: '21:00',
+      isActive: true,
+    });
 
-    const retrieved = await capacityDao.getMealSlotById(1);
-    expect(retrieved).toMatchObject(slot);
+    expect(saved.id).toBe(1);
+    expect(await capacityDao.listMealSlots()).toEqual([
+      {
+        id: 1,
+        name: 'Dinner',
+        startTime: '19:00',
+        endTime: '21:00',
+        isActive: 1,
+      },
+    ]);
+    expect(await capacityDao.getMealSlotById(1)).toMatchObject({
+      id: 1,
+      name: 'Dinner',
+      startTime: '19:00',
+      endTime: '21:00',
+    });
   });
 
-  test('should return null when meal slot does not exist', async () => {
-    const retrieved = await capacityDao.getMealSlotById(999);
-    expect(retrieved).toBeNull();
+  test('updates a meal slot and returns null for an unknown slot', async () => {
+    await capacityDao.saveMealSlot({
+      id: 1,
+      name: 'Lunch',
+      startTime: '12:00',
+      endTime: '14:00',
+      isActive: 1,
+    });
+
+    await capacityDao.saveMealSlot({
+      id: 1,
+      name: 'Late lunch',
+      startTime: '13:00',
+      endTime: '15:00',
+      isActive: 0,
+    });
+
+    expect(await capacityDao.getMealSlotById(1)).toMatchObject({
+      name: 'Late lunch',
+      startTime: '13:00',
+      isActive: 0,
+    });
+    expect(await capacityDao.getMealSlotById(999)).toBeNull();
   });
 
-  test('should update an existing meal slot', async () => {
-    const slot = { id: 1, date: '2026-11-01', mealType: 'lunch', maxCapacity: 40, active: 1 };
-    await capacityDao.saveMealSlot(slot);
+  test('creates, lists, and retrieves dining tables with seat counts', async () => {
+    await capacityDao.saveDiningTable({
+      name: 'Table 1',
+      seatCount: 6,
+      isActive: true,
+    });
 
-
-    slot.maxCapacity = 60;
-    slot.active = 0;
-    await capacityDao.saveMealSlot(slot);
-
-    const updated = await capacityDao.getMealSlotById(1);
-    expect(updated.maxCapacity).toBe(60);
-    expect(updated.active).toBe(0);
+    expect(await capacityDao.listDiningTables()).toEqual([
+      { id: 1, name: 'Table 1', seatCount: 6, isActive: 1 },
+    ]);
+    expect(await capacityDao.getDiningTableById(1)).toMatchObject({
+      name: 'Table 1',
+      seatCount: 6,
+    });
   });
 
-  test('should create and retrieve a dining table', async () => {
-    const table = { id: 1, tableNumber: 5, seatCount: 6, active: 1 };
-    await capacityDao.saveDiningTable(table);
+  test('updates table seat count and active status', async () => {
+    await capacityDao.saveDiningTable({
+      id: 1,
+      name: 'Table 1',
+      seatCount: 4,
+      isActive: 1,
+    });
 
-    const retrieved = await capacityDao.getDiningTableById(1);
-    expect(retrieved).toMatchObject(table);
+    await capacityDao.saveDiningTable({
+      id: 1,
+      name: 'Table 1',
+      seatCount: 8,
+      isActive: 0,
+    });
+
+    expect(await capacityDao.getDiningTableById(1)).toMatchObject({
+      seatCount: 8,
+      isActive: 0,
+    });
   });
 
-  test('should return null when dining table does not exist', async () => {
-    const retrieved = await capacityDao.getDiningTableById(999);
-    expect(retrieved).toBeNull();
+  test('returns assigned tables and their total seat capacity', async () => {
+    const slot = await capacityDao.saveMealSlot({
+      name: 'Dinner',
+      startTime: '19:00',
+      endTime: '21:00',
+    });
+    const firstTable = await capacityDao.saveDiningTable({
+      name: 'Table 1',
+      seatCount: 6,
+    });
+    const secondTable = await capacityDao.saveDiningTable({
+      name: 'Table 2',
+      seatCount: 4,
+    });
+
+    const capacity = await capacityDao.setMealSlotTables(slot.id, [
+      firstTable.id,
+      secondTable.id,
+    ]);
+
+    expect(capacity).toMatchObject({
+      slotId: slot.id,
+      slotName: 'Dinner',
+      totalSeatCapacity: 10,
+    });
+    expect(capacity.tables).toMatchObject([
+      { id: firstTable.id, seatCount: 6 },
+      { id: secondTable.id, seatCount: 4 },
+    ]);
   });
 
-  test('should update an existing dining table seat count and active status', async () => {
-    const table = { id: 2, tableNumber: 3, seatCount: 4, active: 1 };
-    await capacityDao.saveDiningTable(table);
-
-    table.seatCount = 8;
-    table.active = 0;
-    await capacityDao.saveDiningTable(table);
-
-    const updated = await capacityDao.getDiningTableById(2);
-    expect(updated.seatCount).toBe(8);
-    expect(updated.active).toBe(0);
+  test('returns null capacity for an unknown meal slot', async () => {
+    expect(await capacityDao.getMealSlotCapacity(999)).toBeNull();
   });
 });
