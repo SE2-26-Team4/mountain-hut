@@ -1,83 +1,165 @@
 /**
- * Validation service for capacity management (meal slots and dining tables).
+ * @typedef {import('../models/models.js').MealSlotInputDTO} MealSlotInputDTO
+ * @typedef {import('../models/models.js').DiningTableInputDTO} DiningTableInputDTO
+ * @typedef {import('../models/models.js').UpdateMealSlotCapacityRequestDTO} UpdateMealSlotCapacityRequestDTO
  */
 
 /**
- * Validates a meal slot object.
- * @param {Object} slot
- * @returns {Object} { isValid: boolean, errors: string[] }
+ * @param {unknown} value
+ * @returns {value is string}
  */
-export function validateMealSlot(slot) {
-  const errors = [];
-
-  if (!slot) {
-    return { isValid: false, errors: ['Meal slot object is required.'] };
+function isValidTime(value) {
+  if (
+    typeof value !== 'string' ||
+    !/^\d{2}:\d{2}$/.test(value)
+  ) {
+    return false;
   }
 
-  if (slot.id !== undefined && (typeof slot.id !== 'number' || slot.id <= 0)) {
-    errors.push('Meal slot ID must be a positive number.');
+  const [hours, minutes] = value.split(':').map(Number);
+
+  return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
+}
+
+/**
+ * Converts an already validated HH:mm time to minutes since midnight.
+ *
+ * @param {string} value
+ * @returns {number}
+ */
+function toMinutes(value) {
+  const [hours, minutes] = value.split(':').map(Number);
+
+  return hours * 60 + minutes;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is number}
+ */
+function isPositiveInteger(value) {
+  return (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value > 0
+  );
+}
+
+/**
+ * @param {unknown} value
+ * @param {string} label
+ * @returns {asserts value is Record<string, unknown>}
+ */
+function requireObject(value, label) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new TypeError(`${label} data must be an object.`);
+  }
+}
+
+/**
+ * @param {unknown} isActive
+ * @param {string} label
+ * @returns {asserts isActive is boolean | undefined}
+ */
+function validateIsActive(isActive, label) {
+  if (isActive !== undefined && typeof isActive !== 'boolean') {
+    throw new TypeError(`${label} active status must be a boolean.`);
+  }
+}
+
+/**
+ * Validates and trims meal-slot input.
+ * Active status may be omitted; update routes must require it separately.
+ *
+ * @param {unknown} input
+ * @returns {MealSlotInputDTO}
+ * @throws {Error} If the input is invalid.
+ */
+export function validateMealSlot(input) {
+  requireObject(input, 'Meal slot');
+
+  const name = typeof input.name === 'string' ? input.name.trim() : '';
+  const { startTime, endTime, isActive } = input;
+
+  if (!name) {
+    throw new Error('Meal slot name is required.');
   }
 
-  if (!slot.mealType || typeof slot.mealType !== 'string' || slot.mealType.trim() === '') {
-    errors.push('Meal slot name/type is required and must be a non-empty string.');
+  if (!isValidTime(startTime) || !isValidTime(endTime)) {
+    throw new Error('Meal slot times must use the HH:mm format.');
   }
 
-  if (!slot.date || typeof slot.date !== 'string' || isNaN(Date.parse(slot.date))) {
-    errors.push('Meal slot date/time must be a valid date string.');
+  if (toMinutes(startTime) >= toMinutes(endTime)) {
+    throw new Error('Meal slot end time must be later than its start time.');
   }
 
-
-
-  if (slot.maxCapacity === undefined || typeof slot.maxCapacity !== 'number' || slot.maxCapacity <= 0) {
-    errors.push('Max capacity must be a positive number.');
-  }
-
-
-  if (slot.active !== undefined && slot.active !== 0 && slot.active !== 1 && typeof slot.active !== 'boolean') {
-    errors.push('Active status must be a boolean or 0/1.');
-  }
+  validateIsActive(isActive, 'Meal slot');
 
   return {
-    isValid: errors.length === 0,
-    errors
+    name,
+    startTime,
+    endTime,
+    ...(isActive === undefined ? {} : { isActive }),
   };
 }
 
 /**
- * Validates a dining table object.
- * @param {Object} table
- * @returns {Object} { isValid: boolean, errors: string[] }
+ * Validates and trims dining-table input.
+ * Active status may be omitted; update routes must require it separately.
+ *
+ * @param {unknown} input
+ * @returns {DiningTableInputDTO}
+ * @throws {Error} If the input is invalid.
  */
-export function validateDiningTable(table) {
-  const errors = [];
+export function validateDiningTable(input) {
+  requireObject(input, 'Dining table');
 
-  if (!table) {
-    return { isValid: false, errors: ['Dining table object is required.'] };
+  const name = typeof input.name === 'string' ? input.name.trim() : '';
+  const { seatCount, isActive } = input;
+
+  if (!name) {
+    throw new Error('Dining table name is required.');
   }
 
-  if (table.id !== undefined && (typeof table.id !== 'number' || table.id <= 0)) {
-    errors.push('Table ID must be a positive number.');
+  if (!isPositiveInteger(seatCount)) {
+    throw new Error('Dining table seat count must be a positive integer.');
   }
 
-  if (table.tableNumber === undefined || (typeof table.tableNumber !== 'number' && typeof table.tableNumber !== 'string')) {
-    errors.push('Dining table number or name is required.');
-  }
-
-
-
-  if (table.seatCount === undefined || typeof table.seatCount !== 'number' || table.seatCount <= 0) {
-    errors.push('Seat count must be a positive integer greater than zero.');
-  }
-
-
-
-
-  if (table.active !== undefined && table.active !== 0 && table.active !== 1 && typeof table.active !== 'boolean') {
-    errors.push('Active status must be a boolean or 0/1.');
-  }
+  validateIsActive(isActive, 'Dining table');
 
   return {
-    isValid: errors.length === 0,
-    errors
+    name,
+    seatCount,
+    ...(isActive === undefined ? {} : { isActive }),
   };
+}
+
+/**
+ * Validates assignment IDs without checking their existence in the database.
+ * An empty table list is allowed to clear assignments.
+ *
+ * @param {unknown} slotId
+ * @param {unknown} tableIds
+ * @returns {UpdateMealSlotCapacityRequestDTO & { slotId: number }}
+ * @throws {Error} If an ID is invalid or duplicated.
+ * @throws {TypeError} If tableIds is not an array.
+ */
+export function validateSlotTableAssignment(slotId, tableIds) {
+  if (!isPositiveInteger(slotId)) {
+    throw new Error('Meal slot ID must be a positive integer.');
+  }
+
+  if (!Array.isArray(tableIds)) {
+    throw new TypeError('Dining table IDs must be provided as an array.');
+  }
+
+  if (!tableIds.every(isPositiveInteger)) {
+    throw new Error('Dining table IDs must be positive integers.');
+  }
+
+  if (new Set(tableIds).size !== tableIds.length) {
+    throw new Error('Dining table IDs must not contain duplicates.');
+  }
+
+  return { slotId, tableIds };
 }

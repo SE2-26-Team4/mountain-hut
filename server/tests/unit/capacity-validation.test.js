@@ -1,120 +1,218 @@
-import { describe, test, expect } from 'vitest';
-import { validateMealSlot, validateDiningTable } from '../../services/capacity-validation.js';
+import { describe, expect, it } from 'vitest';
 
-describe('Capacity Validation Unit Tests', () => {
+import {
+  validateDiningTable,
+  validateMealSlot,
+  validateSlotTableAssignment,
+} from '../../services/capacity-validation.js';
 
-
-    describe('validateMealSlot', () => {
-    test('should pass with valid meal slot data', () => {
-      const validSlot = {
-        id: 1,
-        mealType: 'dinner',
-        date: '2026-11-01',
-        maxCapacity: 50,
-        active: true
-      };
-      const result = validateMealSlot(validSlot);
-      expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
-    });
-
-    test('should fail when meal type/name is missing or empty', () => {
-      const invalidSlot = {
-        id: 1,
-        mealType: '',
-        date: '2026-11-01',
-        maxCapacity: 50
-      };
-      const result = validateMealSlot(invalidSlot);
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Meal slot name/type is required and must be a non-empty string.');
-    });
-
-    test('should fail when date/time is invalid', () => {
-      const invalidSlot = {
-        id: 1,
-        mealType: 'lunch',
-        date: 'not-a-valid-date',
-        maxCapacity: 30
-      };
-      const result = validateMealSlot(invalidSlot);
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Meal slot date/time must be a valid date string.');
-    });
-
-    test('should fail when max capacity is zero or negative', () => {
-      const invalidSlot = {
-        id: 1,
-        mealType: 'lunch',
-        date: '2026-11-01',
-        maxCapacity: -5
-      };
-      const result = validateMealSlot(invalidSlot);
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Max capacity must be a positive number.');
-    });
-
-    test('should fail when assignment ID is invalid (non-positive)', () => {
-      const invalidSlot = {
-        id: -1,
-        mealType: 'dinner',
-        date: '2026-11-01',
-        maxCapacity: 20
-      };
-      const result = validateMealSlot(invalidSlot);
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Meal slot ID must be a positive number.');
+describe('meal-slot validation', () => {
+  it('trims the name and accepts valid times', () => {
+    expect(
+      validateMealSlot({
+        name: ' Dinner ',
+        startTime: '18:00',
+        endTime: '20:00',
+        isActive: true,
+      }),
+    ).toEqual({
+      name: 'Dinner',
+      startTime: '18:00',
+      endTime: '20:00',
+      isActive: true,
     });
   });
 
+  it('rejects an empty name', () => {
+    expect(() =>
+      validateMealSlot({
+        name: '  ',
+        startTime: '18:00',
+        endTime: '20:00',
+      }),
+    ).toThrow('Meal slot name is required.');
+  });
 
+  it('rejects invalid time formats and times', () => {
+    expect(() =>
+      validateMealSlot({
+        name: 'Dinner',
+        startTime: '6pm',
+        endTime: '20:00',
+      }),
+    ).toThrow('Meal slot times must use the HH:mm format.');
 
-  describe('validateDiningTable', () => {
-    test('should pass with valid dining table data', () => {
-      const validTable = {
-        id: 1,
-        tableNumber: 4,
-        seatCount: 6,
-        active: 1
-      };
-      const result = validateDiningTable(validTable);
-      expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
+    expect(() =>
+      validateMealSlot({
+        name: 'Dinner',
+        startTime: '18:60',
+        endTime: '20:00',
+      }),
+    ).toThrow('Meal slot times must use the HH:mm format.');
+  });
+
+  it('requires the end time to be later than the start time', () => {
+    expect(() =>
+      validateMealSlot({
+        name: 'Dinner',
+        startTime: '20:00',
+        endTime: '18:00',
+      }),
+    ).toThrow('Meal slot end time must be later than its start time.');
+  });
+
+  it('rejects a non-boolean active status', () => {
+    expect(() =>
+      validateMealSlot({
+        name: 'Dinner',
+        startTime: '18:00',
+        endTime: '20:00',
+        isActive: 1,
+      }),
+    ).toThrow('Meal slot active status must be a boolean.');
+  });
+
+  it.each([null, undefined, 'Dinner', 1, []])(
+    'rejects non-object input: %j',
+    (input) => {
+      expect(() => validateMealSlot(input)).toThrow(
+        'Meal slot data must be an object.',
+      );
+    },
+  );
+
+  it('rejects a non-string name', () => {
+    expect(() =>
+      validateMealSlot({
+        name: 123,
+        startTime: '18:00',
+        endTime: '20:00',
+      }),
+    ).toThrow('Meal slot name is required.');
+  });
+
+  it('rejects a non-string start time', () => {
+    expect(() =>
+      validateMealSlot({
+        name: 'Dinner',
+        startTime: 1800,
+        endTime: '20:00',
+      }),
+    ).toThrow('Meal slot times must use the HH:mm format.');
+  });
+
+  it('rejects an invalid end time', () => {
+    expect(() =>
+      validateMealSlot({
+        name: 'Dinner',
+        startTime: '18:00',
+        endTime: '24:00',
+      }),
+    ).toThrow('Meal slot times must use the HH:mm format.');
+  });
+
+  it('accepts valid input without active status', () => {
+    const result = validateMealSlot({
+      name: 'Dinner',
+      startTime: '18:00',
+      endTime: '20:00',
     });
 
-    test('should fail when seat count is zero or negative', () => {
-      const invalidTable = {
-        id: 1,
-        tableNumber: 2,
-        seatCount: 0,
-        active: true
-      };
-      const result = validateDiningTable(invalidTable);
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Seat count must be a positive integer greater than zero.');
+    expect(result).toEqual({
+      name: 'Dinner',
+      startTime: '18:00',
+      endTime: '20:00',
     });
 
-    test('should fail when active status has an invalid value format', () => {
-      const invalidTable = {
-        id: 1,
-        tableNumber: 3,
+    expect(result).not.toHaveProperty('isActive');
+  });
+});
+
+describe('dining-table validation', () => {
+  it('trims the name and accepts a positive integer seat count', () => {
+    expect(
+      validateDiningTable({
+        name: ' Table 1 ',
         seatCount: 4,
-        active: 'maybe'
-      };
-      const result = validateDiningTable(invalidTable);
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Active status must be a boolean or 0/1.');
+        isActive: true,
+      }),
+    ).toEqual({
+      name: 'Table 1',
+      seatCount: 4,
+      isActive: true,
+    });
+  });
+
+  it('rejects an empty name', () => {
+    expect(() =>
+      validateDiningTable({ name: '  ', seatCount: 4 }),
+    ).toThrow('Dining table name is required.');
+  });
+
+  it('rejects zero, negative, and non-integer seat counts', () => {
+    for (const seatCount of [0, -1, 2.5]) {
+      expect(() =>
+        validateDiningTable({ name: 'Table 1', seatCount }),
+      ).toThrow('Dining table seat count must be a positive integer.');
+    }
+  });
+
+  it('rejects a non-string name', () => {
+    expect(() =>
+      validateDiningTable({
+        name: 123,
+        seatCount: 4,
+      }),
+    ).toThrow('Dining table name is required.');
+  });
+
+  it('accepts valid input without active status', () => {
+    const result = validateDiningTable({
+      name: 'Table 1',
+      seatCount: 4,
     });
 
-    test('should fail when assignment/table ID is invalid', () => {
-      const invalidTable = {
-        id: 0,
-        tableNumber: 1,
-        seatCount: 4
-      };
-      const result = validateDiningTable(invalidTable);
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Table ID must be a positive number.');
+    expect(result).toEqual({
+      name: 'Table 1',
+      seatCount: 4,
     });
+
+    expect(result).not.toHaveProperty('isActive');
+  });
+});
+
+describe('slot-table assignment validation', () => {
+  it('accepts valid IDs and an empty list for clearing assignments', () => {
+    expect(validateSlotTableAssignment(1, [2, 3])).toEqual({
+      slotId: 1,
+      tableIds: [2, 3],
+    });
+
+    expect(validateSlotTableAssignment(1, [])).toEqual({
+      slotId: 1,
+      tableIds: [],
+    });
+  });
+
+  it('rejects invalid slot and table IDs', () => {
+    expect(() => validateSlotTableAssignment(0, [2])).toThrow(
+      'Meal slot ID must be a positive integer.',
+    );
+
+    expect(() => validateSlotTableAssignment(1, [2, -3])).toThrow(
+      'Dining table IDs must be positive integers.',
+    );
+  });
+
+  it('rejects duplicate table IDs', () => {
+    expect(() => validateSlotTableAssignment(1, [2, 2])).toThrow(
+      'Dining table IDs must not contain duplicates.',
+    );
+  });
+
+  it('requires the table IDs to be an array', () => {
+    expect(() => validateSlotTableAssignment(1, '2')).toThrow(
+      'Dining table IDs must be provided as an array.',
+    );
   });
 });
