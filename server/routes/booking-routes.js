@@ -1,10 +1,8 @@
 /*
- * TODO: Capacity validation service integration.
- * POST/PUT /capacity/meal-slots: validate req.body with validateMealSlot.
- * POST/PUT /capacity/dining-tables: validate req.body with validateDiningTable.
- * For updates, also validate the route ID and require isActive explicitly.
- * PUT /capacity/meal-slots/:slotId/tables: parse the route ID and call
- * validateSlotTableAssignment(slotId, req.body?.tableIds).
- * Catch validation errors and return 400 with code INVALID_INPUT.
- * Pass the validated data to the corresponding DAO functions.
+ * Booking API routes.
+ * GET /bookings/availability: return availability for a date and slot.
+ * POST /bookings: require the hiker role and use the authenticated user ID.
+ * Delegate input validation to the booking service.
+ * The booking DAO checks availability and allocates tables atomically.
+ * Map application errors to the corresponding HTTP responses.
  */
