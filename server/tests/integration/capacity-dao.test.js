@@ -36,7 +36,6 @@ beforeAll(async () => {
 
   tableId = table.id;
 
-  // [Slot-table assignment and capacity aggregation]: Create a second table for assignment tests.
   const secondTable = await createDiningTable({
     name: `Second capacity test table ${uniqueSuffix}`,
     seatCount: 2,
@@ -136,7 +135,6 @@ describe('meal-slot and dining-table data access', () => {
     expect(missingTable).toBeNull();
   });
 
-  // [Slot-table assignment and capacity aggregation]: Verify table assignments and total active capacity.
   it('assigns tables to a meal slot and calculates its capacity', async () => {
     const capacity = await setMealSlotTables(
       slotId,
@@ -165,7 +163,6 @@ describe('meal-slot and dining-table data access', () => {
     expect(savedCapacity).toEqual(capacity);
   });
 
-  // [Slot-table assignment and capacity aggregation]: Verify failed assignments preserve the existing assignment.
   it('preserves existing assignments when a requested table does not exist', async () => {
     await setMealSlotTables(slotId, [tableId, secondTableId]);
 
@@ -186,9 +183,128 @@ describe('meal-slot and dining-table data access', () => {
     );
   });
 
-  // [Slot-table assignment and capacity aggregation]: Return null for an unknown meal slot.
   it('returns null when requesting capacity for a meal slot that does not exist', async () => {
     await expect(getMealSlotCapacity(-1)).resolves.toBeNull();
     await expect(setMealSlotTables(-1, [tableId])).resolves.toBeNull();
+  });
+
+  it('creates inactive meal slots and dining tables', async () => {
+    let inactiveSlotId;
+    let inactiveTableId;
+
+    try {
+      const slot = await createMealSlot({
+        name: `Inactive slot ${uniqueSuffix}`,
+        startTime: '08:00',
+        endTime: '09:00',
+        isActive: false,
+      });
+      inactiveSlotId = slot.id;
+
+      const table = await createDiningTable({
+        name: `Inactive table ${uniqueSuffix}`,
+        seatCount: 4,
+        isActive: false,
+      });
+      inactiveTableId = table.id;
+
+      expect(slot.isActive).toBe(false);
+      expect(table.isActive).toBe(false);
+
+      expect(await getMealSlots()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: inactiveSlotId,
+            isActive: false,
+          }),
+        ]),
+      );
+
+      expect(await getDiningTables()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: inactiveTableId,
+            isActive: false,
+          }),
+        ]),
+      );
+    } finally {
+      if (inactiveSlotId) {
+        await runAsync('DELETE FROM meal_slots WHERE id = ?', [
+          inactiveSlotId,
+        ]);
+      }
+
+      if (inactiveTableId) {
+        await runAsync('DELETE FROM dining_tables WHERE id = ?', [
+          inactiveTableId,
+        ]);
+      }
+    }
+  });
+
+  it('excludes an assigned table from capacity after deactivation', async () => {
+    await setMealSlotTables(slotId, [secondTableId]);
+
+    try {
+      const updatedSlot = await updateMealSlot(slotId, {
+        name: `Updated capacity test slot ${uniqueSuffix}`,
+        startTime: '19:00',
+        endTime: '21:00',
+        isActive: false,
+      });
+
+      const updatedTable = await updateDiningTable(secondTableId, {
+        name: `Second capacity test table ${uniqueSuffix}`,
+        seatCount: 2,
+        isActive: false,
+      });
+
+      expect(updatedSlot.isActive).toBe(false);
+      expect(updatedTable.isActive).toBe(false);
+
+      const capacity = await getMealSlotCapacity(slotId);
+
+      expect(capacity).toMatchObject({
+        totalSeatCapacity: 0,
+        tables: [
+          {
+            id: secondTableId,
+            seatCount: 2,
+            isActive: false,
+          },
+        ],
+      });
+    } finally {
+      await runAsync(
+        'UPDATE meal_slots SET is_active = 1 WHERE id = ?',
+        [slotId],
+      );
+
+      await runAsync(
+        'UPDATE dining_tables SET is_active = 1 WHERE id = ?',
+        [secondTableId],
+      );
+    }
+  });
+
+  it('rejects table assignments that are not an array', async () => {
+    await expect(
+      setMealSlotTables(slotId, null),
+    ).rejects.toThrow('Table IDs must be provided as an array.');
+  });
+
+  it('clears existing table assignments with an empty array', async () => {
+    await setMealSlotTables(slotId, [tableId, secondTableId]);
+
+    const capacity = await setMealSlotTables(slotId, []);
+
+    expect(capacity).toMatchObject({
+      slotId,
+      tables: [],
+      totalSeatCapacity: 0,
+    });
+
+    expect(await getMealSlotCapacity(slotId)).toEqual(capacity);
   });
 });

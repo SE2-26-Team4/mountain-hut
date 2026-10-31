@@ -48,7 +48,6 @@ export function runAsync(sql, parameters = []) {
         return;
       }
 
-      // sqlite3 exposes lastID and changes through the callback's `this`.
       resolve(this);
     });
   });
@@ -146,7 +145,6 @@ export function withTransaction(callback) {
     }
   });
 
-  // A failed transaction must not prevent subsequent transactions from running.
   transactionQueue = operation.then(
     () => undefined,
     () => undefined,

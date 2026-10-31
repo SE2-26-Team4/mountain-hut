@@ -8,6 +8,8 @@ import { getAsync } from '../db.js';
  * }} AuthenticationUserRow
  */
 
+/* READ */
+
 /**
  * Includes the password hash for credential verification.
  *
