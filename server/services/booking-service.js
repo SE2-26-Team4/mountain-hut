@@ -1,67 +1,133 @@
-import { getBookingsByDateAndSlot } from '../dao/booking-dao.js';
+import {
+  BookingError,
+  createBooking,
+  getBookingsByDateAndSlot,
+} from '../dao/booking-dao.js';
+
 import {
   getMealSlotCapacity,
   getMealSlots,
 } from '../dao/capacity-dao.js';
 
 /**
+ * @typedef {import('../models/models.js').CreateBookingRequestDTO} CreateBookingRequestDTO
  * @typedef {import('../models/models.js').BookingDTO} BookingDTO
  * @typedef {import('../models/models.js').DiningTableDTO} DiningTableDTO
  * @typedef {import('../models/models.js').DiningTableAvailabilityDTO} DiningTableAvailabilityDTO
  * @typedef {import('../models/models.js').MealSlotAvailabilityDTO} MealSlotAvailabilityDTO
- * @typedef {import('../models/models.js').BookingTableAllocationDTO} BookingTableAllocationDTO
  */
+
+/* VALIDATION */
+
+/**
+ * Checks the format and existence of a calendar date.
+ *
+ * @param {unknown} value
+ * @returns {value is string}
+ */
+function isValidDate(value) {
+  if (
+    typeof value !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(value)
+  ) {
+    return false;
+  }
+
+  const [year, month, day] = value.split('-').map(Number);
+
+  if (year < 1) {
+    return false;
+  }
+
+  const date = new Date(0);
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCFullYear(year, month - 1, day);
+
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
+/**
+ * Validates the booking date and meal-slot ID.
+ *
+ * @param {unknown} bookingDate
+ * @param {unknown} slotId
+ */
+function validateBookingSelection(bookingDate, slotId) {
+  if (
+    !isValidDate(bookingDate) ||
+    typeof slotId !== 'number' ||
+    !Number.isSafeInteger(slotId) ||
+    slotId <= 0
+  ) {
+    throw new BookingError(
+      'INVALID_BOOKING',
+      'A valid booking date and meal-slot ID are required.'
+    );
+  }
+}
 
 /* HELPERS */
 
 /**
- * Calculates bookable seats from confirmed bookings.
- * Inactive tables and tables with reserved seats have no available seats.
+ * Calculates availability from confirmed bookings.
+ * An inactive or already assigned table has no bookable seats,
+ * even when some of its physical seats are unused.
  *
  * @param {DiningTableDTO[]} tables
  * @param {BookingDTO[]} bookings
  * @returns {DiningTableAvailabilityDTO[]}
  */
 function calculateAvailableTables(tables, bookings) {
+  /** @type {Map<number, number>} */
   const reservedSeatsByTable = new Map();
 
   for (const booking of bookings) {
-    for (const allocation of booking.allocations ?? []) {
+    if (booking.status !== 'confirmed') {
+      continue;
+    }
+
+    for (const allocation of booking.allocations) {
       const currentReservedSeats =
         reservedSeatsByTable.get(allocation.tableId) ?? 0;
 
       reservedSeatsByTable.set(
         allocation.tableId,
-        currentReservedSeats + allocation.seatsReserved,
+        currentReservedSeats + allocation.seatsReserved
       );
     }
   }
 
   return tables.map((table) => {
     const reservedSeats = reservedSeatsByTable.get(table.id) ?? 0;
-    const availableSeats =
-      table.isActive && reservedSeats === 0
-        ? table.seatCount
-        : 0;
+    const isReserved = reservedSeatsByTable.has(table.id);
+
     return {
       ...table,
       reservedSeats,
-      availableSeats,
+      availableSeats:
+        table.isActive && !isReserved ? table.seatCount : 0,
     };
   });
 }
 
-/* SERVICE FUNCTIONS */
+/* READ */
 
 /**
  * Returns availability for a date and slot.
  * Returns null if the slot is missing or inactive.
+ * Availability is informative and does not reserve tables.
  *
- * @param {string} bookingDate - Booking date in YYYY-MM-DD format.
+ * @param {string} bookingDate - Format: YYYY-MM-DD.
  * @param {number} slotId
  * @returns {Promise<MealSlotAvailabilityDTO | null>}
  */
 export async function getMealSlotAvailability(bookingDate, slotId) {
+  validateBookingSelection(bookingDate, slotId);
+
   const mealSlots = await getMealSlots();
   const mealSlot = mealSlots.find((slot) => slot.id === slotId);
 
@@ -75,8 +141,15 @@ export async function getMealSlotAvailability(bookingDate, slotId) {
     return null;
   }
 
-  const bookings = await getBookingsByDateAndSlot(bookingDate, slotId);
-  const tables = calculateAvailableTables(slotCapacity.tables, bookings);
+  const bookings = await getBookingsByDateAndSlot(
+    bookingDate,
+    slotId
+  );
+
+  const tables = calculateAvailableTables(
+    slotCapacity.tables,
+    bookings
+  );
 
   return {
     bookingDate,
@@ -87,70 +160,46 @@ export async function getMealSlotAvailability(bookingDate, slotId) {
     tables,
     totalAvailableSeats: tables.reduce(
       (total, table) => total + table.availableSeats,
-      0,
+      0
     ),
   };
 }
 
+/* CREATE */
+
 /**
- * Proposes allocations using tables with the most free seats first.
- * Returns null if capacity is insufficient. Does not persist reservations.
+ * Validates the input and delegates atomic booking creation to the DAO.
  *
- * @param {number} partySize - Positive integer.
- * @param {Array<Pick<DiningTableAvailabilityDTO, 'id' | 'isActive' | 'availableSeats'>>} availableTables
- * @returns {BookingTableAllocationDTO[] | null}
- * @throws {Error} If partySize is not a positive integer.
- * @throws {TypeError} If availableTables is not an array.
+ * @param {CreateBookingRequestDTO & { hikerId: number }} bookingData
+ * @returns {Promise<BookingDTO>}
  */
-export function allocateTablesForParty(partySize, availableTables) {
-  if (!Number.isInteger(partySize) || partySize <= 0) {
-    throw new Error('Party size must be a positive integer.');
-  }
+export async function createBookingForHiker({
+  hikerId,
+  bookingDate,
+  slotId,
+  partySize,
+}) {
+  validateBookingSelection(bookingDate, slotId);
 
-  if (!Array.isArray(availableTables)) {
-    throw new TypeError('Available tables must be provided as an array.');
-  }
-
-  const candidateTables = availableTables
-    .filter(
-      (table) =>
-        table.isActive &&
-        Number.isFinite(table.availableSeats) &&
-        table.availableSeats > 0,
-    )
-    .sort(
-      (firstTable, secondTable) =>
-        secondTable.availableSeats - firstTable.availableSeats ||
-        firstTable.id - secondTable.id,
+  if (!Number.isSafeInteger(hikerId) || hikerId <= 0) {
+    throw new BookingError(
+      'INVALID_BOOKING',
+      'A valid hiker ID is required.'
     );
-
-  const totalAvailableSeats = candidateTables.reduce(
-    (total, table) => total + table.availableSeats,
-    0,
-  );
-
-  if (totalAvailableSeats < partySize) {
-    return null;
   }
 
-  /** @type {BookingTableAllocationDTO[]} */
-  const allocations = [];
-  let remainingSeats = partySize;
-
-  for (const table of candidateTables) {
-    if (remainingSeats === 0) {
-      break;
-    }
-
-    const seatsReserved = Math.min(table.availableSeats, remainingSeats);
-
-    allocations.push({
-      tableId: table.id,
-      seatsReserved,
-    });
-
-    remainingSeats -= seatsReserved;
+  if (!Number.isSafeInteger(partySize) || partySize <= 0) {
+    throw new BookingError(
+      'INVALID_PARTY_SIZE',
+      'Party size must be a positive integer.'
+    );
   }
 
-  return allocations;
+  // Calls createBooking imported from the DAO.
+  return createBooking({
+    hikerId,
+    bookingDate,
+    slotId,
+    partySize,
+  });
 }

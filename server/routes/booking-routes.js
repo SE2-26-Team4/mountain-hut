@@ -1,10 +1,8 @@
 /*
- * TODO: Booking service integration.
- * GET /bookings/availability: after validating the query parameters, call
- * getMealSlotAvailability(bookingDate, slotId) and return the availability.
- * POST /bookings: after authentication and input validation, call
- * getMealSlotAvailability(bookingDate, slotId), then
- * allocateTablesForParty(partySize, availability.tables).
- * Return 404 if the slot is missing/inactive, or 409 if allocation fails.
- * Otherwise, pass the allocations and authenticated hiker ID to createBooking.
+ * Booking API routes.
+ * GET /bookings/availability: return availability for a date and slot.
+ * POST /bookings: require the hiker role and use the authenticated user ID.
+ * Delegate input validation to the booking service.
+ * The booking DAO checks availability and allocates tables atomically.
+ * Map application errors to the corresponding HTTP responses.
  */
