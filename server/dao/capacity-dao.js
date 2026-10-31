@@ -27,6 +27,23 @@ import {
  * }} DiningTableRow
  */
 
+/* ERRORS */
+
+/**
+ * Thrown when a table assignment references dining tables that do not exist.
+ */
+export class DiningTablesNotFoundError extends Error {
+  /**
+   * @param {number[]} missingTableIds
+   */
+  constructor(missingTableIds) {
+    super('One or more dining tables were not found.');
+
+    this.name = 'DiningTablesNotFoundError';
+    this.missingTableIds = missingTableIds;
+  }
+}
+
 /* HELPERS */
 
 /**
@@ -343,16 +360,22 @@ export async function updateDiningTable(
 /**
  * Replaces all table assignments in a single transaction.
  * An empty list clears the assignments; duplicate IDs are ignored.
+ * Inactive tables can be assigned, but do not contribute to capacity.
+ * Returns null if the slot does not exist.
  *
  * @param {number} slotId
  * @param {number[]} tableIds
  * @returns {Promise<MealSlotCapacityDTO | null>}
- * @throws {TypeError} If tableIds is not an array.
- * @throws {Error} If a requested table does not exist.
+ * @throws {TypeError} If tableIds is not an array of integers.
+ * @throws {DiningTablesNotFoundError} If a requested table does not exist.
  */
 export async function setMealSlotTables(slotId, tableIds) {
-  if (!Array.isArray(tableIds)) {
-    throw new TypeError('Table IDs must be provided as an array.');
+  // SQLite would bind true as 1 and match '1' to table 1, so reject non-integers.
+  if (
+    !Array.isArray(tableIds)
+    || !tableIds.every((tableId) => Number.isInteger(tableId))
+  ) {
+    throw new TypeError('Table IDs must be provided as an array of integers.');
   }
 
   const uniqueTableIds = [...new Set(tableIds)];
@@ -367,8 +390,11 @@ export async function setMealSlotTables(slotId, tableIds) {
       return null;
     }
 
+    // Validate every table before changing the existing assignments.
     if (uniqueTableIds.length > 0) {
       const placeholders = uniqueTableIds.map(() => '?').join(', ');
+
+      /** @type {{ id: number }[]} */
       const existingTables = await allAsync(
         `SELECT id
          FROM dining_tables
@@ -376,8 +402,16 @@ export async function setMealSlotTables(slotId, tableIds) {
         uniqueTableIds,
       );
 
-      if (existingTables.length !== uniqueTableIds.length) {
-        throw new Error('One or more dining tables were not found.');
+      const existingTableIds = new Set(
+        existingTables.map((table) => table.id),
+      );
+
+      const missingTableIds = uniqueTableIds.filter(
+        (tableId) => !existingTableIds.has(tableId),
+      );
+
+      if (missingTableIds.length > 0) {
+        throw new DiningTablesNotFoundError(missingTableIds);
       }
     }
 
