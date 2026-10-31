@@ -48,4 +48,35 @@ describe('staff-only capacity access', () => {
       expect(response.body).toEqual({ access: 'granted' });
     },
   );
+
+  it('rejects requests when the authentication function is missing', async () => {
+    const testApp = express();
+
+    testApp.get('/api/capacity', requireStaff, (_req, res) => {
+      res.json({ access: 'granted' });
+    });
+
+    const response = await request(testApp).get('/api/capacity');
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('UNAUTHENTICATED');
+  });
+
+  it('rejects authenticated requests without a user', async () => {
+    const testApp = express();
+
+    testApp.use((req, _res, next) => {
+      req.isAuthenticated = () => true;
+      next();
+    });
+
+    testApp.get('/api/capacity', requireStaff, (_req, res) => {
+      res.json({ access: 'granted' });
+    });
+
+    const response = await request(testApp).get('/api/capacity');
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('UNAUTHENTICATED');
+  });
 });

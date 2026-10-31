@@ -4,6 +4,7 @@ import {
   createBooking,
   getBookingById,
   getBookingsByHiker,
+  getBookingsByDateAndSlot,
   cancelBooking,
 } from '../../dao/booking-dao.js';
 
@@ -20,6 +21,7 @@ describe('Booking DAO & Transaction Support (MH-43)', () => {
     await runAsync('DELETE FROM booking_table_allocations');
     await runAsync('DELETE FROM bookings');
     await runAsync('DELETE FROM users');
+    await runAsync('DELETE FROM slot_tables');
     await runAsync('DELETE FROM meal_slots');
     await runAsync('DELETE FROM dining_tables');
 
@@ -123,5 +125,84 @@ describe('Booking DAO & Transaction Support (MH-43)', () => {
     const booking = await getBookingById(999999);
 
     expect(booking).toBeNull();
+  });
+
+  it('retrieves only confirmed bookings for the requested date and slot', async () => {
+    const bookingDate = '2026-11-15';
+
+    const confirmed = await createBooking(
+      {
+        hikerId: testHikerId,
+        bookingDate,
+        slotId: testSlotId,
+        partySize: 2,
+      },
+      [{ tableId: testTableId, seatsReserved: 2 }]
+    );
+
+    const cancelled = await createBooking(
+      {
+        hikerId: testHikerId,
+        bookingDate,
+        slotId: testSlotId,
+        partySize: 1,
+      },
+      [{ tableId: testTableId, seatsReserved: 1 }]
+    );
+
+    await cancelBooking(cancelled.id);
+
+    await createBooking(
+      {
+        hikerId: testHikerId,
+        bookingDate: '2026-11-16',
+        slotId: testSlotId,
+        partySize: 1,
+      },
+      [{ tableId: testTableId, seatsReserved: 1 }]
+    );
+
+    const otherSlot = await runAsync(
+      `INSERT INTO meal_slots (name, start_time, end_time)
+      VALUES ('Dinner Slot', '18:00', '20:00')`
+    );
+
+    await createBooking(
+      {
+        hikerId: testHikerId,
+        bookingDate,
+        slotId: otherSlot.lastID,
+        partySize: 1,
+      },
+      [{ tableId: testTableId, seatsReserved: 1 }]
+    );
+
+    const bookings = await getBookingsByDateAndSlot(
+      bookingDate,
+      testSlotId
+    );
+
+    expect(bookings).toEqual([
+      {
+        id: confirmed.id,
+        hikerId: testHikerId,
+        bookingDate,
+        slotId: testSlotId,
+        partySize: 2,
+        status: 'confirmed',
+        allocations: [
+          { tableId: testTableId, seatsReserved: 2 },
+        ],
+      },
+    ]);
+  });
+
+  it('returns an empty array when no bookings match the date and slot', async () => {
+    const bookings = await getBookingsByDateAndSlot(
+      '2026-11-15',
+      testSlotId
+    );
+
+    expect(bookings).toEqual([]);
   });
 });
