@@ -7,6 +7,7 @@ import session from 'express-session';
 
 import passport from './config/passport.js';
 import authRoutes from './routes/auth-routes.js';
+import capacityRoutes from './routes/capacity-routes.js';
 
 const app = express();
 
@@ -62,6 +63,10 @@ app.get('/api/health', (_req, res) => {
 /* AUTHENTICATION ROUTES */
 
 app.use('/api', authRoutes);
+
+/* MEAL-SLOT AND CAPACITY ROUTES */
+
+app.use('/api', capacityRoutes);
 
 /* ROOT ROUTE */
 
