@@ -371,6 +371,7 @@ describe('slot-table assignment and capacity aggregation', () => {
     );
 
     await expect(failedAssignment).rejects.toMatchObject({
+      code: 'DINING_TABLES_NOT_FOUND',
       message: 'One or more dining tables were not found.',
       missingTableIds: [missingTableId],
     });

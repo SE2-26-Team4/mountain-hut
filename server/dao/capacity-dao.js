@@ -22,6 +22,8 @@ import { withTransaction } from '../db.js';
 
 /**
  * Thrown when a table assignment references dining tables that do not exist.
+ * The slot exists, so the API should treat this as invalid input (400),
+ * not as a missing meal slot (404).
  */
 export class DiningTablesNotFoundError extends Error {
   /**
@@ -31,6 +33,7 @@ export class DiningTablesNotFoundError extends Error {
     super('One or more dining tables were not found.');
 
     this.name = 'DiningTablesNotFoundError';
+    this.code = 'DINING_TABLES_NOT_FOUND';
     this.missingTableIds = missingTableIds;
   }
 }
