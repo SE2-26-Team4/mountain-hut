@@ -24,6 +24,15 @@ beforeEach(() => {
 
   mocks.runAsync.mockResolvedValue({ lastID: 1 });
   mocks.getAsync.mockResolvedValue(undefined);
+
+  // callback with the transaction's query helpers.
+  mocks.withTransaction.mockImplementation(async (callback) =>
+    callback({
+      runAsync: mocks.runAsync,
+      getAsync: mocks.getAsync,
+      allAsync: mocks.allAsync,
+    })
+  );
 });
 
 describe('capacity DAO missing records after insertion', () => {
