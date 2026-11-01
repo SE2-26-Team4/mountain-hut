@@ -294,7 +294,11 @@ describe('meal-slot and capacity API', () => {
       .send({ tableIds: [999999] });
 
     expect(response.status).toBe(400);
-    expect(response.body.error.code).toBe('INVALID_INPUT');
+    expect(response.body.error).toEqual({
+      code: 'INVALID_INPUT',
+      message: 'One or more dining tables were not found.',
+      missingTableIds: [999999],
+    });
   });
 
   it('returns not found for an unknown meal slot capacity', async () => {
@@ -441,6 +445,7 @@ describe('capacity API edge cases', () => {
     const url = `/api/capacity/meal-slots/${activeSlotId}`;
     const response = await employeeAgent.put(`${url}/tables`).send({ tableIds: [tableId, 999999] });
     expect(response.status).toBe(400);
+    expect(response.body.error.missingTableIds).toEqual([999999]);
     const saved = await employeeAgent.get(url);
     expect(saved.body.capacity.tables.map((table) => table.id)).toEqual([tableId]);
   });
