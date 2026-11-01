@@ -3,6 +3,7 @@ import express from 'express';
 import {
   createDiningTable,
   createMealSlot,
+  DiningTablesNotFoundError,
   getDiningTables,
   getMealSlotCapacity,
   getMealSlots,
@@ -314,11 +315,15 @@ router.put(
 
       return res.json({ capacity });
     } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message === 'One or more dining tables were not found.'
-      ) {
-        return sendValidationError(res, error);
+      // The slot exists, so unknown tables are invalid input rather than 404.
+      if (error instanceof DiningTablesNotFoundError) {
+        return res.status(400).json({
+          error: {
+            code: 'INVALID_INPUT',
+            message: error.message,
+            missingTableIds: error.missingTableIds,
+          },
+        });
       }
 
       throw error;
