@@ -1,4 +1,5 @@
 import { useAuthLogic } from './hooks/useAuthLogic';
+import { Link, Route, Routes } from 'react-router-dom';
 
 function App() {
   const { user, loading, logout } = useAuthLogic();
@@ -12,20 +13,28 @@ function App() {
   }
 
   return (
-    <main>
-      <h1>Mountain Hut</h1>
-      {user ? (
-        <div>
-          <p>
-            Welcome, <strong>{user.full_name}</strong> ({user.role})
-          </p>
-          <button onClick={logout}>Logout</button>
-        </div>
-      ) : (
-        <p>No active session. Please log in.</p>
-      )}
-    </main>
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <main>
+            <h1>Mountain Hut</h1>
+            <p>Frontend is up and running.</p>
+          </main>
+        }
+      />
+
+      <Route
+        path="*"
+        element={
+          <main>
+            <h1>Page not found</h1>
+            <Link to="/">Return to home</Link>
+          </main>
+        }
+      />
+    </Routes>
   );
 }
 
-export default App
+export default App;

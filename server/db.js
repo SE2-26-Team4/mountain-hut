@@ -4,9 +4,19 @@ import { fileURLToPath } from 'node:url';
 
 import sqlite3 from 'sqlite3';
 
-/* DATABASE CONFIGURATION */
+/**
+ * @typedef {string | number | null | Buffer} SqlValue
+ */
 
-// [Database initialization and initial schema]: Resolve the SQLite database and schema paths.
+/**
+ * Query helpers available inside a transaction.
+ *
+ * @typedef {Object} TransactionQueries
+ * @property {typeof runAsync} runAsync
+ * @property {typeof getAsync} getAsync
+ * @property {typeof allAsync} allAsync
+ */
+
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 
 const defaultDatabaseFile =
@@ -14,20 +24,22 @@ const defaultDatabaseFile =
     ? 'mountain-hut-test.sqlite'
     : 'mountain-hut.sqlite';
 
-// [Database initialization and initial schema]: Allow Docker to configure a persistent database path.
+// Docker can override the path to use persistent storage.
 const databasePath =
   process.env.DB_PATH ?? path.join(currentDirectory, defaultDatabaseFile);
 
-// [Database initialization and initial schema]: Create the SQLite directory if it does not exist.
 fs.mkdirSync(path.dirname(databasePath), { recursive: true });
 
-// [Database initialization and initial schema]: Open the SQLite database.
 const schemaPath = path.join(currentDirectory, 'mountain-hut-schema.sql');
 const database = new sqlite3.Database(databasePath);
 
-/* DATABASE QUERY HELPERS */
-
-// [Database initialization and initial schema]: Execute an SQL statement with parameters.
+/**
+ * Executes a statement and returns its insertion/update metadata.
+ *
+ * @param {string} sql
+ * @param {SqlValue[]} [parameters]
+ * @returns {Promise<import('sqlite3').RunResult>}
+ */
 export function runAsync(sql, parameters = []) {
   return new Promise((resolve, reject) => {
     database.run(sql, parameters, function (error) {
@@ -41,7 +53,14 @@ export function runAsync(sql, parameters = []) {
   });
 }
 
-// [Database initialization and initial schema]: Retrieve multiple database records.
+/**
+ * Returns all matching rows, or an empty array.
+ * Row structure depends on the query and is described by the caller.
+ *
+ * @param {string} sql
+ * @param {SqlValue[]} [parameters]
+ * @returns {Promise<any[]>}
+ */
 export function allAsync(sql, parameters = []) {
   return new Promise((resolve, reject) => {
     database.all(sql, parameters, (error, rows) => {
@@ -55,7 +74,14 @@ export function allAsync(sql, parameters = []) {
   });
 }
 
-// [Minimal login setup (backend)]: Look up a single database record for authentication.
+/**
+ * Returns the first matching row, or undefined.
+ * Row structure depends on the query and is described by the caller.
+ *
+ * @param {string} sql
+ * @param {SqlValue[]} [parameters]
+ * @returns {Promise<any>}
+ */
 export function getAsync(sql, parameters = []) {
   return new Promise((resolve, reject) => {
     database.get(sql, parameters, (error, row) => {
@@ -69,7 +95,12 @@ export function getAsync(sql, parameters = []) {
   });
 }
 
-// [Database initialization and initial schema]: Execute multiple SQL statements.
+/**
+ * Executes SQL statements without returning rows.
+ *
+ * @param {string} sql
+ * @returns {Promise<void>}
+ */
 function execAsync(sql) {
   return new Promise((resolve, reject) => {
     database.exec(sql, (error) => {
@@ -83,11 +114,16 @@ function execAsync(sql) {
   });
 }
 
-/* DATABASE TRANSACTIONS */
-
 let transactionQueue = Promise.resolve();
 
-// [Booking data access and transaction support]: Run a group of database operations atomically.
+/**
+ * Runs a callback within a transaction.
+ * Queues transactions on this connection and rolls back on failure.
+ *
+ * @template T
+ * @param {(queries: TransactionQueries) => T | Promise<T>} callback
+ * @returns {Promise<T>}
+ */
 export function withTransaction(callback) {
   const operation = transactionQueue.then(async () => {
     await execAsync('BEGIN IMMEDIATE');
@@ -109,7 +145,6 @@ export function withTransaction(callback) {
     }
   });
 
-  // [Booking data access and transaction support]: Keep transactions sequential even after failures.
   transactionQueue = operation.then(
     () => undefined,
     () => undefined,
@@ -118,11 +153,13 @@ export function withTransaction(callback) {
   return operation;
 }
 
-/* DATABASE INITIALIZATION */
-
-// [Database initialization and initial schema]: Initialize the Mountain Hut database before accepting requests.
+/**
+ * Creates the schema for an empty database.
+ * Rejects a database containing only part of the expected table set.
+ *
+ * @returns {Promise<void>}
+ */
 export async function initializeDatabase() {
-  // [Database initialization and initial schema]: Enable SQLite foreign key constraints.
   await runAsync('PRAGMA foreign_keys = ON');
 
   const expectedTables = [
@@ -134,7 +171,6 @@ export async function initializeDatabase() {
     'booking_table_allocations',
   ];
 
-  // [Database initialization and initial schema]: Check whether the expected tables already exist.
   const placeholders = expectedTables.map(() => '?').join(', ');
 
   const existingTables = await allAsync(
@@ -145,7 +181,6 @@ export async function initializeDatabase() {
     expectedTables,
   );
 
-  // [Database initialization and initial schema]: Create the schema when the database is empty.
   if (existingTables.length === 0) {
     if (!fs.existsSync(schemaPath)) {
       throw new Error(`Database schema file not found: ${schemaPath}`);
@@ -159,7 +194,6 @@ export async function initializeDatabase() {
     return;
   }
 
-  // [Database initialization and initial schema]: Reject incomplete schemas to avoid inconsistent data.
   if (existingTables.length !== expectedTables.length) {
     throw new Error(
       `Database schema is incomplete. Found ${existingTables.length} of ${expectedTables.length} expected tables.`,

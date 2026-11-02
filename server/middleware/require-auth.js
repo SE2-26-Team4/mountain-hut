@@ -1,4 +1,10 @@
-// [Minimal login setup (backend)]: Require an authenticated user for protected routes.
+/**
+ * Requires an authenticated session before continuing.
+ *
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ */
 export function requireAuth(req, res, next) {
   if (req.isAuthenticated()) {
     return next();
