@@ -1,6 +1,17 @@
+import { useAuthLogic } from './hooks/useAuthLogic';
 import { Link, Route, Routes } from 'react-router-dom';
 
 function App() {
+  const { user, loading, logout } = useAuthLogic();
+
+  if (loading) {
+    return (
+      <main>
+        <p>Loading session...</p>
+      </main>
+    );
+  }
+
   return (
     <Routes>
       <Route
