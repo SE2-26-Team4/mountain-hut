@@ -87,7 +87,7 @@ beforeAll(async () => {
 
     const agent = request.agent(app);
     const staffLoginResponse = await agent
-      .post('/api/sessions')
+      .post('/api/staff/sessions')
       .send({ email: staffEmail, password });
 
     expect(staffLoginResponse.status).toBe(201);

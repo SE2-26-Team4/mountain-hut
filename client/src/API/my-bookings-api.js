@@ -11,12 +11,12 @@ const API_URL = (
  * @returns {Promise<BookingDTO[]>}
  */
 export async function getMyBookings(signal) {
-  const response = await fetch(`${API_URL}/bookings/mine`, {
+  const response = await fetch(`${API_URL}/bookings`, {
     credentials: 'include',
     signal,
   });
 
-  const data = await response.json();
+  const data = await response.json().catch(() => null);
 
   if (!response.ok) {
     throw new Error(
