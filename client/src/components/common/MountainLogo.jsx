@@ -1,29 +1,27 @@
-/**
- * Mountain Hut brand mark with its wordmark.
- *
- * @param {{ stacked?: boolean, className?: string }} props
- */
-export default function MountainLogo({ stacked = false, className = '' }) {
-  const classes = ['mountain-logo', stacked ? 'mountain-logo--stacked' : '', className]
-    .filter(Boolean)
-    .join(' ');
-
+function MountainLogo() {
   return (
-    <span className={classes}>
-      <svg
-        className="mountain-logo__mark"
-        viewBox="0 0 48 32"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="3"
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 120 70"
+      width="60"
+      height="35"
+      fill="none"
+      role="img"
+      aria-label="Mountain Hut"
+    >
+      <path
+        d="M8 59 35 20 62 59M32 59 61 9 91 59M61 59 86 25 112 59"
+        stroke="#f06b28"
+        strokeWidth="4"
         strokeLinecap="round"
         strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M3 29 17 7l9 13 6-8 13 17" />
-        <path d="m12 15 5 4 4-3" />
-      </svg>
-      <span className="mountain-logo__text">Mountain Hut</span>
-    </span>
+      />
+      <path
+        d="m49 30 12-21 13 22-13-6-7 8-5-3Z"
+        fill="#f06b28"
+      />
+    </svg>
   );
 }
+
+export default MountainLogo;
