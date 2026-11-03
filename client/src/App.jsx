@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Alert } from 'react-bootstrap';
-import { Link, Route, Routes } from 'react-router-dom';
+import { Link, Route, Routes, useLocation } from 'react-router-dom';
 
 import { AuthProvider } from './contexts/AuthContext.jsx';
 import { useAuthLogic } from './hooks/useAuthLogic.js';
@@ -9,6 +9,7 @@ import MenuPage from './pages/MenuPage.jsx';
 import StaffLoginPage from './pages/StaffLoginPage.jsx';
 import StaffCapacityPage from './pages/StaffCapacityPage.jsx';
 import MyBookingsPage from './pages/MyBookingsPage.jsx';
+import StaffAccessNotice from './components/auth/StaffAccessNotice.jsx';
 
 /**
  * @param {Object} props
@@ -39,6 +40,20 @@ function AuthFeedback({ message, onClose }) {
 function App() {
   const auth = useAuthLogic();
 
+  const { pathname } = useLocation();
+
+  const isStaff =
+    auth.user?.role === 'employee' ||
+    auth.user?.role === 'warden';
+
+  const isStaffPage =
+    pathname === '/staff/capacity' ||
+    pathname === '/staff/login';
+
+  if (auth.isLoading) {
+    return <main role="status">Loading Mountain Hut…</main>;
+  }
+
   return (
     <AuthProvider value={auth}>
       {auth.feedbackMessage && (
@@ -48,6 +63,9 @@ function App() {
         />
       )}
 
+      {isStaff && !isStaffPage ? (
+        <StaffAccessNotice />
+      ) : (
       <Routes>
         <Route path="/" element={<HomePage />} />
 
@@ -70,6 +88,7 @@ function App() {
           }
         />
       </Routes>
+      )}
     </AuthProvider>
   );
 }
