@@ -480,3 +480,123 @@ describe('capacity API edge cases', () => {
     },
   );
 });
+
+// Names identify slots and tables for staff and hikers, so they must be unique.
+describe('capacity API name conflicts', () => {
+  it('rejects a duplicate meal-slot name on creation, ignoring letter case', async () => {
+    const name = `Conflict API slot ${uniqueSuffix}`;
+
+    const created = await employeeAgent
+      .post('/api/capacity/meal-slots')
+      .send({ name, startTime: '07:00', endTime: '08:00' });
+
+    expect(created.status).toBe(201);
+    createdSlotIds.push(created.body.mealSlot.id);
+
+    for (const duplicateName of [name, name.toUpperCase()]) {
+      const response = await employeeAgent
+        .post('/api/capacity/meal-slots')
+        .send({ name: duplicateName, startTime: '08:00', endTime: '09:00' });
+
+      expect(response.status).toBe(409);
+      expect(response.body.error).toEqual({
+        code: 'DUPLICATE_NAME',
+        message: `A meal slot named "${duplicateName}" already exists.`,
+      });
+    }
+  });
+
+  it('rejects renaming a meal slot to a name used by another slot', async () => {
+    const taken = await employeeAgent
+      .post('/api/capacity/meal-slots')
+      .send({ name: `Taken API slot ${uniqueSuffix}`, startTime: '09:00', endTime: '10:00' });
+    const renamed = await employeeAgent
+      .post('/api/capacity/meal-slots')
+      .send({ name: `Renamed API slot ${uniqueSuffix}`, startTime: '10:00', endTime: '11:00' });
+
+    createdSlotIds.push(taken.body.mealSlot.id, renamed.body.mealSlot.id);
+
+    const response = await employeeAgent
+      .put(`/api/capacity/meal-slots/${renamed.body.mealSlot.id}`)
+      .send({
+        name: `Taken API slot ${uniqueSuffix}`,
+        startTime: '10:00',
+        endTime: '11:00',
+        isActive: true,
+      });
+
+    expect(response.status).toBe(409);
+    expect(response.body.error.code).toBe('DUPLICATE_NAME');
+
+    const capacity = await employeeAgent.get('/api/capacity');
+    expect(capacity.body.mealSlots).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: renamed.body.mealSlot.id,
+        name: `Renamed API slot ${uniqueSuffix}`,
+      }),
+    ]));
+  });
+
+  it('lets a meal slot keep its own name or change its letter case', async () => {
+    const name = `Own name API slot ${uniqueSuffix}`;
+    const created = await employeeAgent
+      .post('/api/capacity/meal-slots')
+      .send({ name, startTime: '11:00', endTime: '12:00' });
+
+    createdSlotIds.push(created.body.mealSlot.id);
+
+    for (const sameName of [name, name.toUpperCase()]) {
+      const response = await employeeAgent
+        .put(`/api/capacity/meal-slots/${created.body.mealSlot.id}`)
+        .send({ name: sameName, startTime: '11:00', endTime: '12:30', isActive: true });
+
+      expect(response.status).toBe(200);
+      expect(response.body.mealSlot.name).toBe(sameName);
+    }
+  });
+
+  it('rejects duplicate dining-table names on creation and update', async () => {
+    const name = `Conflict API table ${uniqueSuffix}`;
+
+    const created = await wardenAgent
+      .post('/api/capacity/dining-tables')
+      .send({ name, seatCount: 4 });
+    const other = await wardenAgent
+      .post('/api/capacity/dining-tables')
+      .send({ name: `Other API table ${uniqueSuffix}`, seatCount: 2 });
+
+    createdTableIds.push(created.body.diningTable.id, other.body.diningTable.id);
+
+    const duplicateCreate = await wardenAgent
+      .post('/api/capacity/dining-tables')
+      .send({ name: name.toLowerCase(), seatCount: 6 });
+
+    expect(duplicateCreate.status).toBe(409);
+    expect(duplicateCreate.body.error).toEqual({
+      code: 'DUPLICATE_NAME',
+      message: `A dining table named "${name.toLowerCase()}" already exists.`,
+    });
+
+    const duplicateUpdate = await wardenAgent
+      .put(`/api/capacity/dining-tables/${other.body.diningTable.id}`)
+      .send({ name, seatCount: 2, isActive: true });
+
+    expect(duplicateUpdate.status).toBe(409);
+    expect(duplicateUpdate.body.error.code).toBe('DUPLICATE_NAME');
+  });
+
+  it('reports a missing record before a name conflict', async () => {
+    const existing = await employeeAgent
+      .post('/api/capacity/dining-tables')
+      .send({ name: `Existing API table ${uniqueSuffix}`, seatCount: 2 });
+
+    createdTableIds.push(existing.body.diningTable.id);
+
+    const response = await employeeAgent
+      .put('/api/capacity/dining-tables/999999')
+      .send({ name: `Existing API table ${uniqueSuffix}`, seatCount: 2, isActive: true });
+
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe('NOT_FOUND');
+  });
+});
