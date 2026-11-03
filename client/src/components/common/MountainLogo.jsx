@@ -12,9 +12,9 @@ function MountainLogo() {
       <path
         d="M8 59 35 20 62 59M32 59 61 9 91 59M61 59 86 25 112 59"
         stroke="#f06b28"
-        stroke-width="4"
-        stroke-linecap="round"
-        stroke-linejoin="round"
+        strokeWidth="4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
       <path
         d="m49 30 12-21 13 22-13-6-7 8-5-3Z"
