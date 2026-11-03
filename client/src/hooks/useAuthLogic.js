@@ -1,53 +1,121 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
-export function useAuthLogic() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+import API, { SessionApiError } from '../API/session-api.js';
+
+/**
+ * @typedef {import('../API/session-api.js').SessionUser} SessionUser
+ * @typedef {import('../API/session-api.js').LoginCredentials} LoginCredentials
+ */
+
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function getErrorMessage(error) {
+  return error instanceof Error
+    ? error.message
+    : 'An unexpected error occurred.';
+}
+
+function useAuthLogic() {
+  const [user, setUser] = useState(
+    /** @type {SessionUser | null} */ (null),
+  );
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [feedbackMessage, setFeedbackMessage] = useState('');
 
   useEffect(() => {
-    async function restoreSession() {
-      try {
-        const response = await fetch('/api/sessions/current', {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-        });
+    let isMounted = true;
 
-        if (response.ok) {
-          const data = await response.json();
-          setUser(data.user);
-        } else {
-          setUser(null);
+    API.getUserInfo()
+      .then((currentUser) => {
+        if (isMounted) {
+          setUser(currentUser);
         }
-      } catch (err) {
-        setError(err.message);
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    }
+      })
+      .catch((error) => {
+        if (!isMounted) return;
 
-    restoreSession();
-  }, []);
+        if (error instanceof SessionApiError && error.status === 401) {
+          return;
+        }
 
-  const logout = async () => {
-    try {
-      const response = await fetch('/api/sessions/current', {
-        method: 'DELETE',
-        credentials: 'include',
+        setErrorMessage(
+          'We could not restore your session. Please try signing in.',
+        );
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       });
 
-      if (response.ok || response.status === 204) {
-        setUser(null);
-      } else {
-        throw new Error('Logout failed on server');
-      }
-    } catch (err) {
-      console.error('Error during logout:', err);
-      throw err;
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  /**
+   * @param {LoginCredentials} credentials
+   * @param {'hiker' | 'staff'} [area]
+   * @returns {Promise<boolean>}
+   */
+  const handleLogin = async (credentials, area = 'hiker') => {
+    setErrorMessage('');
+    setFeedbackMessage('');
+    setIsSubmitting(true);
+
+    try {
+      const authenticatedUser = await API.login(credentials, area);
+
+      setUser(authenticatedUser);
+      setFeedbackMessage('You are signed in.');
+
+      return true;
+    } catch (error) {
+      setErrorMessage(
+        error instanceof SessionApiError && error.status === 401
+          ? 'Email or password is incorrect. Please try again.'
+          : getErrorMessage(error),
+      );
+
+      return false;
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  return { user, setUser, loading, error, logout };
+  /** @returns {Promise<void>} */
+  const handleLogout = async () => {
+    setErrorMessage('');
+
+    try {
+      await API.logout();
+
+      setUser(null);
+      setFeedbackMessage('You have signed out successfully.');
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error));
+    }
+  };
+
+  const clearFeedbackMessage = () => {
+    setFeedbackMessage('');
+  };
+
+  return {
+    user,
+    isLoading,
+    isSubmitting,
+    errorMessage,
+    feedbackMessage,
+    clearFeedbackMessage,
+    handleLogin,
+    handleLogout,
+  };
 }
+
+export { useAuthLogic };

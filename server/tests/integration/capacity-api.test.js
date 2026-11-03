@@ -51,11 +51,11 @@ let wardenAgent;
 const createdSlotIds = [];
 const createdTableIds = [];
 
-async function loginAgent(email, password) {
+async function loginAgent(email, password, area = 'hiker') {
   const agent = request.agent(app);
 
   const response = await agent
-    .post('/api/sessions')
+    .post(area === 'staff' ? '/api/staff/sessions' : '/api/sessions')
     .send({ email, password });
 
   if (response.status !== 201) {
@@ -104,8 +104,8 @@ beforeAll(async () => {
   await setMealSlotTables(activeSlotId, [tableId]);
 
   hikerAgent = await loginAgent(hikerEmail, hikerPassword);
-  employeeAgent = await loginAgent(employeeEmail, employeePassword);
-  wardenAgent = await loginAgent(wardenEmail, wardenPassword);
+  employeeAgent = await loginAgent(employeeEmail, employeePassword, 'staff');
+  wardenAgent = await loginAgent(wardenEmail, wardenPassword, 'staff');
 });
 
 afterAll(async () => {
