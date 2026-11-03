@@ -29,14 +29,17 @@
   --mh-cream: #f7f8fa;
   --mh-muted: #788397;
   --mh-border: #dce3e9;
+  --mh-border-light: #e8eaf0;
   --mh-white-transparent: rgb(255 255 255 / 30%);
   --mh-header-height: 4.5rem;
   --mh-button-height: 3.4rem;
+  --mh-input-height: var(--mh-button-height);
   --mh-content-width: 90rem;
   --mh-page-padding: clamp(1.25rem, 4.5vw, 4rem);
   --mh-loading-height: 60vh;
   --mh-disabled-opacity: .65;
   --mh-focus-ring: 0 0 0 .2rem rgb(198 83 27 / 15%);
+  --mh-shadow-card: 0 16px 50px rgb(20 38 53 / 6%);
   --mh-transition: 160ms ease;
 
   /* Spacing, borders and geometry */
@@ -46,11 +49,14 @@
   --mh-space-4: 1rem;
   --mh-space-5: 1.25rem;
   --mh-space-6: 1.5rem;
+  --mh-space-8: 2rem;
   --mh-space-10: 2.5rem;
   --mh-space-16: 4rem;
   --mh-border-width: 1px;
   --mh-border-width-accent: 2px;
   --mh-svg-stroke-width: 2;
+  --mh-radius-md: .65rem;
+  --mh-radius-xl: 1.5rem;
   --mh-radius-pill: 999px;
   --mh-radius-circle: 50%;
 
@@ -129,6 +135,7 @@
   --mh-cap-size-11: 11px;
   --mh-cap-size-20: 20px;
   --mh-cap-size-18: 18px;
+  --mh-cap-size-19: 19px;
   --mh-cap-size-22: 22px;
   --mh-cap-size-32: 32px;
   --mh-cap-size-40: 40px;
@@ -307,10 +314,11 @@ a {
 }
 
 /* ==========================================================================
-   Bootstrap button theme — components/booking/BookingSearch.jsx
+   Bootstrap button theme — shared copper buttons, components/booking/
    ========================================================================== */
 
-.mh-dine-page .mh-booking-search .mh-booking-search-button {
+.mh-primary-button,
+.mh-booking-confirm-button {
   --bs-btn-bg: var(--mh-copper);
   --bs-btn-border-color: var(--mh-copper);
   --bs-btn-hover-bg: var(--mh-copper-hover);
@@ -323,6 +331,7 @@ a {
   --bs-btn-disabled-bg: var(--mh-copper);
   --bs-btn-disabled-border-color: var(--mh-copper);
   --bs-btn-disabled-color: var(--mh-white);
+  --bs-btn-focus-shadow-rgb: 198, 83, 27;
 }
 
 /* ==========================================================================

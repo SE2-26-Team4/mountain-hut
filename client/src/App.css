@@ -1160,24 +1160,6 @@
   align-items: center;
 }
 
-.mh-booking-search-button {
-  min-height: var(--mh-button-height);
-  padding: var(--mh-space-3) var(--mh-space-6);
-  border: var(--mh-border-width) solid var(--mh-copper);
-  border-radius: var(--mh-radius-pill);
-  background: var(--mh-copper);
-  color: var(--mh-white);
-  font-size: var(--mh-text-md);
-  font-weight: var(--mh-weight-medium);
-  transition: background var(--mh-transition);
-}
-
-.mh-booking-search-button:hover {
-  border-color: var(--mh-copper-hover);
-  background: var(--mh-copper-hover);
-  color: var(--mh-white);
-}
-
 .mh-booking-menu-link {
   font-size: var(--mh-text-sm);
 }
@@ -1198,6 +1180,19 @@
 .mh-dine-page .mh-booking-search {
   margin-bottom: 0;
   border-radius: var(--mh-dine-booking-radius);
+}
+
+/* ==========================================================================
+   Staff notice — pages/HomePage.jsx
+   ========================================================================== */
+
+.mh-booking-staff-notice {
+  padding: var(--mh-space-6);
+  border: var(--mh-border-width) solid var(--mh-border-light);
+  border-radius: var(--mh-dine-booking-radius);
+  background: var(--mh-white);
+  box-shadow: var(--mh-shadow-card);
+  color: var(--mh-muted);
 }
 
 /* ==========================================================================
