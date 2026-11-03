@@ -1,11 +1,21 @@
 import { randomUUID } from 'node:crypto';
 
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 
 import app from '../../app.js';
-import { initializeDatabase, runAsync } from '../../db.js';
+import { BookingError } from '../../dao/booking-dao.js';
+import { getAsync, initializeDatabase, runAsync } from '../../db.js';
 import { initializeAccounts } from '../../init/init-accounts.js';
+import * as BookingService from '../../services/booking-service.js';
 import { hashPassword } from '../../services/password.js';
 
 const password = 'BookingApiTest123!';
@@ -15,8 +25,12 @@ const uniqueSuffix = randomUUID();
 
 let hikerId;
 let slotId;
+let inactiveSlotId;
 let tableId;
 let hikerAgent;
+
+/** @type {Record<string, { id: number, agent: import('supertest').Agent }>} */
+const staffAccounts = {};
 
 beforeAll(async () => {
   await initializeDatabase();
@@ -37,6 +51,13 @@ beforeAll(async () => {
   );
   slotId = slot.lastID;
 
+  const inactiveSlot = await runAsync(
+    `INSERT INTO meal_slots (name, start_time, end_time, is_active)
+     VALUES (?, '12:00', '14:00', 0)`,
+    [`Booking API inactive slot ${uniqueSuffix}`],
+  );
+  inactiveSlotId = inactiveSlot.lastID;
+
   const table = await runAsync(
     `INSERT INTO dining_tables (name, seat_count)
      VALUES (?, 4)`,
@@ -55,6 +76,23 @@ beforeAll(async () => {
     .send({ email, password });
 
   expect(loginResponse.status).toBe(201);
+
+  for (const role of ['employee', 'warden']) {
+    const staffEmail = `booking-api-${role}-${uniqueSuffix}@example.com`;
+    const staffUser = await runAsync(
+      `INSERT INTO users (full_name, email, password_hash, role)
+       VALUES (?, ?, ?, ?)`,
+      [`Booking API ${role}`, staffEmail, passwordHash, role],
+    );
+
+    const agent = request.agent(app);
+    const staffLoginResponse = await agent
+      .post('/api/sessions')
+      .send({ email: staffEmail, password });
+
+    expect(staffLoginResponse.status).toBe(201);
+    staffAccounts[role] = { id: staffUser.lastID, agent };
+  }
 });
 
 afterAll(async () => {
@@ -66,8 +104,15 @@ afterAll(async () => {
   await runAsync('DELETE FROM bookings WHERE slot_id = ?', [slotId]);
   await runAsync('DELETE FROM slot_tables WHERE slot_id = ?', [slotId]);
   await runAsync('DELETE FROM dining_tables WHERE id = ?', [tableId]);
-  await runAsync('DELETE FROM meal_slots WHERE id = ?', [slotId]);
+  await runAsync('DELETE FROM meal_slots WHERE id IN (?, ?)', [
+    slotId,
+    inactiveSlotId,
+  ]);
   await runAsync('DELETE FROM users WHERE id = ?', [hikerId]);
+
+  for (const { id } of Object.values(staffAccounts)) {
+    await runAsync('DELETE FROM users WHERE id = ?', [id]);
+  }
 });
 
 describe('booking availability API', () => {
@@ -125,6 +170,51 @@ describe('booking management API', () => {
     expect(createResponse.body.error.code).toBe('UNAUTHENTICATED');
   });
 
+  it.each(['employee', 'warden'])(
+    'rejects booking creation by %s accounts',
+    async (role) => {
+      const { id, agent } = staffAccounts[role];
+
+      const response = await agent.post('/api/bookings').send({
+        bookingDate,
+        slotId,
+        partySize: 1,
+      });
+
+      expect(response.status).toBe(403);
+      expect(response.body.error.code).toBe('FORBIDDEN');
+
+      const saved = await getAsync(
+        'SELECT COUNT(*) AS count FROM bookings WHERE hiker_id = ?',
+        [id],
+      );
+
+      expect(saved.count).toBe(0);
+    },
+  );
+
+  it('returns 404 when booking an unknown meal slot', async () => {
+    const response = await hikerAgent.post('/api/bookings').send({
+      bookingDate,
+      slotId: 999999,
+      partySize: 1,
+    });
+
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe('SLOT_NOT_FOUND');
+  });
+
+  it('rejects a booking for an inactive meal slot', async () => {
+    const response = await hikerAgent.post('/api/bookings').send({
+      bookingDate,
+      slotId: inactiveSlotId,
+      partySize: 1,
+    });
+
+    expect(response.status).toBe(409);
+    expect(response.body.error.code).toBe('SLOT_INACTIVE');
+  });
+
   it.each([
     [{ bookingDate: 'invalid', slotId: 1, partySize: 1 }, 'INVALID_BOOKING'],
     [{ bookingDate, slotId: 1, partySize: 0 }, 'INVALID_PARTY_SIZE'],
@@ -174,7 +264,52 @@ describe('booking management API', () => {
   });
 });
 
+describe('booking API error handling', () => {
+  const validBooking = { bookingDate, slotId: 1, partySize: 1 };
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('returns 503 when the database is busy', async () => {
+    vi.spyOn(BookingService, 'createBookingForHiker').mockRejectedValueOnce(
+      Object.assign(new Error('SQLITE_BUSY: database is locked'), {
+        code: 'SQLITE_BUSY',
+      }),
+    );
+
+    const response = await hikerAgent
+      .post('/api/bookings')
+      .send(validBooking);
+
+    expect(response.status).toBe(503);
+    expect(response.body.error.code).toBe('DATABASE_BUSY');
+  });
+
+  it.each([
+    [
+      'an unknown booking error code',
+      new BookingError('UNKNOWN_CODE', 'Private booking detail'),
+    ],
+    ['an unexpected error', new Error('Private database detail')],
+  ])('returns a generic 500 response for %s', async (_label, error) => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(BookingService, 'createBookingForHiker').mockRejectedValueOnce(
+      error,
+    );
+
+    const response = await hikerAgent
+      .post('/api/bookings')
+      .send(validBooking);
+
+    expect(response.status).toBe(500);
+    expect(response.body.error).toEqual({
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'An unexpected error occurred.',
+    });
+    expect(response.text).not.toContain('Private');
+  });
+});
 
 describe('booking retrieval and cancellation API', () => {
   let createdBookingId;
