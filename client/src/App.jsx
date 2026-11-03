@@ -1,39 +1,76 @@
-import { useAuthLogic } from './hooks/useAuthLogic';
+import { useEffect } from 'react';
+import { Alert } from 'react-bootstrap';
 import { Link, Route, Routes } from 'react-router-dom';
 
-function App() {
-  const { user, loading, logout } = useAuthLogic();
+import { AuthProvider } from './contexts/AuthContext.jsx';
+import { useAuthLogic } from './hooks/useAuthLogic.js';
+import HomePage from './pages/HomePage.jsx';
+import MenuPage from './pages/MenuPage.jsx';
+import StaffLoginPage from './pages/StaffLoginPage.jsx';
+import StaffCapacityPage from './pages/StaffCapacityPage.jsx';
+import MyBookingsPage from './pages/MyBookingsPage.jsx';
 
-  if (loading) {
-    return (
-      <main>
-        <p>Loading session...</p>
-      </main>
-    );
-  }
+/**
+ * @param {Object} props
+ * @param {string} props.message
+ * @param {() => void} props.onClose
+ */
+function AuthFeedback({ message, onClose }) {
+  useEffect(() => {
+    const timer = window.setTimeout(onClose, 5000);
+
+    return () => window.clearTimeout(timer);
+  }, [message, onClose]);
 
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          <main>
-            <h1>Mountain Hut</h1>
-            <p>Frontend is up and running.</p>
-          </main>
-        }
-      />
+    <Alert
+      variant="success"
+      className="mh-floating-alert"
+      dismissible
+      closeLabel="Close notification"
+      onClose={onClose}
+      role="status"
+    >
+      {message}
+    </Alert>
+  );
+}
 
-      <Route
-        path="*"
-        element={
-          <main>
-            <h1>Page not found</h1>
-            <Link to="/">Return to home</Link>
-          </main>
-        }
-      />
-    </Routes>
+function App() {
+  const auth = useAuthLogic();
+
+  return (
+    <AuthProvider value={auth}>
+      {auth.feedbackMessage && (
+        <AuthFeedback
+          message={auth.feedbackMessage}
+          onClose={auth.clearFeedbackMessage}
+        />
+      )}
+
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+
+        <Route path="/menu" element={<MenuPage />} />
+
+        <Route path="/staff/login" element={<StaffLoginPage />} />
+
+        <Route path="/staff/capacity" element={<StaffCapacityPage />} />
+
+        <Route path="/my-bookings" element={<MyBookingsPage />} />
+
+        <Route
+          path="*"
+          element={
+            <main>
+              <h1>Page not found</h1>
+
+              <Link to="/">Return to home</Link>
+            </main>
+          }
+        />
+      </Routes>
+    </AuthProvider>
   );
 }
 
