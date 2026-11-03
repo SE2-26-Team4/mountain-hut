@@ -38,6 +38,23 @@ export class DiningTablesNotFoundError extends Error {
   }
 }
 
+/**
+ * Thrown when another meal slot or dining table already uses a name.
+ * The API should treat this as a conflict (409), not as a server error.
+ */
+export class DuplicateNameError extends Error {
+  /**
+   * @param {'meal slot' | 'dining table'} entity
+   * @param {string} name
+   */
+  constructor(entity, name) {
+    super(`A ${entity} named "${name}" already exists.`);
+
+    this.name = 'DuplicateNameError';
+    this.code = 'DUPLICATE_NAME';
+  }
+}
+
 /* HELPERS */
 
 /**
@@ -141,11 +158,41 @@ async function readMealSlotCapacity(
   };
 }
 
+/**
+ * Rejects a name already used by another record, ignoring letter case so
+ * that names such as "Table 1" and "table 1" cannot coexist.
+ * Runs inside the caller's transaction, so the check and the write are atomic.
+ *
+ * @param {TransactionQueries['getAsync']} getAsync
+ * @param {'meal_slots' | 'dining_tables'} tableName
+ * @param {string} name
+ * @param {number} [excludedId] - Record being updated, which may keep its name.
+ * @returns {Promise<void>}
+ * @throws {DuplicateNameError} If the name is already used.
+ */
+async function assertNameAvailable(getAsync, tableName, name, excludedId) {
+  const existing = await getAsync(
+    `SELECT id
+     FROM ${tableName}
+     WHERE name = ? COLLATE NOCASE
+       AND id <> ?`,
+    [name, excludedId ?? 0]
+  );
+
+  if (existing) {
+    throw new DuplicateNameError(
+      tableName === 'meal_slots' ? 'meal slot' : 'dining table',
+      name
+    );
+  }
+}
+
 /* CREATE */
 
 /**
  * @param {MealSlotInputDTO} input
  * @returns {Promise<MealSlotDTO | null>}
+ * @throws {DuplicateNameError} If another meal slot uses the name.
  */
 export async function createMealSlot({
   name,
@@ -154,6 +201,8 @@ export async function createMealSlot({
   isActive = true,
 }) {
   return withTransaction(async ({ runAsync, getAsync }) => {
+    await assertNameAvailable(getAsync, 'meal_slots', name);
+
     const result = await runAsync(
       `INSERT INTO meal_slots (
          name, start_time, end_time, is_active
@@ -182,6 +231,7 @@ export async function createMealSlot({
 /**
  * @param {DiningTableInputDTO} input
  * @returns {Promise<DiningTableDTO | null>}
+ * @throws {DuplicateNameError} If another dining table uses the name.
  */
 export async function createDiningTable({
   name,
@@ -189,6 +239,8 @@ export async function createDiningTable({
   isActive = true,
 }) {
   return withTransaction(async ({ runAsync, getAsync }) => {
+    await assertNameAvailable(getAsync, 'dining_tables', name);
+
     const result = await runAsync(
       `INSERT INTO dining_tables (name, seat_count, is_active)
        VALUES (?, ?, ?)`,
@@ -280,13 +332,24 @@ export async function getMealSlotCapacity(slotId) {
  * @param {number} slotId
  * @param {MealSlotInputDTO & { isActive: boolean }} input
  * @returns {Promise<MealSlotDTO | null>}
+ * @throws {DuplicateNameError} If another meal slot uses the name.
  */
 export async function updateMealSlot(
   slotId,
   { name, startTime, endTime, isActive }
 ) {
   return withTransaction(async ({ runAsync, getAsync }) => {
-    const result = await runAsync(
+    // A missing slot is reported as null before any name conflict.
+    const existingSlot = await getAsync(
+      'SELECT id FROM meal_slots WHERE id = ?',
+      [slotId]
+    );
+
+    if (!existingSlot) return null;
+
+    await assertNameAvailable(getAsync, 'meal_slots', name, slotId);
+
+    await runAsync(
       `UPDATE meal_slots
        SET name = ?,
            start_time = ?,
@@ -295,8 +358,6 @@ export async function updateMealSlot(
        WHERE id = ?`,
       [name, startTime, endTime, isActive ? 1 : 0, slotId]
     );
-
-    if (result.changes === 0) return null;
 
     /** @type {MealSlotRow | undefined} */
     const slot = await getAsync(
@@ -322,13 +383,24 @@ export async function updateMealSlot(
  * @param {number} tableId
  * @param {DiningTableInputDTO & { isActive: boolean }} input
  * @returns {Promise<DiningTableDTO | null>}
+ * @throws {DuplicateNameError} If another dining table uses the name.
  */
 export async function updateDiningTable(
   tableId,
   { name, seatCount, isActive }
 ) {
   return withTransaction(async ({ runAsync, getAsync }) => {
-    const result = await runAsync(
+    // A missing table is reported as null before any name conflict.
+    const existingTable = await getAsync(
+      'SELECT id FROM dining_tables WHERE id = ?',
+      [tableId]
+    );
+
+    if (!existingTable) return null;
+
+    await assertNameAvailable(getAsync, 'dining_tables', name, tableId);
+
+    await runAsync(
       `UPDATE dining_tables
        SET name = ?,
            seat_count = ?,
@@ -336,8 +408,6 @@ export async function updateDiningTable(
        WHERE id = ?`,
       [name, seatCount, isActive ? 1 : 0, tableId]
     );
-
-    if (result.changes === 0) return null;
 
     /** @type {DiningTableRow | undefined} */
     const table = await getAsync(

@@ -65,14 +65,13 @@ function StaffLoginPage() {
           </div>
         ) : (
           <LoginForm
-            title="Staff sign in"
+            area="staff"
             isSubmitting={isSubmitting}
             errorMessage={errorMessage}
             feedbackMessage={feedbackMessage}
             onLogin={(credentials) =>
               handleLogin(credentials, 'staff')
             }
-            description="Access your account to manage hut services."
           />
         )}
 

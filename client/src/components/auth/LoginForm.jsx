@@ -8,12 +8,25 @@ import MountainLogo from '../common/MountainLogo.jsx';
  * @typedef {import('../../API/session-api.js').LoginCredentials} LoginCredentials
  */
 
+// Default welcome copy for each sign-in area.
+const AREA_COPY = {
+  hiker: {
+    title: 'Sign in',
+    description: 'Welcome back! Sign in to manage your reservations and enjoy your alpine experience.',
+  },
+  staff: {
+    title: 'Staff sign in',
+    description: 'Welcome back! Sign in with your employee or warden account to manage hut services.',
+  },
+};
+
 /**
  * @param {Object} props
  * @param {boolean} props.isSubmitting
  * @param {string} props.errorMessage
  * @param {string} props.feedbackMessage
  * @param {(credentials: LoginCredentials) => Promise<boolean>} props.onLogin
+ * @param {'hiker' | 'staff'} [props.area]
  * @param {string} [props.title]
  * @param {string} [props.description]
  */
@@ -21,8 +34,9 @@ function LoginForm({
   isSubmitting,
   errorMessage,
   onLogin,
-  title = 'Sign in',
-  description = 'Welcome back! Sign in to manage your reservations and enjoy your alpine experience.',
+  area = 'hiker',
+  title = AREA_COPY[area].title,
+  description = AREA_COPY[area].description,
 }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

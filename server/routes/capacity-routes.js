@@ -4,6 +4,7 @@ import {
   createDiningTable,
   createMealSlot,
   DiningTablesNotFoundError,
+  DuplicateNameError,
   getDiningTables,
   getMealSlotCapacity,
   getMealSlots,
@@ -335,6 +336,16 @@ router.put(
 
 /** @type {import('express').ErrorRequestHandler} */
 const handleCapacityError = (error, _req, res, _next) => {
+  // Meal-slot and dining-table names are unique, ignoring letter case.
+  if (error instanceof DuplicateNameError) {
+    return res.status(409).json({
+      error: {
+        code: error.code,
+        message: error.message,
+      },
+    });
+  }
+
   console.error('Capacity API error:', error);
 
   return res.status(500).json({

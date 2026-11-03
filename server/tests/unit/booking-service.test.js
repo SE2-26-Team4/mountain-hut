@@ -162,6 +162,43 @@ describe('booking availability', () => {
     });
   });
 
+  it('tracks reserved seats on every table of a split booking', async () => {
+    mocks.getMealSlotCapacity.mockResolvedValue({
+      slotId: 1,
+      slotName: 'Dinner',
+      tables: [
+        { id: 10, name: 'A', seatCount: 4, isActive: true },
+        { id: 11, name: 'B', seatCount: 2, isActive: true },
+        { id: 12, name: 'C', seatCount: 2, isActive: true },
+      ],
+      totalSeatCapacity: 8,
+    });
+
+    mocks.getBookingsByDateAndSlot.mockResolvedValue([
+      booking({
+        partySize: 6,
+        allocations: [
+          { tableId: 10, seatsReserved: 4 },
+          { tableId: 11, seatsReserved: 2 },
+        ],
+      }),
+    ]);
+
+    const availability = await getMealSlotAvailability(
+      '2099-12-30',
+      1
+    );
+
+    expect(availability).toMatchObject({
+      totalAvailableSeats: 2,
+      tables: [
+        { id: 10, reservedSeats: 4, availableSeats: 0 },
+        { id: 11, reservedSeats: 2, availableSeats: 0 },
+        { id: 12, reservedSeats: 0, availableSeats: 2 },
+      ],
+    });
+  });
+
   it('ignores cancelled bookings', async () => {
     mocks.getBookingsByDateAndSlot.mockResolvedValue([
       booking({ status: 'cancelled' }),
@@ -229,6 +266,7 @@ describe('booking availability', () => {
 
   it.each([
     ['2099-02-30', 1],
+    ['0000-01-01', 1],
     ['30-12-2099', 1],
     ['2099-12-30', 0],
     ['2099-12-30', '1'],

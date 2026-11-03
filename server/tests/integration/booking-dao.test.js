@@ -333,6 +333,24 @@ describe('booking data access', () => {
     ]);
   });
 
+  it('cancels a booking only for its owner', async () => {
+    const saved = await createBooking(input(1));
+
+    expect(
+      await cancelBooking(saved.id, Number.MAX_SAFE_INTEGER)
+    ).toBe(false);
+
+    expect(await getBookingById(saved.id)).toMatchObject({
+      status: 'confirmed',
+    });
+
+    expect(await cancelBooking(saved.id, hikerId)).toBe(true);
+
+    expect(await getBookingById(saved.id)).toMatchObject({
+      status: 'cancelled',
+    });
+  });
+
   it('allows the same table on another date or another slot', async () => {
     await createBooking(input(4));
 
