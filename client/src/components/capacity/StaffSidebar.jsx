@@ -22,7 +22,10 @@ const SECTIONS = [
 export default function StaffSidebar({ onLogout }) {
   return (
     <aside className="staff-sidebar">
-      <MountainLogo stacked className="staff-sidebar__logo" />
+      <div className="staff-sidebar__brand">
+        <MountainLogo />
+        <span>MOUNTAIN HUT</span>
+      </div>
 
       <nav className="staff-nav" aria-label="Staff sections">
         <ul>

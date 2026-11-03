@@ -16,7 +16,7 @@ import StaffTimeSlotsPanel from './StaffTimeSlotsPanel.jsx';
  * @typedef {import('../../models/models.js').DiningTableDTO} DiningTableDTO
  * @typedef {import('../../models/models.js').MealSlotInputDTO} MealSlotInputDTO
  * @typedef {import('../../models/models.js').DiningTableInputDTO} DiningTableInputDTO
- * @typedef {import('./StaffHeader.jsx').StaffUser} StaffUser
+ * @typedef {import('../../API/session-api.js').SessionUser} SessionUser
  *
  * @typedef {(
  *   | { type: 'table', table?: DiningTableDTO }
@@ -41,7 +41,7 @@ function namesExcept(items, excludedId) {
  * employees and wardens can create, edit, and assign; hikers have no access.
  * The user stories define no deletion: tables and slots are deactivated.
  *
- * @param {{ user: StaffUser, onLogout: () => void }} props
+ * @param {{ user: SessionUser, onLogout: () => void }} props
  */
 export default function StaffCapacityManagement({ user, onLogout }) {
   const {
