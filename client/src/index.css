@@ -103,6 +103,8 @@
   --mh-dine-hero-subtitle-size: clamp(1.2rem, 2vw, 1.75rem);
   --mh-dine-hero-text: rgb(255 255 255 / 85%);
   --mh-dine-hero-overlay: linear-gradient(90deg, rgb(9 23 40 / 72%) 0%, rgb(9 23 40 / 25%) 58%, rgb(9 23 40 / 8%) 100%);
+  --mh-dine-booking-overlap: 4rem;
+  --mh-dine-booking-radius: 1.5rem;
   --mh-dine-feature-icon-size: 3.8rem;
   --mh-dine-feature-icon-background: #fff1e9;
   --mh-dine-feature-divider: #e7e9ed;
@@ -142,6 +144,28 @@
   --mh-login-visual-width: 60%;
   --mh-login-form-flex: 0 0 40%;
   --mh-login-form-width: 40%;
+
+  /* BookingAvailability — components/booking/BookingAvailability.jsx */
+  --mh-availability-shadow: 0 16px 50px rgba(20, 38, 53, 0.06);
+  --mh-availability-status-height: 94px;
+  --mh-availability-success-background: linear-gradient(110deg, #f4faf6, #f8fbf8);
+  --mh-availability-unavailable-background: #fff5f1;
+  --mh-availability-status-icon-flex: 0 0 50px;
+  --mh-availability-status-icon-size: 50px;
+  --mh-availability-success-color: #58b985;
+  --mh-availability-icon-weight: 300;
+  --mh-availability-unavailable-color: #d66a45;
+  --mh-availability-title-tracking: -0.5px;
+  --mh-availability-copy-color: #8b91a4;
+  --mh-availability-divider-color: #e8eaf0;
+  --mh-availability-info-icon-flex: 0 0 26px;
+  --mh-availability-label-color: #9097a8;
+  --mh-availability-detail-line-height: 1.4;
+  --mh-booking-disabled-opacity: 0.7;
+  --mh-availability-actions-flex: 0 0 285px;
+  --mh-availability-actions-width: 285px;
+
+
 
   /* HomePage and shared geometry — pages/HomePage.jsx, components/capacity/ */
   --mh-viewport-height: 100vh;
@@ -272,6 +296,25 @@ a {
   :root {
     --mh-transition: 0ms;
   }
+}
+
+/* ==========================================================================
+   Bootstrap button theme — components/booking/BookingSearch.jsx
+   ========================================================================== */
+
+.mh-dine-page .mh-booking-search .mh-booking-search-button {
+  --bs-btn-bg: var(--mh-copper);
+  --bs-btn-border-color: var(--mh-copper);
+  --bs-btn-hover-bg: var(--mh-copper-hover);
+  --bs-btn-hover-border-color: var(--mh-copper-hover);
+  --bs-btn-active-bg: var(--mh-copper-hover);
+  --bs-btn-active-border-color: var(--mh-copper-hover);
+  --bs-btn-color: var(--mh-white);
+  --bs-btn-hover-color: var(--mh-white);
+  --bs-btn-active-color: var(--mh-white);
+  --bs-btn-disabled-bg: var(--mh-copper);
+  --bs-btn-disabled-border-color: var(--mh-copper);
+  --bs-btn-disabled-color: var(--mh-white);
 }
 
 /* ==========================================================================

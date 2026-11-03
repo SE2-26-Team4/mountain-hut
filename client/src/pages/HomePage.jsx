@@ -3,7 +3,7 @@ import { Col, Row, Spinner } from 'react-bootstrap';
 
 import { useAuth } from '../contexts/auth-context.js';
 import LoginModal from '../components/auth/LoginModal.jsx';
-// import BookingForm from '../components/booking/BookingForm.jsx';
+import BookingForm from '../components/booking/BookingForm.jsx';
 import SiteFooter from '../components/layout/SiteFooter.jsx';
 import SiteHeader from '../components/layout/SiteHeader.jsx';
 
@@ -112,7 +112,7 @@ function HomePage() {
             </p>
           </div>
         </section>
-        {/*
+
         <section
           className="mh-reserve-content"
           id="reserve"
@@ -122,7 +122,7 @@ function HomePage() {
             onRequireLogin={handleSignIn}
           />
         </section>
-        */}
+
         <Row
           as="section"
           className="g-0 align-items-center mh-dining-experience"
