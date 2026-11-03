@@ -1,1 +1,0 @@
-// TODO: Display the current user session.

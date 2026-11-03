@@ -4,7 +4,7 @@
  */
 
 /* ==========================================================================
-   Shared buttons — components/auth/, components/layout/
+   Shared buttons — components/auth/, components/booking/
    ========================================================================== */
 
 .mh-primary-button {
@@ -401,6 +401,382 @@
     overflow: visible;
     padding: var(--mh-space-6);
   }
+}
+
+/* ==========================================================================
+   BookingAvailability — components/booking/BookingAvailability.jsx
+   ========================================================================== */
+
+.mh-availability {
+  margin-top: var(--mh-space-8);
+}
+
+.mh-availability-confirmation {
+  width: 100%;
+  padding: var(--mh-cap-size-14);
+  border: var(--mh-border-width) solid var(--mh-border-light);
+  border-radius: var(--mh-cap-size-24);
+  background: var(--mh-white);
+  box-shadow: var(--mh-availability-shadow);
+}
+
+.mh-availability-status {
+  gap: var(--mh-cap-size-28);
+  min-height: var(--mh-availability-status-height);
+  padding: var(--mh-cap-size-20) var(--mh-cap-size-24);
+  border-radius: var(--mh-cap-size-17);
+}
+
+.mh-availability-status-success {
+  background: var(--mh-availability-success-background);
+}
+
+.mh-availability-status-unavailable {
+  background: var(--mh-availability-unavailable-background);
+}
+
+.mh-availability-status-icon {
+  flex: var(--mh-availability-status-icon-flex);
+  width: var(--mh-availability-status-icon-size);
+  height: var(--mh-availability-status-icon-size);
+  border-radius: var(--mh-radius-circle);
+  color: var(--mh-white);
+  background: var(--mh-availability-success-color);
+  font-size: var(--mh-cap-size-30);
+  font-weight: var(--mh-availability-icon-weight);
+}
+
+.mh-availability-status-unavailable .mh-availability-status-icon {
+  background: var(--mh-availability-unavailable-color);
+}
+
+.mh-availability-status-content h2 {
+  margin: 0 0 var(--mh-cap-size-4);
+  color: var(--mh-navy);
+  font-size: var(--mh-cap-size-23);
+  font-weight: var(--mh-weight-medium);
+  letter-spacing: var(--mh-availability-title-tracking);
+}
+
+.mh-availability-status-content p {
+  color: var(--mh-availability-copy-color);
+  font-size: var(--mh-cap-size-15);
+  line-height: var(--mh-line-normal);
+}
+
+.mh-availability-status-content strong {
+  font-weight: var(--mh-weight-semibold);
+}
+
+.mh-availability-confirmation-bottom {
+  gap: var(--mh-cap-size-24);
+  padding: var(--mh-cap-size-24) var(--mh-cap-size-10) var(--mh-cap-size-10);
+}
+
+.mh-availability-details {
+  min-width: 0;
+}
+
+.mh-availability-info-item {
+  gap: var(--mh-cap-size-20);
+  min-width: 0;
+  padding: var(--mh-cap-size-4) var(--mh-cap-size-22);
+  border-right: var(--mh-border-width) solid var(--mh-availability-divider-color);
+}
+
+.mh-availability-info-item:first-child {
+  padding-left: var(--mh-cap-size-14);
+}
+
+.mh-availability-info-item:last-child {
+  border-right: none;
+}
+
+.mh-availability-info-icon {
+  flex: var(--mh-availability-info-icon-flex);
+  color: var(--mh-navy);
+}
+
+.mh-availability-info-icon .bi {
+  display: block;
+  font-size: var(--mh-cap-size-25);
+  line-height: 1;
+}
+
+.mh-availability-info-item > div {
+  min-width: 0;
+  gap: var(--mh-cap-size-5);
+}
+
+.mh-availability-info-label {
+  color: var(--mh-availability-label-color);
+  font-size: var(--mh-cap-size-13);
+}
+
+.mh-availability-info-item strong {
+  color: var(--mh-navy);
+  font-size: var(--mh-cap-size-14);
+  font-weight: var(--mh-weight-medium);
+  line-height: var(--mh-availability-detail-line-height);
+}
+
+.mh-availability-confirmation .mh-booking-confirm-button {
+  gap: var(--mh-cap-size-12);
+  min-height: var(--mh-cap-size-55);
+  padding: var(--mh-cap-size-14) var(--mh-cap-size-24);
+  border: none;
+  border-radius: var(--mh-radius-pill);
+  background: var(--mh-copper);
+  color: var(--mh-white);
+  font-size: var(--mh-cap-size-15);
+  font-weight: var(--mh-weight-medium);
+  transition: background var(--mh-transition);
+}
+
+.mh-availability-confirmation .mh-booking-confirm-button:hover {
+  background: var(--mh-copper-hover);
+  color: var(--mh-white);
+}
+
+.mh-availability-confirmation .mh-booking-confirm-button:disabled {
+  opacity: var(--mh-booking-disabled-opacity);
+}
+
+/* Component responsive styles */
+@media (min-width: 991.01px) {
+  .mh-availability-confirmation-bottom {
+    flex-wrap: nowrap;
+  }
+
+  .mh-availability-details {
+    flex: 1 1 0;
+    width: auto;
+  }
+
+  .mh-availability-actions {
+    flex: var(--mh-availability-actions-flex);
+    width: var(--mh-availability-actions-width);
+  }
+}
+
+/* Component responsive styles */
+@media (max-width: 767px) {
+  .mh-availability-confirmation {
+    padding: var(--mh-cap-size-10);
+    border-radius: var(--mh-cap-size-18);
+  }
+
+  .mh-availability-status {
+    gap: var(--mh-cap-size-15);
+    padding: var(--mh-cap-size-18) var(--mh-cap-size-15);
+  }
+
+  .mh-availability-status-icon {
+    flex-basis: var(--mh-cap-size-42);
+    width: var(--mh-cap-size-42);
+    height: var(--mh-cap-size-42);
+    font-size: var(--mh-cap-size-24);
+  }
+
+  .mh-availability-status-content h2 {
+    font-size: var(--mh-cap-size-19);
+  }
+
+  .mh-availability-status-content p {
+    font-size: var(--mh-cap-size-13);
+  }
+
+  .mh-availability-confirmation-bottom {
+    gap: var(--mh-cap-size-20);
+    padding: var(--mh-cap-size-20) var(--mh-cap-size-10) var(--mh-cap-size-10);
+  }
+
+  .mh-availability-confirmation-info {
+    gap: var(--mh-cap-size-18);
+  }
+
+  .mh-availability-info-item,
+  .mh-availability-info-item:first-child {
+    padding: 0;
+    border-right: none;
+  }
+}
+
+/* ==========================================================================
+   BookingCard — components/booking/BookingCard.jsx
+   ========================================================================== */
+
+.mh-my-bookings .card {
+  border: var(--mh-border-width) solid var(--mh-booking-card-border-color);
+  border-radius: var(--mh-cap-size-24);
+  background: var(--mh-white);
+  box-shadow: var(--mh-booking-card-shadow);
+}
+
+.mh-my-bookings .card-body {
+  padding: var(--mh-booking-card-padding);
+}
+
+.mh-my-bookings .card h3 {
+  margin-bottom: var(--mh-cap-size-22);
+  padding-bottom: var(--mh-cap-size-16);
+  border-bottom: var(--mh-border-width) solid var(--mh-booking-card-border-color);
+  color: var(--mh-navy);
+  font-size: var(--mh-booking-card-title-size);
+  font-weight: var(--mh-weight-semibold);
+}
+
+.mh-my-bookings .card dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: var(--mh-cap-size-24);
+  row-gap: var(--mh-cap-size-16);
+}
+
+.mh-my-bookings .card dt {
+  margin: 0;
+  color: var(--mh-booking-card-label-color);
+  font-size: var(--mh-text-md);
+  font-weight: var(--mh-weight-normal);
+}
+
+.mh-my-bookings .card dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--mh-navy);
+  font-size: var(--mh-booking-card-value-size);
+  font-weight: var(--mh-weight-medium);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* Component responsive styles */
+@media (max-width: 575px) {
+  .mh-my-bookings .card-body {
+    padding: var(--mh-cap-size-20);
+  }
+
+  .mh-my-bookings .card dl {
+    column-gap: var(--mh-cap-size-16);
+  }
+}
+
+/* ==========================================================================
+   BookingForm — components/booking/BookingForm.jsx
+   ========================================================================== */
+
+.mh-booking-alert {
+  font-size: var(--mh-text-sm);
+}
+
+.mh-booking-availability-anchor {
+  scroll-margin-top: var(--mh-cap-size-24);
+}
+
+.mh-reservation-modal {
+  border-radius: var(--mh-cap-size-24);
+  overflow: hidden;
+}
+
+.mh-reservation-detail {
+  min-width: 0;
+}
+
+/* ==========================================================================
+   BookingSearch — components/booking/BookingSearch.jsx
+   ========================================================================== */
+
+.mh-booking-search {
+  margin-bottom: var(--mh-space-8);
+  padding: var(--mh-space-6);
+  border: var(--mh-border-width) solid var(--mh-border-light);
+  border-radius: var(--mh-radius-xl);
+  background: var(--mh-white);
+  box-shadow: var(--mh-shadow-card);
+}
+
+.mh-booking-search .form-label {
+  color: var(--mh-muted);
+  font-size: var(--mh-text-sm);
+}
+
+.mh-field-icon {
+  color: var(--mh-navy);
+  font-size: var(--mh-text-lg);
+}
+
+.mh-booking-search .form-control,
+.mh-booking-search .form-select {
+  min-height: var(--mh-input-height);
+  border: var(--mh-border-width) solid var(--mh-border);
+  border-radius: var(--mh-radius-md);
+  color: var(--mh-navy);
+  background-color: var(--mh-white);
+}
+
+.mh-booking-search .form-control:focus,
+.mh-booking-search .form-select:focus {
+  border-color: var(--mh-copper);
+  box-shadow: var(--mh-focus-ring);
+}
+
+.mh-booking-search input[type="date"] {
+  display: flex;
+  align-items: center;
+  line-height: normal;
+}
+
+.mh-booking-search input[type="date"]::-webkit-date-and-time-value {
+  min-height: var(--mh-text-xl);
+  display: flex;
+  align-items: center;
+  text-align: left;
+}
+
+.mh-booking-search input[type="date"]::-webkit-datetime-edit {
+  display: inline-flex;
+  align-items: center;
+}
+
+.mh-booking-search-button {
+  min-height: var(--mh-button-height);
+  padding: var(--mh-space-3) var(--mh-space-6);
+  border: var(--mh-border-width) solid var(--mh-copper);
+  border-radius: var(--mh-radius-pill);
+  background: var(--mh-copper);
+  color: var(--mh-white);
+  font-size: var(--mh-text-md);
+  font-weight: var(--mh-weight-medium);
+  transition: background var(--mh-transition);
+}
+
+.mh-booking-search-button:hover {
+  border-color: var(--mh-copper-hover);
+  background: var(--mh-copper-hover);
+  color: var(--mh-white);
+}
+
+.mh-booking-menu-link {
+  font-size: var(--mh-text-sm);
+}
+
+.mh-booking-menu-link a {
+  color: var(--mh-copper);
+  text-underline-offset: var(--mh-space-1);
+}
+
+.mh-booking-menu-link a:hover {
+  color: var(--mh-copper-hover);
+}
+
+.mh-booking-menu-link span {
+  color: var(--mh-muted);
+}
+
+.mh-dine-page .mh-booking-search {
+  margin-bottom: 0;
+  border-radius: var(--mh-dine-booking-radius);
 }
 
 /* ==========================================================================
@@ -900,6 +1276,13 @@
   line-height: var(--mh-line-normal);
 }
 
+.mh-reserve-content {
+  position: relative;
+  z-index: var(--mh-reserve-content-layer);
+  margin-top: calc(-1 * var(--mh-dine-booking-overlap));
+  padding: 0 var(--mh-page-padding);
+}
+
 .mh-dining-experience {
   gap: var(--mh-dine-experience-gap);
   padding: var(--mh-space-16) var(--mh-page-padding);
@@ -1000,6 +1383,10 @@
     font-size: var(--mh-text-base);
   }
 
+  .mh-reserve-content {
+    margin-top: calc(-1 * var(--mh-space-6));
+  }
+
   .mh-dining-experience {
     padding-top: var(--mh-space-10);
   }
@@ -1048,20 +1435,44 @@
 }
 
 /* ==========================================================================
+   MyBookingsPage — pages/MyBookingsPage.jsx
+   ========================================================================== */
+
+.mh-my-bookings {
+  max-width: var(--mh-my-bookings-width);
+}
+
+.mh-my-bookings h1 {
+  color: var(--mh-navy);
+  font-size: var(--mh-my-bookings-title-size);
+  font-weight: var(--mh-weight-semibold);
+  letter-spacing: var(--mh-tracking-tight);
+}
+
+.mh-my-bookings section > h2 {
+  margin-bottom: var(--mh-cap-size-20);
+  color: var(--mh-navy);
+  font-size: var(--mh-text-lg);
+  font-weight: var(--mh-weight-medium);
+  letter-spacing: var(--mh-my-bookings-heading-tracking);
+}
+
+/* ==========================================================================
    StaffLoginPage — pages/StaffLoginPage.jsx
    ========================================================================== */
 
 .mh-staff-login-page {
-  min-height: var(--mh-staff-login-height);
+  min-height: var(--mh-viewport-dynamic-height);
   padding: var(--mh-space-6) var(--mh-space-4);
   color: var(--mh-navy);
   background: var(--mh-cream);
 }
 
 .mh-staff-login-card {
+
   max-width: var(--mh-staff-login-width);
   min-width: 0;
-  padding: var(--mh-staff-login-padding);
+  padding: var(--mh-cap-size-48);
   border: var(--mh-border-width) solid var(--mh-border);
   border-radius: var(--mh-staff-login-radius);
   background: var(--mh-white);
@@ -1082,315 +1493,3 @@
 .mh-staff-login-card > a:hover {
   color: var(--mh-copper);
 }
-
-/* ==========================================================================
-   BookingForm — components/booking/BookingForm.jsx
-   ========================================================================== */
-
-.mh-booking-alert {
-  font-size: var(--mh-text-sm);
-}
-
-.mh-booking-availability-anchor {
-  scroll-margin-top: var(--mh-cap-size-24);
-}
-
-.mh-reservation-modal {
-  border-radius: var(--mh-cap-size-24);
-  overflow: hidden;
-}
-
-.mh-reservation-detail {
-  min-width: 0;
-}
-
-/* ==========================================================================
-   BookingSearch — components/booking/BookingSearch.jsx
-   ========================================================================== */
-
-.mh-booking-search {
-  margin-bottom: var(--mh-space-8);
-  padding: var(--mh-space-6);
-  border: var(--mh-border-width) solid var(--mh-border-light);
-  border-radius: var(--mh-radius-xl);
-  background: var(--mh-white);
-  box-shadow: var(--mh-shadow-card);
-}
-
-.mh-booking-search .form-label {
-  color: var(--mh-muted);
-  font-size: var(--mh-text-sm);
-}
-
-.mh-field-icon {
-  color: var(--mh-navy);
-  font-size: var(--mh-text-lg);
-}
-
-.mh-booking-search .form-control,
-.mh-booking-search .form-select {
-  min-height: var(--mh-input-height);
-  border: var(--mh-border-width) solid var(--mh-border);
-  border-radius: var(--mh-radius-md);
-  color: var(--mh-navy);
-  background-color: var(--mh-white);
-}
-
-.mh-booking-search .form-control:focus,
-.mh-booking-search .form-select:focus {
-  border-color: var(--mh-copper);
-  box-shadow: var(--mh-focus-ring);
-}
-
-.mh-booking-search input[type="date"] {
-  display: flex;
-  align-items: center;
-  line-height: normal;
-}
-
-.mh-booking-search input[type="date"]::-webkit-date-and-time-value {
-  min-height: var(--mh-text-xl);
-  display: flex;
-  align-items: center;
-  text-align: left;
-}
-
-.mh-booking-search input[type="date"]::-webkit-datetime-edit {
-  display: inline-flex;
-  align-items: center;
-}
-
-.mh-booking-menu-link {
-  font-size: var(--mh-text-sm);
-}
-
-.mh-booking-menu-link a {
-  color: var(--mh-copper);
-  text-underline-offset: var(--mh-space-1);
-}
-
-.mh-booking-menu-link a:hover {
-  color: var(--mh-copper-hover);
-}
-
-.mh-booking-menu-link span {
-  color: var(--mh-muted);
-}
-
-.mh-dine-page .mh-booking-search {
-  margin-bottom: 0;
-  border-radius: var(--mh-dine-booking-radius);
-}
-
-/* ==========================================================================
-   Staff notice — pages/HomePage.jsx
-   ========================================================================== */
-
-.mh-booking-staff-notice {
-  padding: var(--mh-space-6);
-  border: var(--mh-border-width) solid var(--mh-border-light);
-  border-radius: var(--mh-dine-booking-radius);
-  background: var(--mh-white);
-  box-shadow: var(--mh-shadow-card);
-  color: var(--mh-muted);
-}
-
-/* ==========================================================================
-   BookingAvailability — components/booking/BookingAvailability.jsx
-   ========================================================================== */
-
-.mh-availability {
-  margin-top: var(--mh-space-8);
-}
-
-.mh-availability-confirmation {
-  width: 100%;
-  padding: var(--mh-cap-size-14);
-  border: var(--mh-border-width) solid var(--mh-border-light);
-  border-radius: var(--mh-cap-size-24);
-  background: var(--mh-white);
-  box-shadow: var(--mh-availability-shadow);
-}
-
-.mh-availability-status {
-  gap: var(--mh-cap-size-28);
-  min-height: var(--mh-availability-status-height);
-  padding: var(--mh-cap-size-20) var(--mh-cap-size-24);
-  border-radius: var(--mh-cap-size-17);
-}
-
-.mh-availability-status-success {
-  background: var(--mh-availability-success-background);
-}
-
-.mh-availability-status-unavailable {
-  background: var(--mh-availability-unavailable-background);
-}
-
-.mh-availability-status-icon {
-  flex: var(--mh-availability-status-icon-flex);
-  width: var(--mh-availability-status-icon-size);
-  height: var(--mh-availability-status-icon-size);
-  border-radius: var(--mh-radius-circle);
-  color: var(--mh-white);
-  background: var(--mh-availability-success-color);
-  font-size: var(--mh-cap-size-30);
-  font-weight: var(--mh-availability-icon-weight);
-}
-
-.mh-availability-status-unavailable .mh-availability-status-icon {
-  background: var(--mh-availability-unavailable-color);
-}
-
-.mh-availability-status-content h2 {
-  margin: 0 0 var(--mh-cap-size-4);
-  color: var(--mh-navy);
-  font-size: var(--mh-cap-size-23);
-  font-weight: var(--mh-weight-medium);
-  letter-spacing: var(--mh-availability-title-tracking);
-}
-
-.mh-availability-status-content p {
-  color: var(--mh-availability-copy-color);
-  font-size: var(--mh-cap-size-15);
-  line-height: var(--mh-line-normal);
-}
-
-.mh-availability-status-content strong {
-  font-weight: var(--mh-weight-semibold);
-}
-
-.mh-availability-confirmation-bottom {
-  gap: var(--mh-cap-size-24);
-  padding: var(--mh-cap-size-24) var(--mh-cap-size-10) var(--mh-cap-size-10);
-}
-
-.mh-availability-details {
-  min-width: 0;
-}
-
-.mh-availability-info-item {
-  gap: var(--mh-cap-size-20);
-  min-width: 0;
-  padding: var(--mh-cap-size-4) var(--mh-cap-size-22);
-  border-right: var(--mh-border-width) solid var(--mh-availability-divider-color);
-}
-
-.mh-availability-info-item:first-child {
-  padding-left: var(--mh-cap-size-14);
-}
-
-.mh-availability-info-item:last-child {
-  border-right: none;
-}
-
-.mh-availability-info-icon {
-  flex: var(--mh-availability-info-icon-flex);
-  color: var(--mh-navy);
-}
-
-.mh-availability-info-icon .bi {
-  display: block;
-  font-size: var(--mh-cap-size-25);
-  line-height: 1;
-}
-
-.mh-availability-info-item > div {
-  min-width: 0;
-  gap: var(--mh-cap-size-5);
-}
-
-.mh-availability-info-label {
-  color: var(--mh-availability-label-color);
-  font-size: var(--mh-cap-size-13);
-}
-
-.mh-availability-info-item strong {
-  color: var(--mh-navy);
-  font-size: var(--mh-cap-size-14);
-  font-weight: var(--mh-weight-medium);
-  line-height: var(--mh-availability-detail-line-height);
-}
-
-.mh-availability-confirmation .mh-booking-confirm-button {
-  gap: var(--mh-cap-size-12);
-  min-height: var(--mh-cap-size-55);
-  padding: var(--mh-cap-size-14) var(--mh-cap-size-24);
-  border: none;
-  border-radius: var(--mh-radius-pill);
-  background: var(--mh-copper);
-  color: var(--mh-white);
-  font-size: var(--mh-cap-size-15);
-  font-weight: var(--mh-weight-medium);
-  transition: background var(--mh-transition);
-}
-
-.mh-availability-confirmation .mh-booking-confirm-button:hover {
-  background: var(--mh-copper-hover);
-  color: var(--mh-white);
-}
-
-.mh-availability-confirmation .mh-booking-confirm-button:disabled {
-  opacity: var(--mh-booking-disabled-opacity);
-}
-
-/* Component responsive styles */
-@media (min-width: 991.01px) {
-  .mh-availability-confirmation-bottom {
-    flex-wrap: nowrap;
-  }
-
-  .mh-availability-details {
-    flex: 1 1 0;
-    width: auto;
-  }
-
-  .mh-availability-actions {
-    flex: var(--mh-availability-actions-flex);
-    width: var(--mh-availability-actions-width);
-  }
-}
-
-/* Component responsive styles */
-@media (max-width: 767px) {
-  .mh-availability-confirmation {
-    padding: var(--mh-cap-size-10);
-    border-radius: var(--mh-cap-size-18);
-  }
-
-  .mh-availability-status {
-    gap: var(--mh-cap-size-15);
-    padding: var(--mh-cap-size-18) var(--mh-cap-size-15);
-  }
-
-  .mh-availability-status-icon {
-    flex-basis: var(--mh-cap-size-42);
-    width: var(--mh-cap-size-42);
-    height: var(--mh-cap-size-42);
-    font-size: var(--mh-cap-size-24);
-  }
-
-  .mh-availability-status-content h2 {
-    font-size: var(--mh-cap-size-19);
-  }
-
-  .mh-availability-status-content p {
-    font-size: var(--mh-cap-size-13);
-  }
-
-  .mh-availability-confirmation-bottom {
-    gap: var(--mh-cap-size-20);
-    padding: var(--mh-cap-size-20) var(--mh-cap-size-10) var(--mh-cap-size-10);
-  }
-
-  .mh-availability-confirmation-info {
-    gap: var(--mh-cap-size-18);
-  }
-
-  .mh-availability-info-item,
-  .mh-availability-info-item:first-child {
-    padding: 0;
-    border-right: none;
-  }
-}
-

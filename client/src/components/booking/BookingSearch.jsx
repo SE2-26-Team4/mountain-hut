@@ -129,7 +129,7 @@ function BookingSearch({ booking }) {
           xl={{ span: 3, offset: 0 }}
         >
           <Button
-            className="mh-primary-button w-100"
+            className="mh-booking-search-button d-inline-flex align-items-center justify-content-between gap-3 w-100"
             type="submit"
             disabled={
               isLoadingSlots ||
