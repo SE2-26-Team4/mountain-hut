@@ -113,6 +113,14 @@
   /* Capacity — components/capacity/ */
   --mh-cap-size-24: 24px;
   --mh-cap-size-12: 12px;
+  --mh-cap-size-13: 13px;
+  --mh-cap-size-15: 15px;
+  --mh-cap-size-23: 23px;
+  --mh-cap-size-25: 25px;
+  --mh-cap-size-28: 28px;
+  --mh-cap-size-30: 30px;
+  --mh-cap-size-42: 42px;
+  --mh-cap-size-55: 55px;
   --mh-cap-size-5: 5px;
   --mh-cap-size-10: 10px;
   --mh-cap-size-3: 3px;
