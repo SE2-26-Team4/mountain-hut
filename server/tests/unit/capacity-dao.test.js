@@ -17,6 +17,7 @@ vi.mock('../../db.js', () => ({
 import {
   createMealSlot,
   createDiningTable,
+  DuplicateNameError,
 } from '../../dao/capacity-dao.js';
 
 beforeEach(() => {
@@ -63,5 +64,34 @@ describe('capacity DAO missing records after insertion', () => {
       expect.stringContaining('FROM dining_tables'),
       [1],
     );
+  });
+});
+
+describe('capacity DAO duplicate names', () => {
+  it('does not insert a meal slot whose name is already used', async () => {
+    mocks.getAsync.mockResolvedValueOnce({ id: 7 });
+
+    await expect(createMealSlot({
+      name: 'Dinner',
+      startTime: '18:00',
+      endTime: '20:00',
+    })).rejects.toBeInstanceOf(DuplicateNameError);
+
+    expect(mocks.getAsync).toHaveBeenCalledWith(
+      expect.stringContaining('COLLATE NOCASE'),
+      ['Dinner', 0],
+    );
+    expect(mocks.runAsync).not.toHaveBeenCalled();
+  });
+
+  it('does not insert a dining table whose name is already used', async () => {
+    mocks.getAsync.mockResolvedValueOnce({ id: 3 });
+
+    await expect(createDiningTable({
+      name: 'Table 1',
+      seatCount: 4,
+    })).rejects.toThrow('A dining table named "Table 1" already exists.');
+
+    expect(mocks.runAsync).not.toHaveBeenCalled();
   });
 });

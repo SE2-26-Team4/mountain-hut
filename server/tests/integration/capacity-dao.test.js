@@ -4,6 +4,7 @@ import {
   createDiningTable,
   createMealSlot,
   DiningTablesNotFoundError,
+  DuplicateNameError,
   getDiningTables,
   getMealSlotCapacity,
   getMealSlots,
@@ -169,6 +170,133 @@ describe('meal-slot and dining-table data access', () => {
         ]);
       }
     }
+  });
+
+  it('rejects duplicate names on creation, ignoring letter case', async () => {
+    const slotName = `Duplicate slot ${uniqueSuffix}`;
+    const tableName = `Duplicate table ${uniqueSuffix}`;
+    let duplicateSlotId;
+    let duplicateTableId;
+
+    try {
+      duplicateSlotId = (await createMealSlot({
+        name: slotName,
+        startTime: '08:00',
+        endTime: '09:00',
+      }))?.id;
+
+      duplicateTableId = (await createDiningTable({
+        name: tableName,
+        seatCount: 2,
+      }))?.id;
+
+      await expect(createMealSlot({
+        name: slotName.toUpperCase(),
+        startTime: '09:00',
+        endTime: '10:00',
+      })).rejects.toBeInstanceOf(DuplicateNameError);
+
+      await expect(createDiningTable({
+        name: tableName.toLowerCase(),
+        seatCount: 4,
+      })).rejects.toThrow(
+        `A dining table named "${tableName.toLowerCase()}" already exists.`,
+      );
+
+      const sameNameTables = (await getDiningTables()).filter(
+        (table) => table.name.toLowerCase() === tableName.toLowerCase(),
+      );
+
+      expect(sameNameTables).toHaveLength(1);
+    } finally {
+      if (duplicateSlotId) {
+        await runAsync('DELETE FROM meal_slots WHERE id = ?', [duplicateSlotId]);
+      }
+
+      if (duplicateTableId) {
+        await runAsync('DELETE FROM dining_tables WHERE id = ?', [duplicateTableId]);
+      }
+    }
+  });
+
+  it('rejects renaming to another record name but allows keeping its own', async () => {
+    const createdSlotIds = [];
+    const createdTableIds = [];
+
+    try {
+      const firstSlot = await createMealSlot({
+        name: `Rename slot A ${uniqueSuffix}`,
+        startTime: '06:00',
+        endTime: '07:00',
+      });
+      const secondSlot = await createMealSlot({
+        name: `Rename slot B ${uniqueSuffix}`,
+        startTime: '07:00',
+        endTime: '08:00',
+      });
+      const firstTable = await createDiningTable({
+        name: `Rename table A ${uniqueSuffix}`,
+        seatCount: 2,
+      });
+      const secondTable = await createDiningTable({
+        name: `Rename table B ${uniqueSuffix}`,
+        seatCount: 2,
+      });
+
+      createdSlotIds.push(firstSlot?.id, secondSlot?.id);
+      createdTableIds.push(firstTable?.id, secondTable?.id);
+
+      await expect(updateMealSlot(secondSlot?.id ?? -1, {
+        name: `Rename slot A ${uniqueSuffix}`,
+        startTime: '07:00',
+        endTime: '08:00',
+        isActive: true,
+      })).rejects.toBeInstanceOf(DuplicateNameError);
+
+      await expect(updateDiningTable(secondTable?.id ?? -1, {
+        name: `RENAME TABLE A ${uniqueSuffix}`,
+        seatCount: 2,
+        isActive: true,
+      })).rejects.toBeInstanceOf(DuplicateNameError);
+
+      // A failed rename leaves the record unchanged.
+      expect((await getDiningTables()).find(
+        (table) => table.id === secondTable?.id,
+      )?.name).toBe(`Rename table B ${uniqueSuffix}`);
+
+      const sameSlot = await updateMealSlot(firstSlot?.id ?? -1, {
+        name: `RENAME SLOT A ${uniqueSuffix}`,
+        startTime: '06:00',
+        endTime: '07:30',
+        isActive: true,
+      });
+
+      expect(sameSlot?.name).toBe(`RENAME SLOT A ${uniqueSuffix}`);
+    } finally {
+      for (const id of createdSlotIds.filter(Boolean)) {
+        await runAsync('DELETE FROM meal_slots WHERE id = ?', [id]);
+      }
+
+      for (const id of createdTableIds.filter(Boolean)) {
+        await runAsync('DELETE FROM dining_tables WHERE id = ?', [id]);
+      }
+    }
+  });
+
+  it('reports a missing record as null even if its new name is taken', async () => {
+    const takenName = `Updated capacity test table ${uniqueSuffix}`;
+
+    await updateDiningTable(tableId, {
+      name: takenName,
+      seatCount: 6,
+      isActive: true,
+    });
+
+    await expect(updateDiningTable(-1, {
+      name: takenName,
+      seatCount: 2,
+      isActive: true,
+    })).resolves.toBeNull();
   });
 });
 
