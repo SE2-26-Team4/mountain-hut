@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Col, Row, Spinner } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 
 import { useAuth } from '../contexts/auth-context.js';
 import LoginModal from '../components/auth/LoginModal.jsx';
-// import BookingForm from '../components/booking/BookingForm.jsx';
+import BookingForm from '../components/booking/BookingForm.jsx';
 import SiteFooter from '../components/layout/SiteFooter.jsx';
 import SiteHeader from '../components/layout/SiteHeader.jsx';
 
@@ -41,6 +42,8 @@ function HomePage() {
   } = useAuth();
 
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+
+  const isStaff = user?.role === 'employee' || user?.role === 'warden';
 
   const handleSignIn = () => setIsLoginOpen(true);
 
@@ -112,17 +115,30 @@ function HomePage() {
             </p>
           </div>
         </section>
-        {/*
+
         <section
           className="mh-reserve-content"
           id="reserve"
         >
-          <BookingForm
-            user={user}
-            onRequireLogin={handleSignIn}
-          />
+          {isStaff ? (
+            <div className="mh-booking-staff-notice d-flex flex-wrap align-items-center justify-content-between gap-3">
+              <p className="mb-0">
+                Table reservations are available to hiker accounts only.
+              </p>
+
+              <Link className="mh-primary-button" to="/staff/capacity">
+                <span>Manage dining capacity</span>
+                <span aria-hidden="true">→</span>
+              </Link>
+            </div>
+          ) : (
+            <BookingForm
+              user={user}
+              onRequireLogin={handleSignIn}
+            />
+          )}
         </section>
-        */}
+
         <Row
           as="section"
           className="g-0 align-items-center mh-dining-experience"

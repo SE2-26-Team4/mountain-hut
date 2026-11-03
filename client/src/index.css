@@ -29,14 +29,17 @@
   --mh-cream: #f7f8fa;
   --mh-muted: #788397;
   --mh-border: #dce3e9;
+  --mh-border-light: #e8eaf0;
   --mh-white-transparent: rgb(255 255 255 / 30%);
   --mh-header-height: 4.5rem;
   --mh-button-height: 3.4rem;
+  --mh-input-height: var(--mh-button-height);
   --mh-content-width: 90rem;
   --mh-page-padding: clamp(1.25rem, 4.5vw, 4rem);
   --mh-loading-height: 60vh;
   --mh-disabled-opacity: .65;
   --mh-focus-ring: 0 0 0 .2rem rgb(198 83 27 / 15%);
+  --mh-shadow-card: 0 16px 50px rgb(20 38 53 / 6%);
   --mh-transition: 160ms ease;
 
   /* Spacing, borders and geometry */
@@ -46,11 +49,14 @@
   --mh-space-4: 1rem;
   --mh-space-5: 1.25rem;
   --mh-space-6: 1.5rem;
+  --mh-space-8: 2rem;
   --mh-space-10: 2.5rem;
   --mh-space-16: 4rem;
   --mh-border-width: 1px;
   --mh-border-width-accent: 2px;
   --mh-svg-stroke-width: 2;
+  --mh-radius-md: .65rem;
+  --mh-radius-xl: 1.5rem;
   --mh-radius-pill: 999px;
   --mh-radius-circle: 50%;
 
@@ -103,6 +109,8 @@
   --mh-dine-hero-subtitle-size: clamp(1.2rem, 2vw, 1.75rem);
   --mh-dine-hero-text: rgb(255 255 255 / 85%);
   --mh-dine-hero-overlay: linear-gradient(90deg, rgb(9 23 40 / 72%) 0%, rgb(9 23 40 / 25%) 58%, rgb(9 23 40 / 8%) 100%);
+  --mh-dine-booking-overlap: 4rem;
+  --mh-dine-booking-radius: 1.5rem;
   --mh-dine-feature-icon-size: 3.8rem;
   --mh-dine-feature-icon-background: #fff1e9;
   --mh-dine-feature-divider: #e7e9ed;
@@ -111,6 +119,14 @@
   /* Capacity — components/capacity/ */
   --mh-cap-size-24: 24px;
   --mh-cap-size-12: 12px;
+  --mh-cap-size-13: 13px;
+  --mh-cap-size-15: 15px;
+  --mh-cap-size-23: 23px;
+  --mh-cap-size-25: 25px;
+  --mh-cap-size-28: 28px;
+  --mh-cap-size-30: 30px;
+  --mh-cap-size-42: 42px;
+  --mh-cap-size-55: 55px;
   --mh-cap-size-5: 5px;
   --mh-cap-size-10: 10px;
   --mh-cap-size-3: 3px;
@@ -119,6 +135,7 @@
   --mh-cap-size-11: 11px;
   --mh-cap-size-20: 20px;
   --mh-cap-size-18: 18px;
+  --mh-cap-size-19: 19px;
   --mh-cap-size-22: 22px;
   --mh-cap-size-32: 32px;
   --mh-cap-size-40: 40px;
@@ -142,6 +159,28 @@
   --mh-login-visual-width: 60%;
   --mh-login-form-flex: 0 0 40%;
   --mh-login-form-width: 40%;
+
+  /* BookingAvailability — components/booking/BookingAvailability.jsx */
+  --mh-availability-shadow: 0 16px 50px rgba(20, 38, 53, 0.06);
+  --mh-availability-status-height: 94px;
+  --mh-availability-success-background: linear-gradient(110deg, #f4faf6, #f8fbf8);
+  --mh-availability-unavailable-background: #fff5f1;
+  --mh-availability-status-icon-flex: 0 0 50px;
+  --mh-availability-status-icon-size: 50px;
+  --mh-availability-success-color: #58b985;
+  --mh-availability-icon-weight: 300;
+  --mh-availability-unavailable-color: #d66a45;
+  --mh-availability-title-tracking: -0.5px;
+  --mh-availability-copy-color: #8b91a4;
+  --mh-availability-divider-color: #e8eaf0;
+  --mh-availability-info-icon-flex: 0 0 26px;
+  --mh-availability-label-color: #9097a8;
+  --mh-availability-detail-line-height: 1.4;
+  --mh-booking-disabled-opacity: 0.7;
+  --mh-availability-actions-flex: 0 0 285px;
+  --mh-availability-actions-width: 285px;
+
+
 
   /* HomePage and shared geometry — pages/HomePage.jsx, components/capacity/ */
   --mh-viewport-height: 100vh;
@@ -272,6 +311,27 @@ a {
   :root {
     --mh-transition: 0ms;
   }
+}
+
+/* ==========================================================================
+   Bootstrap button theme — shared copper buttons, components/booking/
+   ========================================================================== */
+
+.mh-primary-button,
+.mh-booking-confirm-button {
+  --bs-btn-bg: var(--mh-copper);
+  --bs-btn-border-color: var(--mh-copper);
+  --bs-btn-hover-bg: var(--mh-copper-hover);
+  --bs-btn-hover-border-color: var(--mh-copper-hover);
+  --bs-btn-active-bg: var(--mh-copper-hover);
+  --bs-btn-active-border-color: var(--mh-copper-hover);
+  --bs-btn-color: var(--mh-white);
+  --bs-btn-hover-color: var(--mh-white);
+  --bs-btn-active-color: var(--mh-white);
+  --bs-btn-disabled-bg: var(--mh-copper);
+  --bs-btn-disabled-border-color: var(--mh-copper);
+  --bs-btn-disabled-color: var(--mh-white);
+  --bs-btn-focus-shadow-rgb: 198, 83, 27;
 }
 
 /* ==========================================================================
