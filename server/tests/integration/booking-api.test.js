@@ -173,3 +173,46 @@ describe('booking management API', () => {
     expect(response.body.error.code).toBe('NO_AVAILABILITY');
   });
 });
+
+
+
+describe('booking retrieval and cancellation API', () => {
+  let createdBookingId;
+
+  it('allows an authenticated hiker to retrieve their bookings', async () => {
+    const createRes = await hikerAgent.post('/api/bookings').send({
+      bookingDate: '2099-11-15',
+      slotId,
+      partySize: 1,
+    });
+    createdBookingId = createRes.body.booking.id;
+
+    const response = await hikerAgent.get('/api/bookings');
+
+    expect(response.status).toBe(200);
+    expect(response.body.bookings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: createdBookingId,
+          hikerId,
+          status: 'confirmed',
+        }),
+      ]),
+    );
+  });
+
+  it('allows an authenticated hiker to cancel their booking', async () => {
+
+    const response = await hikerAgent.delete(`/api/bookings/${createdBookingId}`);
+
+    expect(response.status).toBe(200);
+
+
+
+    const availabilityRes = await request(app)
+      .get('/api/bookings/availability')
+      .query({ bookingDate: '2099-11-15', slotId });
+
+    expect(availabilityRes.body.availability.totalAvailableSeats).toBe(4);
+  });
+});

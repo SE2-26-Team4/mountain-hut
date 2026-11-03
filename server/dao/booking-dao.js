@@ -303,15 +303,21 @@ export async function getBookingsByDateAndSlot(bookingDate, slotId) {
  * Cancels a booking by updating its status to 'cancelled'.
  *
  * @param {number} id
+ * @param {number} [hikerId] - Restricts cancellation to the booking owner.
  * @returns {Promise<boolean>} Whether a confirmed booking was cancelled.
  */
-export async function cancelBooking(id) {
+export async function cancelBooking(id, hikerId) {
   return withTransaction(async ({ runAsync }) => {
+    const ownerCondition =
+      hikerId === undefined ? '' : ' AND hiker_id = ?';
+    const params =
+      hikerId === undefined ? [id] : [id, hikerId];
+
     const result = await runAsync(
       `UPDATE bookings
        SET status = 'cancelled'
-       WHERE id = ? AND status = 'confirmed'`,
-      [id]
+       WHERE id = ? AND status = 'confirmed'${ownerCondition}`,
+      params
     );
 
     return result.changes > 0;

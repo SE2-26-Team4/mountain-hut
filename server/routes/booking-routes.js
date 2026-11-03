@@ -1,6 +1,11 @@
 import express from 'express';
 
-import { BookingError } from '../dao/booking-dao.js';
+import {
+  BookingError,
+  cancelBooking,
+  getBookingById,
+  getBookingsByHiker,
+} from '../dao/booking-dao.js';
 import { requireRole } from '../middleware/require-role.js';
 import {
   createBookingForHiker,
@@ -26,6 +31,26 @@ function asyncRoute(handler) {
 }
 
 /* READ */
+
+router.get(
+  '/bookings',
+  requireRole('hiker'),
+  asyncRoute(async (req, res) => {
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({
+        error: {
+          code: 'UNAUTHENTICATED',
+          message: 'Login is required.',
+        },
+      });
+    }
+
+    const bookings = await getBookingsByHiker(user.id);
+    return res.status(200).json({ bookings });
+  })
+);
 
 router.get(
   '/bookings/availability',
@@ -93,6 +118,50 @@ router.post(
     });
 
     return res.status(201).json({ booking });
+  })
+);
+
+/* CANCEL */
+
+router.delete(
+  '/bookings/:id',
+  requireRole('hiker'),
+  asyncRoute(async (req, res) => {
+    const user = req.user;
+    const rawBookingId = req.params.id;
+    const bookingId = Number(rawBookingId);
+
+    if (!/^[1-9]\d*$/.test(rawBookingId) || !Number.isSafeInteger(bookingId)) {
+      return res.status(400).json({
+        error: {
+          code: 'INVALID_BOOKING',
+          message: 'A valid booking ID is required.',
+        },
+      });
+    }
+
+    if (!user) {
+      return res.status(401).json({
+        error: {
+          code: 'UNAUTHENTICATED',
+          message: 'Login is required.',
+        },
+      });
+    }
+
+    const cancelled = await cancelBooking(bookingId, user.id);
+
+    if (!cancelled) {
+      return res.status(404).json({
+        error: {
+          code: 'BOOKING_NOT_FOUND',
+          message: 'The requested booking was not found.',
+        },
+      });
+    }
+
+    const booking = await getBookingById(bookingId);
+    return res.status(200).json({ booking });
   })
 );
 

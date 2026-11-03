@@ -1,0 +1,24 @@
+  [31morigin/HEAD[m -> origin/main
+  [31morigin/chore/automated-test-setup[m
+  [31morigin/chore/backend-setup[m
+  [31morigin/chore/define-dto[m
+  [31morigin/chore/frontend-setup[m
+  [31morigin/chore/meal-dining-data-access[m
+  [31morigin/chore/repo-skeleton[m
+  [31morigin/chore/repository-setup[m
+  [31morigin/docs/initial-readme[m
+  [31morigin/feat/booking-availability-table-allocation[m
+  [31morigin/feature/booking-api[m
+  [31morigin/feature/booking-data-access[m
+  [31morigin/feature/database-initial-schema[m
+  [31morigin/feature/employee-access-capacity-management[m
+  [31morigin/feature/hiker-login-interface[m
+  [31morigin/feature/hiker-session[m
+  [31morigin/feature/meal-slot-capacity-api[m
+  [31morigin/feature/minimal-login-setup[m
+  [31morigin/feature/slot-table-assignment[m
+  [31morigin/feature/slot-table-validation[m
+  [31morigin/feature/staff-capacity-interface[m
+  [31morigin/fix/typechecks-auth-tests[m
+  [31morigin/main[m
+  [31morigin/test/book-a-table-e2e[m
