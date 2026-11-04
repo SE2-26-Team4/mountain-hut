@@ -1,16 +1,246 @@
-import { Navigate } from 'react-router-dom';
+// import { Col, Row, Spinner } from 'react-bootstrap';
+// import { Navigate, useNavigate } from 'react-router-dom';
 
-import StaffCapacityManagement from '../components/capacity/StaffCapacityManagement.jsx';
+// import { useAuth } from '../contexts/auth-context.js';
+// // import useStaffCapacity from '../hooks/useStaffCapacity.js';
+// import AssignTablesModal from '../components/capacity/AssignTablesModal.jsx';
+// import CapacityFormModal from '../components/capacity/CapacityFormModal.jsx';
+// import StaffDateSelector from '../components/capacity/StaffDateSelector.jsx';
+// import StaffHeader from '../components/capacity/StaffHeader.jsx';
+// import StaffSidebar from '../components/capacity/StaffSidebar.jsx';
+// import StaffTablesPanel from '../components/capacity/StaffTablesPanel.jsx';
+// import StaffTimeSlotsPanel from '../components/capacity/StaffTimeSlotsPanel.jsx';
+// import Alert from '../components/common/AutoDismissAlert.jsx';
+
+// /**
+//  * @typedef {import('../API/session-api.js').SessionUser} SessionUser
+//  */
+
+// function StaffCapacityPage() {
+//   const { user, isLoading, handleLogout } = useAuth();
+//   const navigate = useNavigate();
+
+//   const handleSignOut = async () => {
+//     await handleLogout();
+
+//     navigate('/', { replace: true });
+//   };
+
+//   if (isLoading) {
+//     return <main role="status">Loading Mountain Hut…</main>;
+//   }
+
+//   if (!user) {
+//     return <Navigate to="/staff/login" replace />;
+//   }
+
+//   if (user.role !== 'employee' && user.role !== 'warden') {
+//     return <Navigate to="/" replace />;
+//   }
+
+//   return (
+//     <StaffCapacityContent
+//       user={user}
+//       onLogout={handleSignOut}
+//     />
+//   );
+// }
+
+// /**
+//  * @param {Object} props
+//  * @param {SessionUser} props.user
+//  * @param {() => Promise<void>} props.onLogout
+//  */
+// function StaffCapacityContent({ user, onLogout }) {
+//   // const staff = useStaffCapacity();
+
+//   return (
+//     <Row className="g-0 cap-app">
+//       <Col xs={12} className="cap-sidebar-column">
+//         <StaffSidebar onLogout={onLogout} />
+//       </Col>
+
+//       <Col
+//         as="main"
+//         className="cap-main"
+//         aria-label="Dining capacity"
+//       >
+//         <StaffHeader
+//           user={user}
+//           onLogout={onLogout}
+//         />
+
+//         <div className="cap-content">
+//           <StaffDateSelector />
+
+//           {staff.errorMessage &&
+//             !staff.isAssignmentModalOpen &&
+//             !staff.isTableModalOpen &&
+//             !staff.isSlotModalOpen && (
+//               <Alert variant="danger">
+//                 {staff.errorMessage}
+//               </Alert>
+//             )}
+
+//           {staff.feedbackMessage && (
+//             <Alert variant="success">
+//               {staff.feedbackMessage}
+//             </Alert>
+//           )}
+
+//           {staff.isLoading ? (
+//             <div
+//               className="cap-loading d-flex align-items-center"
+//               role="status"
+//             >
+//               <Spinner animation="border" aria-hidden="true" />
+
+//               <span>Loading capacity configuration…</span>
+//             </div>
+//           ) : (
+//             <Row className="g-0 cap-columns">
+//               <Col xs={12} className="cap-tables-column">
+//                 <StaffTablesPanel
+//                   tables={staff.diningTables}
+//                   onAdd={staff.openNewTableForm}
+//                   onEdit={staff.startEditingTable}
+//                 />
+//               </Col>
+
+//               <Col xs={12} className="cap-slots-column">
+//                 <StaffTimeSlotsPanel
+//                   slots={staff.mealSlots}
+//                   tables={staff.diningTables}
+//                   onAdd={staff.openNewSlotForm}
+//                   onEdit={staff.startEditingSlot}
+//                   onAssign={staff.openAssignmentModal}
+//                 />
+//               </Col>
+//             </Row>
+//           )}
+
+//           <AssignTablesModal
+//             show={staff.isAssignmentModalOpen}
+//             onHide={staff.closeAssignmentModal}
+//             slot={staff.selectedSlot}
+//             tables={staff.diningTables}
+//             selectedIds={staff.selectedTableIds}
+//             onToggle={staff.toggleTableAssignment}
+//             onSave={staff.saveAssignments}
+//             saving={staff.isSaving}
+//             error={staff.errorMessage}
+//             capacity={staff.assignedCapacity}
+//           />
+
+//           <CapacityFormModal
+//             kind="table"
+//             show={staff.isTableModalOpen}
+//             onHide={staff.closeTableModal}
+//             form={staff.tableForm}
+//             onChange={staff.updateTableField}
+//             onSubmit={staff.handleTableSubmit}
+//             editing={staff.editingTableId !== null}
+//             saving={staff.isSaving}
+//             error={staff.errorMessage}
+//           />
+
+//           <CapacityFormModal
+//             kind="slot"
+//             show={staff.isSlotModalOpen}
+//             onHide={staff.closeSlotModal}
+//             form={staff.slotForm}
+//             onChange={staff.updateSlotField}
+//             onSubmit={staff.handleSlotSubmit}
+//             editing={staff.editingSlotId !== null}
+//             saving={staff.isSaving}
+//             error={staff.errorMessage}
+//           />
+//         </div>
+//       </Col>
+//     </Row>
+//   );
+// }
+
+// export default StaffCapacityPage;
+
+import { Col, Row } from 'react-bootstrap';
+import { Navigate, useNavigate } from 'react-router-dom';
+
 import { useAuth } from '../contexts/auth-context.js';
+import StaffDateSelector from '../components/capacity/StaffDateSelector.jsx';
+import StaffHeader from '../components/capacity/StaffHeader.jsx';
+import StaffSidebar from '../components/capacity/StaffSidebar.jsx';
+import StaffTablesPanel from '../components/capacity/StaffTablesPanel.jsx';
+import StaffTimeSlotsPanel from '../components/capacity/StaffTimeSlotsPanel.jsx';
+
+/**
+ * Temporary preview data.
+ * These values are not loaded from or saved to the server.
+ *
+ * @type {import('../models/models.js').DiningTableDTO[]}
+ */
+const previewTables = [
+  {
+    id: 1,
+    name: 'Table 1',
+    seatCount: 4,
+    isActive: true,
+  },
+  {
+    id: 2,
+    name: 'Table 2',
+    seatCount: 6,
+    isActive: true,
+  },
+  {
+    id: 3,
+    name: 'Table 3',
+    seatCount: 4,
+    isActive: true,
+  },
+];
+
+/**
+ * @type {(
+ *   import('../models/models.js').MealSlotDTO & {
+ *     tableIds: number[]
+ *   }
+ * )[]}
+ */
+const previewSlots = [
+  {
+    id: 1,
+    name: 'Lunch',
+    startTime: '12:00',
+    endTime: '14:00',
+    isActive: true,
+    tableIds: [1, 2, 3],
+  },
+  {
+    id: 2,
+    name: 'Dinner',
+    startTime: '19:00',
+    endTime: '21:00',
+    isActive: true,
+    tableIds: [1, 2],
+  },
+];
+
+const noAction = () => {};
 
 export default function StaffCapacityPage() {
   const { user, isLoading, handleLogout } = useAuth();
+  const navigate = useNavigate();
+
+  async function handleSignOut() {
+    await handleLogout();
+    navigate('/', { replace: true });
+  }
 
   if (isLoading) {
     return <main role="status">Loading Mountain Hut…</main>;
   }
 
-  // Signing out clears the user, so this also returns staff to their login.
   if (!user) {
     return <Navigate to="/staff/login" replace />;
   }
@@ -19,5 +249,57 @@ export default function StaffCapacityPage() {
     return <Navigate to="/" replace />;
   }
 
-  return <StaffCapacityManagement user={user} onLogout={handleLogout} />;
+  return (
+    <Row className="g-0 cap-app">
+      <Col xs={12} className="cap-sidebar-column">
+        <StaffSidebar onLogout={handleSignOut} />
+      </Col>
+
+      <Col
+        as="main"
+        className="cap-main"
+        aria-label="Dining capacity"
+      >
+        <StaffHeader
+          user={user}
+          onLogout={handleSignOut}
+        />
+
+        <div className="cap-content">
+          <StaffDateSelector />
+
+          <p className="text-secondary small" role="note">
+            Interface preview — sample data. Capacity management
+            is not connected yet.
+          </p>
+
+          <fieldset
+            disabled
+            className="border-0 p-0 m-0 w-100"
+            aria-label="Capacity management preview"
+          >
+            <Row className="g-0 cap-columns">
+              <Col xs={12} className="cap-tables-column">
+                <StaffTablesPanel
+                  tables={previewTables}
+                  onAdd={noAction}
+                  onEdit={noAction}
+                />
+              </Col>
+
+              <Col xs={12} className="cap-slots-column">
+                <StaffTimeSlotsPanel
+                  slots={previewSlots}
+                  tables={previewTables}
+                  onAdd={noAction}
+                  onEdit={noAction}
+                  onAssign={noAction}
+                />
+              </Col>
+            </Row>
+          </fieldset>
+        </div>
+      </Col>
+    </Row>
+  );
 }

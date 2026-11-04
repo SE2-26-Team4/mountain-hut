@@ -1,188 +1,452 @@
-import { useMemo, useState } from 'react';
+// import { useEffect, useState } from 'react';
 
-/**
- * @typedef {import('../models/models.js').MealSlotDTO} MealSlotDTO
- * @typedef {import('../models/models.js').DiningTableDTO} DiningTableDTO
- * @typedef {import('../models/models.js').MealSlotInputDTO} MealSlotInputDTO
- * @typedef {import('../models/models.js').DiningTableInputDTO} DiningTableInputDTO
- * @typedef {import('../models/models.js').MealSlotCapacityDTO} MealSlotCapacityDTO
- */
+// import CapacityAPI from '../API/capacity-api.js';
 
-/* TEMPORARY DATA */
 
-// TEMPORARY: sample configuration kept in memory until the "Connect staff
-// interface to capacity API" task loads and saves it through capacity-api.js.
-// Changes are lost when the page is reloaded.
+// /**
+//  * @typedef {import('../models/models.js').MealSlotDTO} MealSlotDTO
+//  * @typedef {import('../models/models.js').DiningTableDTO} DiningTableDTO
+//  * @typedef {import('../models/models.js').MealSlotInputDTO} MealSlotInputDTO
+//  * @typedef {import('../models/models.js').DiningTableInputDTO} DiningTableInputDTO
+//  * @typedef {import('../API/capacity-api.js').ConfiguredMealSlot} ConfiguredMealSlot
+//  */
 
-/** @type {MealSlotDTO[]} */
-const TEMPORARY_MEAL_SLOTS = [
-  { id: 1, name: 'Lunch 12:00', startTime: '12:00', endTime: '13:00', isActive: true },
-  { id: 2, name: 'Lunch 13:00', startTime: '13:00', endTime: '14:00', isActive: true },
-  { id: 3, name: 'Dinner 19:00', startTime: '19:00', endTime: '20:30', isActive: true },
-];
+// /** @type {MealSlotInputDTO & { isActive: boolean }} */
+// const emptySlotForm = {
+//   name: '',
+//   startTime: '',
+//   endTime: '',
+//   isActive: true,
+// };
 
-/** @type {DiningTableDTO[]} */
-const TEMPORARY_DINING_TABLES = [
-  { id: 1, name: 'Table 1', seatCount: 4, isActive: true },
-  { id: 2, name: 'Table 2', seatCount: 4, isActive: true },
-  { id: 3, name: 'Table 3', seatCount: 6, isActive: true },
-  { id: 4, name: 'Table 4', seatCount: 2, isActive: true },
-  { id: 5, name: 'Terrace', seatCount: 8, isActive: false },
-];
+// const emptyTableForm = {
+//   name: '',
+//   seatCount: '',
+//   isActive: true,
+// };
 
-/** @type {Record<number, number[]>} */
-const TEMPORARY_SLOT_TABLE_IDS = {
-  1: [1, 2, 3],
-  2: [1, 2],
-  3: [1, 2, 3, 4],
-};
+// /**
+//  * @param {unknown} error
+//  * @returns {string}
+//  */
+// function getErrorMessage(error) {
+//   return error instanceof Error
+//     ? error.message
+//     : 'An unexpected error occurred.';
+// }
 
-/* HELPERS */
+// export default function useStaffCapacity() {
+//   const [mealSlots, setMealSlots] = useState(
+//     /** @type {ConfiguredMealSlot[]} */ ([]),
+//   );
 
-/**
- * @param {{ name: string }} first
- * @param {{ name: string }} second
- */
-function compareByName(first, second) {
-  return first.name.localeCompare(second.name, undefined, { numeric: true });
-}
+//   const [diningTables, setDiningTables] = useState(
+//     /** @type {DiningTableDTO[]} */ ([]),
+//   );
 
-/**
- * @param {MealSlotDTO} first
- * @param {MealSlotDTO} second
- */
-function compareByStartTime(first, second) {
-  return first.startTime.localeCompare(second.startTime) || compareByName(first, second);
-}
+//   const [selectedSlotId, setSelectedSlotId] = useState('');
 
-/**
- * @param {{ id: number }[]} items
- */
-function nextId(items) {
-  return Math.max(0, ...items.map((item) => item.id)) + 1;
-}
+//   const [selectedTableIds, setSelectedTableIds] = useState(
+//     /** @type {number[]} */ ([]),
+//   );
 
-/**
- * Mirrors the server rule: inactive tables stay assigned but add no seats.
- *
- * @param {MealSlotDTO} slot
- * @param {DiningTableDTO[]} sortedTables
- * @param {number[]} tableIds
- * @returns {MealSlotCapacityDTO}
- */
-function buildCapacity(slot, sortedTables, tableIds) {
-  const tables = sortedTables.filter((table) => tableIds.includes(table.id));
+//   const [slotForm, setSlotForm] = useState(emptySlotForm);
+//   const [tableForm, setTableForm] = useState(emptyTableForm);
 
-  return {
-    slotId: slot.id,
-    slotName: slot.name,
-    tables,
-    totalSeatCapacity: tables.reduce(
-      (total, table) => total + (table.isActive ? table.seatCount : 0),
-      0,
-    ),
-  };
-}
+//   const [editingSlotId, setEditingSlotId] = useState(
+//     /** @type {number | null} */ (null),
+//   );
 
-/* HOOK */
+//   const [editingTableId, setEditingTableId] = useState(
+//     /** @type {number | null} */ (null),
+//   );
 
-/**
- * Staff configuration of meal slots, dining tables, and slot assignments.
- * Actions are asynchronous so they can be backed by the capacity API.
- */
-export function useStaffCapacity() {
-  const [mealSlots, setMealSlots] = useState(TEMPORARY_MEAL_SLOTS);
-  const [diningTables, setDiningTables] = useState(TEMPORARY_DINING_TABLES);
-  const [slotTableIds, setSlotTableIds] = useState(TEMPORARY_SLOT_TABLE_IDS);
+//   const [isSlotModalOpen, setIsSlotModalOpen] = useState(false);
+//   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
+//   const [isAssignmentModalOpen, setIsAssignmentModalOpen] =
+//     useState(false);
 
-  const sortedMealSlots = useMemo(
-    () => [...mealSlots].sort(compareByStartTime),
-    [mealSlots],
-  );
+//   const [errorMessage, setErrorMessage] = useState('');
+//   const [feedbackMessage, setFeedbackMessage] = useState('');
 
-  const sortedDiningTables = useMemo(
-    () => [...diningTables].sort(compareByName),
-    [diningTables],
-  );
+//   const [isLoading, setIsLoading] = useState(true);
+//   const [isSaving, setIsSaving] = useState(false);
 
-  const capacityBySlotId = useMemo(
-    () =>
-      new Map(
-        sortedMealSlots.map((slot) => [
-          slot.id,
-          buildCapacity(slot, sortedDiningTables, slotTableIds[slot.id] ?? []),
-        ]),
-      ),
-    [sortedMealSlots, sortedDiningTables, slotTableIds],
-  );
+//   const selectedSlot = mealSlots.find(
+//     (slot) => String(slot.id) === selectedSlotId,
+//   );
 
-  /**
-   * Creates a meal slot, or updates it when its ID is given.
-   *
-   * @param {MealSlotInputDTO} input
-   * @param {number} [slotId]
-   * @returns {Promise<MealSlotDTO>}
-   */
-  async function saveMealSlot(input, slotId) {
-    /** @type {MealSlotDTO} */
-    const mealSlot = {
-      ...input,
-      id: slotId ?? nextId(mealSlots),
-      isActive: input.isActive ?? true,
-    };
+//   const [previousSelectedSlot, setPreviousSelectedSlot] =
+//     useState(selectedSlot);
 
-    setMealSlots((current) =>
-      slotId === undefined
-        ? [...current, mealSlot]
-        : current.map((slot) => (slot.id === slotId ? mealSlot : slot)),
-    );
+//   if (selectedSlot !== previousSelectedSlot) {
+//     setPreviousSelectedSlot(selectedSlot);
+//     setSelectedTableIds(selectedSlot?.tableIds ?? []);
+//   }
 
-    return mealSlot;
-  }
+//   const activeSlots = mealSlots.filter((slot) => slot.isActive);
+//   const activeTables = diningTables.filter((table) => table.isActive);
 
-  /**
-   * Creates a dining table, or updates it when its ID is given.
-   *
-   * @param {DiningTableInputDTO} input
-   * @param {number} [tableId]
-   * @returns {Promise<DiningTableDTO>}
-   */
-  async function saveDiningTable(input, tableId) {
-    /** @type {DiningTableDTO} */
-    const diningTable = {
-      ...input,
-      id: tableId ?? nextId(diningTables),
-      isActive: input.isActive ?? true,
-    };
+//   const totalActiveSeats = activeTables.reduce(
+//     (total, table) => total + table.seatCount,
+//     0,
+//   );
 
-    setDiningTables((current) =>
-      tableId === undefined
-        ? [...current, diningTable]
-        : current.map((table) => (table.id === tableId ? diningTable : table)),
-    );
+//   /** @param {number} tableId */
+//   const isTableSelected = (tableId) =>
+//     selectedTableIds.some((id) => String(id) === String(tableId));
 
-    return diningTable;
-  }
+//   const assignedCapacity = diningTables.reduce(
+//     (total, table) =>
+//       isTableSelected(table.id) && table.isActive
+//         ? total + table.seatCount
+//         : total,
+//     0,
+//   );
 
-  /**
-   * Replaces the complete set of tables assigned to a meal slot.
-   *
-   * @param {MealSlotDTO} slot
-   * @param {number[]} tableIds
-   * @returns {Promise<MealSlotCapacityDTO>}
-   */
-  async function saveSlotTables(slot, tableIds) {
-    setSlotTableIds((current) => ({ ...current, [slot.id]: tableIds }));
+//   /** @param {ConfiguredMealSlot} slot */
+//   const getSlotTableCount = (slot) => slot.tableIds.length;
 
-    return buildCapacity(slot, sortedDiningTables, tableIds);
-  }
+//   /** @param {ConfiguredMealSlot} slot */
+//   const getSlotCapacity = (slot) =>
+//     diningTables.reduce(
+//       (total, table) =>
+//         slot.tableIds.some(
+//           (id) => String(id) === String(table.id),
+//         ) && table.isActive
+//           ? total + table.seatCount
+//           : total,
+//       0,
+//     );
 
-  return {
-    mealSlots: sortedMealSlots,
-    diningTables: sortedDiningTables,
-    capacityBySlotId,
-    saveMealSlot,
-    saveDiningTable,
-    saveSlotTables,
-  };
-}
+//   useEffect(() => {
+//     let isMounted = true;
+
+//     CapacityAPI.getConfiguration()
+//       .then(
+//         ({
+//           mealSlots: loadedMealSlots,
+//           diningTables: loadedDiningTables,
+//         }) => {
+//           if (!isMounted) return;
+
+//           setMealSlots(loadedMealSlots);
+//           setDiningTables(loadedDiningTables);
+
+//           setSelectedSlotId(
+//             loadedMealSlots.length > 0
+//               ? String(loadedMealSlots[0].id)
+//               : '',
+//           );
+//         },
+//       )
+//       .catch((error) => {
+//         if (isMounted) {
+//           setErrorMessage(getErrorMessage(error));
+//         }
+//       })
+//       .finally(() => {
+//         if (isMounted) {
+//           setIsLoading(false);
+//         }
+//       });
+
+//     return () => {
+//       isMounted = false;
+//     };
+//   }, []);
+
+//   /** @param {import('react').ChangeEvent<HTMLInputElement>} event */
+//   function updateSlotField(event) {
+//     const { name, value, type, checked } = event.target;
+
+//     setSlotForm((current) => ({
+//       ...current,
+//       [name]: type === 'checkbox' ? checked : value,
+//     }));
+//   }
+
+//   /** @param {import('react').ChangeEvent<HTMLInputElement>} event */
+//   function updateTableField(event) {
+//     const { name, value, type, checked } = event.target;
+
+//     setTableForm((current) => ({
+//       ...current,
+//       [name]: type === 'checkbox' ? checked : value,
+//     }));
+//   }
+
+//   function openNewSlotForm() {
+//     setEditingSlotId(null);
+//     setSlotForm(emptySlotForm);
+//     setErrorMessage('');
+//     setIsSlotModalOpen(true);
+//   }
+
+//   function openNewTableForm() {
+//     setEditingTableId(null);
+//     setTableForm(emptyTableForm);
+//     setErrorMessage('');
+//     setIsTableModalOpen(true);
+//   }
+
+//   /** @param {MealSlotDTO} slot */
+//   function startEditingSlot(slot) {
+//     setEditingSlotId(slot.id);
+
+//     setSlotForm({
+//       name: slot.name,
+//       startTime: slot.startTime,
+//       endTime: slot.endTime,
+//       isActive: slot.isActive,
+//     });
+
+//     setErrorMessage('');
+//     setIsSlotModalOpen(true);
+//   }
+
+//   /** @param {DiningTableDTO} table */
+//   function startEditingTable(table) {
+//     setEditingTableId(table.id);
+
+//     setTableForm({
+//       name: table.name,
+//       seatCount: String(table.seatCount),
+//       isActive: table.isActive,
+//     });
+
+//     setErrorMessage('');
+//     setIsTableModalOpen(true);
+//   }
+
+//   /** @param {ConfiguredMealSlot} slot */
+//   function openAssignmentModal(slot) {
+//     setSelectedSlotId(String(slot.id));
+//     setSelectedTableIds(slot.tableIds);
+//     setErrorMessage('');
+//     setFeedbackMessage('');
+//     setIsAssignmentModalOpen(true);
+//   }
+
+//   /** @param {import('react').SubmitEvent<HTMLFormElement>} event */
+//   async function handleSlotSubmit(event) {
+//     event.preventDefault();
+
+//     setErrorMessage('');
+//     setFeedbackMessage('');
+
+//     if (!slotForm.name.trim()) {
+//       setErrorMessage('Enter a name for the meal slot.');
+
+//       return;
+//     }
+
+//     if (
+//       !slotForm.startTime ||
+//       !slotForm.endTime ||
+//       slotForm.endTime <= slotForm.startTime
+//     ) {
+//       setErrorMessage('Choose a valid start time and a later end time.');
+
+//       return;
+//     }
+
+//     const mealSlotData = {
+//       ...slotForm,
+//       name: slotForm.name.trim(),
+//     };
+
+//     setIsSaving(true);
+
+//     try {
+//       if (editingSlotId !== null) {
+//         const updatedMealSlot = await CapacityAPI.updateMealSlot(
+//           editingSlotId,
+//           mealSlotData,
+//         );
+
+//         setMealSlots((current) =>
+//           current.map((slot) =>
+//             slot.id === editingSlotId
+//               ? {
+//                   ...updatedMealSlot,
+//                   tableIds: slot.tableIds,
+//                 }
+//               : slot,
+//           ),
+//         );
+
+//         setFeedbackMessage('Meal slot updated successfully.');
+//       } else {
+//         const createdMealSlot =
+//           await CapacityAPI.createMealSlot(mealSlotData);
+
+//         /** @type {ConfiguredMealSlot} */
+//         const newMealSlot = {
+//           ...createdMealSlot,
+//           tableIds: [],
+//         };
+
+//         setMealSlots((current) => [...current, newMealSlot]);
+//         setSelectedSlotId(String(newMealSlot.id));
+//         setFeedbackMessage('Meal slot added successfully.');
+//       }
+
+//       setIsSlotModalOpen(false);
+//       setEditingSlotId(null);
+//       setSlotForm(emptySlotForm);
+//     } catch (error) {
+//       setErrorMessage(getErrorMessage(error));
+//     } finally {
+//       setIsSaving(false);
+//     }
+//   }
+
+//   /** @param {import('react').SubmitEvent<HTMLFormElement>} event */
+//   async function handleTableSubmit(event) {
+//     event.preventDefault();
+
+//     setErrorMessage('');
+//     setFeedbackMessage('');
+
+//     const seatCount = Number(tableForm.seatCount);
+
+//     if (!tableForm.name.trim()) {
+//       setErrorMessage('Enter a name for the dining table.');
+
+//       return;
+//     }
+
+//     if (!Number.isInteger(seatCount) || seatCount <= 0) {
+//       setErrorMessage('Seat count must be a positive whole number.');
+
+//       return;
+//     }
+
+//     /** @type {DiningTableInputDTO & { isActive: boolean }} */
+//     const diningTableData = {
+//       ...tableForm,
+//       name: tableForm.name.trim(),
+//       seatCount,
+//     };
+
+//     setIsSaving(true);
+
+//     try {
+//       if (editingTableId !== null) {
+//         const updatedDiningTable = await CapacityAPI.updateDiningTable(
+//           editingTableId,
+//           diningTableData,
+//         );
+
+//         setDiningTables((current) =>
+//           current.map((table) =>
+//             table.id === editingTableId ? updatedDiningTable : table,
+//           ),
+//         );
+
+//         setFeedbackMessage('Dining table updated successfully.');
+//       } else {
+//         const createdDiningTable =
+//           await CapacityAPI.createDiningTable(diningTableData);
+
+//         setDiningTables((current) => [...current, createdDiningTable]);
+//         setFeedbackMessage('Dining table added successfully.');
+//       }
+
+//       setIsTableModalOpen(false);
+//       setEditingTableId(null);
+//       setTableForm(emptyTableForm);
+//     } catch (error) {
+//       setErrorMessage(getErrorMessage(error));
+//     } finally {
+//       setIsSaving(false);
+//     }
+//   }
+
+//   /** @param {number} tableId */
+//   function toggleTableAssignment(tableId) {
+//     setSelectedTableIds((current) =>
+//       current.some((id) => String(id) === String(tableId))
+//         ? current.filter((id) => String(id) !== String(tableId))
+//         : [...current, tableId],
+//     );
+//   }
+
+//   async function saveAssignments() {
+//     if (!selectedSlot) {
+//       setErrorMessage('Choose a meal service before assigning tables.');
+
+//       return;
+//     }
+
+//     setErrorMessage('');
+//     setFeedbackMessage('');
+//     setIsSaving(true);
+
+//     try {
+//       const capacity = await CapacityAPI.saveMealSlotTables(
+//         Number(selectedSlotId),
+//         selectedTableIds,
+//       );
+
+//       const savedTableIds = capacity.tables.map((table) => table.id);
+
+//       setMealSlots((current) =>
+//         current.map((slot) =>
+//           String(slot.id) === selectedSlotId
+//             ? { ...slot, tableIds: savedTableIds }
+//             : slot,
+//         ),
+//       );
+
+//       setSelectedTableIds(savedTableIds);
+//       setFeedbackMessage('Table assignments saved successfully.');
+//       setIsAssignmentModalOpen(false);
+//     } catch (error) {
+//       setErrorMessage(getErrorMessage(error));
+//     } finally {
+//       setIsSaving(false);
+//     }
+//   }
+
+//   return {
+//     mealSlots,
+//     diningTables,
+//     activeSlots,
+//     activeTables,
+//     totalActiveSeats,
+//     selectedSlot,
+//     selectedSlotId,
+//     selectedTableIds,
+//     isTableSelected,
+//     assignedCapacity,
+//     slotForm,
+//     tableForm,
+//     editingSlotId,
+//     editingTableId,
+//     isSlotModalOpen,
+//     isTableModalOpen,
+//     isAssignmentModalOpen,
+//     errorMessage,
+//     feedbackMessage,
+//     isLoading,
+//     isSaving,
+//     getSlotTableCount,
+//     getSlotCapacity,
+//     updateSlotField,
+//     updateTableField,
+//     openNewSlotForm,
+//     openNewTableForm,
+//     startEditingSlot,
+//     startEditingTable,
+//     openAssignmentModal,
+//     handleSlotSubmit,
+//     handleTableSubmit,
+//     toggleTableAssignment,
+//     saveAssignments,
+//     closeSlotModal: () => setIsSlotModalOpen(false),
+//     closeTableModal: () => setIsTableModalOpen(false),
+//     closeAssignmentModal: () => setIsAssignmentModalOpen(false),
+//   };
+// }

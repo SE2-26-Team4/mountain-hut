@@ -1,121 +1,153 @@
-import { useState } from 'react';
-
-import { formatCount } from './formatCount.js';
-import StaffIcon from './StaffIcons.jsx';
+import { useMemo, useState } from 'react';
 
 /**
  * @typedef {import('../../models/models.js').DiningTableDTO} DiningTableDTO
  */
 
-const PAGE_SIZE = 6;
-
 /**
- * Searchable, paginated list of dining tables.
- *
- * @param {{
- *   tables: DiningTableDTO[],
- *   onAdd: () => void,
- *   onEdit: (table: DiningTableDTO) => void,
- * }} props
+ * @param {Object} props
+ * @param {DiningTableDTO[]} props.tables
+ * @param {() => void} props.onAdd
+ * @param {(table: DiningTableDTO) => void} props.onEdit
  */
-export default function StaffTablesPanel({ tables, onAdd, onEdit }) {
+export default function StaffTablesPanel({
+  tables,
+  onAdd,
+  onEdit,
+}) {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
 
-  const normalizedQuery = query.trim().toLowerCase();
-  const filteredTables = tables.filter((table) =>
-    table.name.toLowerCase().includes(normalizedQuery),
+  const filtered = useMemo(
+    () =>
+      tables.filter((table) =>
+        table.name.toLowerCase().includes(query.toLowerCase()),
+      ),
+    [tables, query],
   );
-  const pageCount = Math.max(1, Math.ceil(filteredTables.length / PAGE_SIZE));
-  const currentPage = Math.min(page, pageCount);
-  const visibleTables = filteredTables.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE,
+
+  const pageSize = 9;
+  const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const current = Math.min(page, pages);
+
+  const visibleTables = filtered.slice(
+    (current - 1) * pageSize,
+    current * pageSize,
   );
 
   return (
-    <section className="staff-panel" aria-labelledby="staff-tables-title">
-      <div className="staff-panel__header">
+    <section className="cap-panel cap-tables">
+      <div className="cap-panel-heading d-flex align-items-start justify-content-between">
         <div>
-          <h2 id="staff-tables-title">Tables</h2>
+          <h2>Tables</h2>
+
           <p>Manage your tables and seating capacity.</p>
         </div>
-        <button type="button" className="staff-button staff-button--primary" onClick={onAdd}>
-          <StaffIcon name="plus" />
+
+        <button
+          type="button"
+          className="cap-primary"
+          onClick={onAdd}
+        >
+          <i
+            className="bi bi-plus-lg"
+            aria-hidden="true"
+          />
+
           Add table
         </button>
       </div>
 
-      <label className="staff-search">
-        <StaffIcon name="search" />
+      <div className="cap-search">
+        <i
+          className="bi bi-search"
+          aria-hidden="true"
+        />
+
         <input
-          type="search"
           placeholder="Search tables..."
-          aria-label="Search tables"
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
             setPage(1);
           }}
+          aria-label="Search tables"
         />
-      </label>
+      </div>
 
-      {visibleTables.length === 0 ? (
-        <p className="staff-empty">
-          {tables.length === 0 ? 'No tables yet. Add the first one.' : 'No tables match your search.'}
-        </p>
-      ) : (
-        <ul className="staff-table-list">
-          {visibleTables.map((table) => (
-            <li key={table.id} className={`staff-table-item${table.isActive ? '' : ' is-inactive'}`}>
-              <span className="staff-table-item__icon">
-                <StaffIcon name="grid" />
-              </span>
-              <span className="staff-table-item__text">
-                <span className="staff-table-item__name">
-                  {table.name}
-                  {!table.isActive && <span className="staff-badge">Inactive</span>}
-                </span>
-                <span className="staff-table-item__seats">{formatCount(table.seatCount, 'seat')}</span>
-              </span>
-              <button
-                type="button"
-                className="staff-button staff-button--icon"
-                aria-label={`Edit ${table.name}`}
-                onClick={() => onEdit(table)}
-              >
-                <StaffIcon name="pencil" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="cap-table-list d-flex flex-column">
+        {visibleTables.map((table) => (
+          <div
+            className="cap-table-item d-flex align-items-center"
+            key={table.id}
+          >
+            <span className="cap-table-symbol">
+              <i
+                className="bi bi-people"
+                aria-hidden="true"
+              />
+            </span>
 
-      <div className="staff-panel__footer">
-        <span>{formatCount(filteredTables.length, 'table')}</span>
-        <span className="staff-pagination">
+            <span className="cap-table-copy d-flex flex-column">
+              <strong>{table.name}</strong>
+
+              <small>
+                {table.seatCount} seats
+                {!table.isActive ? ' · Inactive' : ''}
+              </small>
+            </span>
+
+            <button
+              type="button"
+              className="cap-icon-button"
+              onClick={() => onEdit(table)}
+              aria-label={`Edit ${table.name}`}
+            >
+              <i
+                className="bi bi-pencil"
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+        ))}
+
+        {filtered.length === 0 && (
+          <p className="cap-empty">No tables found.</p>
+        )}
+      </div>
+
+      <div className="cap-panel-footer d-flex align-items-center justify-content-between">
+        <span>{filtered.length} tables</span>
+
+        <div className="cap-pagination d-flex align-items-center">
           <button
             type="button"
-            className="staff-button staff-button--icon"
+            disabled={current === 1}
+            onClick={() => setPage(current - 1)}
             aria-label="Previous page"
-            disabled={currentPage === 1}
-            onClick={() => setPage(currentPage - 1)}
           >
-            <StaffIcon name="chevronLeft" />
+            <i
+              className="bi bi-chevron-left"
+              aria-hidden="true"
+            />
           </button>
+
           <span>
-            {currentPage} / {pageCount}
+            {current} / {pages}
           </span>
+
           <button
             type="button"
-            className="staff-button staff-button--icon"
+            disabled={current === pages}
+            onClick={() => setPage(current + 1)}
             aria-label="Next page"
-            disabled={currentPage === pageCount}
-            onClick={() => setPage(currentPage + 1)}
           >
-            <StaffIcon name="chevronRight" />
+            <i
+              className="bi bi-chevron-right"
+              aria-hidden="true"
+            />
           </button>
-        </span>
+        </div>
       </div>
     </section>
   );

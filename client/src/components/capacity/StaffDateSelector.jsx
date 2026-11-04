@@ -1,73 +1,76 @@
 import { useState } from 'react';
 
-import StaffIcon from './StaffIcons.jsx';
-
 /**
- * Formats a local date as YYYY-MM-DD for date inputs.
- *
  * @param {Date} date
+ * @returns {string} Local calendar date in YYYY-MM-DD format.
  */
-function toDateValue(date) {
+function formatDate(date) {
+  const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
 
-  return `${date.getFullYear()}-${month}-${day}`;
+  return `${year}-${month}-${day}`;
 }
 
-/**
- * @param {string} value - Date in YYYY-MM-DD format.
- * @param {number} days
- */
-function addDays(value, days) {
-  const [year, month, day] = value.split('-').map(Number);
-
-  return toDateValue(new Date(year, month - 1, day + days));
-}
-
-/**
- * Date picker for the staff view. Meal slots are not date-specific yet,
- * so the selected date does not change the displayed configuration.
- */
 export default function StaffDateSelector() {
-  const [date, setDate] = useState(() => toDateValue(new Date()));
+  const [date, setDate] = useState(() => formatDate(new Date()));
+
+  /** @param {number} days */
+  function shiftDate(days) {
+    const next = new Date(`${date}T12:00:00`);
+
+    next.setDate(next.getDate() + days);
+
+    setDate(formatDate(next));
+  }
 
   return (
-    <div className="staff-date">
-      <label className="staff-date__field">
-        <StaffIcon name="calendar" />
-        <span>
-          <span className="staff-date__label">Date</span>
+    <div className="cap-datebar d-flex align-items-center">
+      <label className="cap-date-field d-flex align-items-center">
+        <i
+          className="bi bi-calendar3"
+          aria-hidden="true"
+        />
+
+        <span className="d-flex flex-column">
+          <small>Date</small>
+
           <input
             type="date"
             value={date}
-            onChange={(event) => {
-              if (event.target.value) {
-                setDate(event.target.value);
-              }
-            }}
+            onChange={(event) => setDate(event.target.value)}
+            aria-label="Reference date"
           />
         </span>
       </label>
 
       <button
         type="button"
-        className="staff-button staff-button--round"
+        className="cap-circle-button"
+        onClick={() => shiftDate(-1)}
         aria-label="Previous day"
-        onClick={() => setDate((current) => addDays(current, -1))}
       >
-        <StaffIcon name="chevronLeft" />
+        <i
+          className="bi bi-chevron-left"
+          aria-hidden="true"
+        />
       </button>
 
       <button
         type="button"
-        className="staff-button staff-button--round"
+        className="cap-circle-button"
+        onClick={() => shiftDate(1)}
         aria-label="Next day"
-        onClick={() => setDate((current) => addDays(current, 1))}
       >
-        <StaffIcon name="chevronRight" />
+        <i
+          className="bi bi-chevron-right"
+          aria-hidden="true"
+        />
       </button>
 
-      <p className="staff-date__note">Current configuration applies to all dates</p>
+      <span className="cap-date-note">
+        Current configuration applies to all dates
+      </span>
     </div>
   );
 }
