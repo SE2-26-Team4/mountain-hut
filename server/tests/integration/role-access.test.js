@@ -80,3 +80,32 @@ describe('staff-only capacity access', () => {
     expect(response.body.error.code).toBe('UNAUTHENTICATED');
   });
 });
+
+
+it('rejects authenticated users with an unrecognized role', async () => {
+    const response = await request(app)
+      .get('/api/capacity')
+      .set('x-test-role', 'guest');
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('rejects authenticated users with a missing role property', async () => {
+    const testApp = express();
+
+    testApp.use((req, _res, next) => {
+      req.isAuthenticated = () => true;
+      req.user = {}; // User object exists, but has no role
+      next();
+    });
+
+    testApp.get('/api/capacity', requireStaff, (_req, res) => {
+      res.json({ access: 'granted' });
+    });
+
+    const response = await request(testApp).get('/api/capacity');
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe('FORBIDDEN');
+  });

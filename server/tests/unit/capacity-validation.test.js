@@ -216,3 +216,38 @@ describe('slot-table assignment validation', () => {
     );
   });
 });
+
+
+it('rejects a meal slot missing start or end time', () => {
+    expect(() =>
+      validateMealSlot({
+        name: 'Dinner',
+        endTime: '20:00',
+      }),
+    ).toThrow();
+
+    expect(() =>
+      validateMealSlot({
+        name: 'Dinner',
+        startTime: '18:00',
+      }),
+    ).toThrow();
+  });
+
+  it('rejects a dining table missing seat count', () => {
+    expect(() =>
+      validateDiningTable({
+        name: 'Table 1',
+      }),
+    ).toThrow('Dining table seat count must be a positive integer.');
+  });
+
+  it('rejects a non-boolean active status in dining table', () => {
+    expect(() =>
+      validateDiningTable({
+        name: 'Table 1',
+        seatCount: 4,
+        isActive: 1,
+      }),
+    ).toThrow('Dining table active status must be a boolean.');
+  });
