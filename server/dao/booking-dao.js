@@ -59,7 +59,7 @@ export async function createBooking({
   return withTransaction(async ({ runAsync, getAsync, allAsync }) => {
     // Check the slot inside the transaction.
     const slot = await getAsync(
-      `SELECT id, is_active AS isActive
+      `SELECT id, start_time AS startTime, is_active AS isActive
        FROM meal_slots
        WHERE id = ?`,
       [slotId]
@@ -76,28 +76,59 @@ export async function createBooking({
       );
     }
 
+    const mealStartTimestamp = getMealStartTimestamp(
+      bookingDate,
+      slot.startTime
+    );
+
+    const minimumNotice = 2 * 60 * 60 * 1000;
+
+    if (mealStartTimestamp - Date.now() < minimumNotice) {
+      throw new BookingError(
+        'BOOKING_TOO_LATE',
+        'Bookings must be made at least two hours before the meal service starts.'
+      );
+    }
+
+    const existingBooking = await getAsync(
+      `SELECT id
+      FROM bookings
+      WHERE hiker_id = ?
+        AND booking_date = ?
+        AND slot_id = ?
+        AND status = 'confirmed'
+      LIMIT 1`,
+      [hikerId, bookingDate, slotId]
+    );
+
+    if (existingBooking) {
+      throw new BookingError(
+        'DUPLICATE_BOOKING',
+        'You already have a confirmed booking for this date and meal service.'
+      );
+    }
+
     // Count only confirmed bookings for this date and slot.
     // Cancelled bookings do not occupy seats.
     /** @type {{ tableId: number, availableSeats: number }[]} */
     const tables = await allAsync(
       `SELECT
         t.id AS tableId,
-        t.seat_count AS availableSeats
-      FROM slot_tables AS st
-      JOIN dining_tables AS t ON t.id = st.table_id
-      WHERE st.slot_id = ?
-        AND t.is_active = 1
-        AND NOT EXISTS (
-          SELECT 1
+        t.seat_count - COALESCE((
+          SELECT SUM(a.seats_reserved)
           FROM booking_table_allocations AS a
           JOIN bookings AS b ON b.id = a.booking_id
           WHERE a.table_id = t.id
             AND b.booking_date = ?
             AND b.slot_id = ?
             AND b.status = 'confirmed'
-        )
+        ), 0) AS availableSeats
+      FROM slot_tables AS st
+      JOIN dining_tables AS t ON t.id = st.table_id
+      WHERE st.slot_id = ?
+        AND t.is_active = 1
       ORDER BY t.id`,
-      [slotId, bookingDate, slotId]
+      [bookingDate, slotId, slotId]
     );
 
     /** @type {BookingTableAllocationDTO[]} */
@@ -295,6 +326,57 @@ export async function getBookingsByDateAndSlot(bookingDate, slotId) {
       })
     );
   });
+}
+
+/**
+ * Converts a meal date and time in Europe/Rome to a timestamp.
+ *
+ * @param {string} bookingDate
+ * @param {string} startTime
+ * @returns {number}
+ */
+function getMealStartTimestamp(bookingDate, startTime) {
+  const localTime = `${bookingDate}T${startTime}:00`;
+  const wallClockTimestamp = Date.parse(`${localTime}Z`);
+
+  const formatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Rome',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
+
+  let timestamp = wallClockTimestamp;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const parts = formatter.formatToParts(new Date(timestamp));
+
+    /** @param {Intl.DateTimeFormatPartTypes} type */
+    const value = (type) =>
+      parts.find((part) => part.type === type)?.value;
+
+    const displayedTimestamp = Date.parse(
+      `${value('year')}-${value('month')}-${value('day')}` +
+      `T${value('hour')}:${value('minute')}:${value('second')}Z`
+    );
+
+    const correction = wallClockTimestamp - displayedTimestamp;
+
+    if (correction === 0) {
+      return timestamp;
+    }
+
+    timestamp += correction;
+  }
+
+  throw new BookingError(
+    'INVALID_BOOKING',
+    'The selected meal time is not valid in the hut time zone.'
+  );
 }
 
 /* UPDATE */

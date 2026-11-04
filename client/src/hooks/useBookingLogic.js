@@ -300,10 +300,32 @@ export default function useBookingLogic({ user, onRequireLogin }) {
         onRequireLogin?.();
       } else if (
         error instanceof BookingApiError &&
+        (
+          error.code === 'SLOT_INACTIVE' ||
+          error.code === 'SLOT_NOT_FOUND'
+        )
+      ) {
+        setAvailability(null);
+
+        setMealSlots((slots) =>
+          slots.filter((slot) => slot.id !== slotId),
+        );
+
+        setSelectedMealSlotId('');
+
+        setErrorMessage(
+          'This meal service is no longer available. Choose another service.',
+        );
+      } else if (
+        error instanceof BookingApiError &&
         error.status === 409
       ) {
+        setAvailability(null);
+
         setErrorMessage(
-          'Availability has changed and there are no longer enough seats. Check again.',
+          error.code === 'NO_AVAILABILITY'
+            ? 'There are no longer enough seats. Please check availability again.'
+            : 'Availability has changed. Please check again.',
         );
 
         try {
@@ -324,8 +346,7 @@ export default function useBookingLogic({ user, onRequireLogin }) {
       bookingInProgressRef.current = false;
       setIsBooking(false);
     }
-  }
-
+ }
   return {
     bookingDate,
     selectedMealSlotId,

@@ -32,6 +32,7 @@ const uniqueSuffix = `${Date.now()}-${Math.random()}`;
 const bookingDate = '2099-12-30';
 
 let hikerId;
+let secondHikerId;
 let slotId;
 let secondSlotId;
 
@@ -51,6 +52,20 @@ beforeAll(async () => {
   }
 
   hikerId = hiker.id;
+
+  const secondHiker = await runAsync(
+    `INSERT INTO users (full_name, email, password_hash, role)
+    SELECT ?, ?, password_hash, 'hiker'
+    FROM users
+    WHERE id = ?`,
+    [
+      'Second Booking DAO Hiker',
+      `booking-dao-second-${uniqueSuffix}@example.com`,
+      hikerId,
+    ]
+  );
+
+  secondHikerId = secondHiker.lastID;
 
   const slot = await runAsync(
     `INSERT INTO meal_slots (name, start_time, end_time)
@@ -143,6 +158,10 @@ afterAll(async () => {
 
   if (secondSlotId) {
     await runAsync('DELETE FROM meal_slots WHERE id = ?', [secondSlotId]);
+  }
+
+  if (secondHikerId) {
+    await runAsync('DELETE FROM users WHERE id = ?', [secondHikerId]);
   }
 });
 
@@ -242,19 +261,28 @@ describe('booking data access', () => {
     ).toBe(8);
   });
 
-  it('does not share an assigned table with another party', async () => {
-    await createBooking(input(1));
+  it('shares a table between different parties', async () => {
+    const first = await createBooking(input(1));
 
-    await expect(
-      createBooking(input(1))
-    ).rejects.toMatchObject({ code: 'NO_AVAILABILITY' });
+    const second = await createBooking({
+      ...input(1),
+      hikerId: secondHikerId,
+    });
+
+    expect(first.allocations).toEqual([
+      { tableId: tableIds[0], seatsReserved: 1 },
+    ]);
+
+    expect(second.allocations).toEqual([
+      { tableId: tableIds[0], seatsReserved: 1 },
+    ]);
 
     const bookings = await getBookingsByDateAndSlot(
       bookingDate,
       slotId
     );
 
-    expect(bookings).toHaveLength(1);
+    expect(bookings).toHaveLength(2);
   });
 
   it('rejects insufficient capacity without saving a booking', async () => {
@@ -373,10 +401,13 @@ describe('booking data access', () => {
     expect(anotherSlot.allocations[0].tableId).toBe(tableIds[0]);
   });
 
-  it('allows only one concurrent booking for the last free table', async () => {
+  it('prevents concurrent parties from exceeding table capacity', async () => {
     const results = await Promise.allSettled([
-      createBooking(input(2)),
-      createBooking(input(2)),
+      createBooking(input(3)),
+      createBooking({
+        ...input(3),
+        hikerId: secondHikerId,
+      }),
     ]);
 
     expect(
