@@ -7,6 +7,9 @@ import {
   getBookingsByHiker,
 } from '../dao/booking-dao.js';
 import { requireRole } from '../middleware/require-role.js';
+import { getDiningTables, getMealSlots } from '../dao/capacity-dao.js';
+import { buildBookingConfirmationEmail } from '../services/booking-confirmation-content.js';
+import { sendBookingConfirmationEmail } from '../services/booking-confirmation-service.js';
 import {
   createBookingForHiker,
   getMealSlotAvailability,
@@ -116,6 +119,29 @@ router.post(
       slotId,
       partySize,
     });
+
+    // A successful booking must remain successful even when email delivery fails.
+    // Keep email preparation outside the booking transaction and handle failures
+    // separately so a hiker never retries an already-saved booking by mistake.
+    try {
+      const [mealSlots, tables] = await Promise.all([
+        getMealSlots(),
+        getDiningTables(),
+      ]);
+      const mealSlot = mealSlots.find((slot) => slot.id === booking.slotId);
+      const email = buildBookingConfirmationEmail({
+        hiker: user,
+        booking,
+        mealSlot,
+        tables,
+      });
+      await sendBookingConfirmationEmail(email);
+    } catch (emailError) {
+      console.error(
+        'Booking saved, but confirmation email could not be sent:',
+        emailError
+      );
+    }
 
     return res.status(201).json({ booking });
   })
