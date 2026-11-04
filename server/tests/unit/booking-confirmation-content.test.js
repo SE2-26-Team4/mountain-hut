@@ -38,6 +38,33 @@ describe('booking confirmation email content', () => {
     expect(email.text).toContain('- Table 1: 4 seats');
     expect(email.text).toContain('- Table #3: 1 seat');
     expect(email.text).not.toContain('Party requirements');
+
+    expect(email.html).toContain('<strong>Booking reference:</strong> #42');
+    expect(email.html).toContain('<strong>Name:</strong> Mario Rossi');
+    expect(email.html).toContain(
+      '<strong>Date:</strong> Thursday 5 November 2026'
+    );
+    expect(email.html).toContain(
+      '<strong>Meal service:</strong> Lunch, 12:00-14:00'
+    );
+    expect(email.html).toContain('<strong>Party size:</strong> 5');
+    expect(email.html).toContain('<li>Table 1: 4 seats</li>');
+    expect(email.html).toContain('<li>Table #3: 1 seat</li>');
+    expect(email.html).not.toContain('Party requirements');
+  });
+
+  it('escapes user-provided values in the HTML body', () => {
+    const input = createInput();
+    const email = buildBookingConfirmationEmail({
+      ...input,
+      hiker: { ...input.hiker, full_name: 'Mario <b>Rossi</b> & Co' },
+      requirements: [{ hasAllergies: false, description: '<script>x</script>' }],
+    });
+
+    expect(email.html).toContain('Mario &lt;b&gt;Rossi&lt;/b&gt; &amp; Co');
+    expect(email.html).toContain('&lt;script&gt;x&lt;/script&gt;');
+    expect(email.html).not.toContain('<script>');
+    expect(email.text).toContain('Name: Mario <b>Rossi</b> & Co');
   });
 
   it('lists party requirements and marks allergies', () => {
@@ -52,6 +79,12 @@ describe('booking confirmation email content', () => {
     expect(email.text).toContain('Party requirements:');
     expect(email.text).toContain('- [ALLERGIES] 1 vegan, peanut allergy');
     expect(email.text).toContain('- 2 vegetarians');
+
+    expect(email.html).toContain('<strong>Party requirements:</strong>');
+    expect(email.html).toContain(
+      '<li><strong>[ALLERGIES]</strong> 1 vegan, peanut allergy</li>'
+    );
+    expect(email.html).toContain('<li>2 vegetarians</li>');
   });
 
   it('rejects missing recipient or booking data', () => {
@@ -79,5 +112,14 @@ describe('booking confirmation email content', () => {
         mealSlot: { ...input.mealSlot, startTime: '' },
       })
     ).toThrow('Meal service name and times are required.');
+
+    expect(() =>
+      buildBookingConfirmationEmail({
+        ...input,
+        requirements: [{ hasAllergies: true, description: ' ' }],
+      })
+    ).toThrow(
+      'Party requirements must be an array of items with a description.'
+    );
   });
 });

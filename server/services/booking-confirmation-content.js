@@ -25,6 +25,7 @@
  * @typedef {Object} BookingConfirmationEmail
  * @property {string} to
  * @property {string} subject
+ * @property {string} html
  * @property {string} text
  */
 
@@ -44,6 +45,21 @@ function isNonEmptyString(value) {
  */
 function isPositiveInteger(value) {
   return Number.isSafeInteger(value) && Number(value) > 0;
+}
+
+/**
+ * Escapes values before inserting them into the HTML body.
+ *
+ * @param {string | number} value
+ * @returns {string}
+ */
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 /**
@@ -103,8 +119,16 @@ function validateInput({ hiker, booking, mealSlot, tables, requirements }) {
     throw new TypeError('Dining tables must be provided as an array.');
   }
 
-  if (requirements !== undefined && !Array.isArray(requirements)) {
-    throw new TypeError('Party requirements must be provided as an array.');
+  if (
+    requirements !== undefined &&
+    (!Array.isArray(requirements) ||
+      !requirements.every((requirement) =>
+        isNonEmptyString(requirement?.description)
+      ))
+  ) {
+    throw new TypeError(
+      'Party requirements must be an array of items with a description.'
+    );
   }
 }
 
@@ -127,32 +151,57 @@ export function buildBookingConfirmationEmail(input) {
   const date = formatBookingDate(booking.bookingDate);
   const service = `${mealSlot.name.trim()}, ${mealSlot.startTime}-${mealSlot.endTime}`;
 
+  /** @type {[string, string | number][]} */
+  const details = [
+    ['Booking reference', reference],
+    ['Name', hikerName],
+    ['Date', date],
+    ['Meal service', service],
+    ['Party size', booking.partySize],
+  ];
+
   const tableNames = new Map(tables.map((table) => [table.id, table.name]));
   const allocations = booking.allocations.map((allocation) => {
     const tableName =
       tableNames.get(allocation.tableId) ?? `Table #${allocation.tableId}`;
     const seats = allocation.seatsReserved === 1 ? 'seat' : 'seats';
 
-    return `- ${tableName}: ${allocation.seatsReserved} ${seats}`;
+    return `${tableName}: ${allocation.seatsReserved} ${seats}`;
   });
 
-  const lines = [
-    `Hello ${hikerName},`,
+  const greeting = `Hello ${hikerName},`;
+  const intro = 'Your table booking at the Mountain Hut is confirmed.';
+  const closing = `Please quote booking reference ${reference} if you need to contact the hut.`;
+
+  // Text and HTML bodies show the same content.
+  const textLines = [
+    greeting,
     '',
-    'Your table booking at the Mountain Hut is confirmed.',
+    intro,
     '',
-    `Booking reference: ${reference}`,
-    `Name: ${hikerName}`,
-    `Date: ${date}`,
-    `Meal service: ${service}`,
-    `Party size: ${booking.partySize}`,
+    ...details.map(([label, value]) => `${label}: ${value}`),
     '',
     'Table allocation:',
-    ...allocations,
+    ...allocations.map((allocation) => `- ${allocation}`),
+  ];
+
+  const htmlLines = [
+    `<p>${escapeHtml(greeting)}</p>`,
+    `<p>${intro}</p>`,
+    '<ul>',
+    ...details.map(
+      ([label, value]) =>
+        `  <li><strong>${label}:</strong> ${escapeHtml(value)}</li>`
+    ),
+    '</ul>',
+    '<p><strong>Table allocation:</strong></p>',
+    '<ul>',
+    ...allocations.map((allocation) => `  <li>${escapeHtml(allocation)}</li>`),
+    '</ul>',
   ];
 
   if (requirements.length > 0) {
-    lines.push(
+    textLines.push(
       '',
       'Party requirements:',
       ...requirements.map(
@@ -160,19 +209,28 @@ export function buildBookingConfirmationEmail(input) {
           `- ${requirement.hasAllergies ? '[ALLERGIES] ' : ''}${requirement.description.trim()}`
       )
     );
+
+    htmlLines.push(
+      '<p><strong>Party requirements:</strong></p>',
+      '<ul>',
+      ...requirements.map(
+        (requirement) =>
+          `  <li>${requirement.hasAllergies ? '<strong>[ALLERGIES]</strong> ' : ''}${escapeHtml(requirement.description.trim())}</li>`
+      ),
+      '</ul>'
+    );
   }
 
-  lines.push(
-    '',
-    `Please quote booking reference ${reference} if you need to contact the hut.`,
-    '',
-    'See you soon,',
-    'The Mountain Hut team'
+  textLines.push('', closing, '', 'See you soon,', 'The Mountain Hut team');
+  htmlLines.push(
+    `<p>${escapeHtml(closing)}</p>`,
+    '<p>See you soon,<br>The Mountain Hut team</p>'
   );
 
   return {
     to: hiker.email.trim(),
     subject: `Booking confirmed ${reference} - ${mealSlot.name.trim()}, ${date}`,
-    text: lines.join('\n'),
+    html: htmlLines.join('\n'),
+    text: textLines.join('\n'),
   };
 }
