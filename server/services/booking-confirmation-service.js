@@ -16,8 +16,15 @@ export async function sendBookingConfirmationEmail(message) {
     throw new Error('RESEND_API_KEY and EMAIL_FROM must be configured to send booking emails.');
   }
 
-  if (!message?.to?.trim() || !message?.subject?.trim() || !message?.html?.trim() || !message?.text?.trim()) {
-    throw new Error('A recipient, subject, HTML body, and text body are required.');
+  if (
+    !message?.to?.trim() ||
+    !message?.subject?.trim() ||
+    !message?.html?.trim() ||
+    !message?.text?.trim()
+  ) {
+    throw new Error(
+      'A recipient, subject, HTML body, and text body are required.'
+    );
   }
 
   const resend = new Resend(apiKey);
