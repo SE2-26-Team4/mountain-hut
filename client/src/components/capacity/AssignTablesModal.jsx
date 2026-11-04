@@ -1,8 +1,7 @@
-import { useId, useRef, useState } from 'react';
+import { useState } from 'react';
+import { Col, Modal, Row, Spinner } from 'react-bootstrap';
 
-import { useModalDialog } from '../../hooks/useModalDialog.js';
-import { formatCount } from './formatCount.js';
-import StaffIcon from './StaffIcons.jsx';
+import Alert from '../common/AutoDismissAlert.jsx';
 
 /**
  * @typedef {import('../../models/models.js').MealSlotDTO} MealSlotDTO
@@ -10,211 +9,197 @@ import StaffIcon from './StaffIcons.jsx';
  */
 
 /**
- * Dialog to choose the complete set of tables assigned to a meal slot.
- *
- * @param {{
- *   slot: MealSlotDTO,
- *   tables: DiningTableDTO[],
- *   assignedTableIds: number[],
- *   onSubmit: (tableIds: number[]) => Promise<void>,
- *   onClose: () => void,
- * }} props
+ * @param {Object} props
+ * @param {boolean} props.show
+ * @param {() => void} props.onHide
+ * @param {MealSlotDTO | null | undefined} props.slot
+ * @param {DiningTableDTO[]} props.tables
+ * @param {number[]} props.selectedIds
+ * @param {(tableId: number) => void} props.onToggle
+ * @param {() => void | Promise<void>} props.onSave
+ * @param {boolean} props.saving
+ * @param {string} props.error
+ * @param {number} props.capacity
  */
 export default function AssignTablesModal({
+  show,
+  onHide,
   slot,
   tables,
-  assignedTableIds,
-  onSubmit,
-  onClose,
+  selectedIds,
+  onToggle,
+  onSave,
+  saving,
+  error,
+  capacity,
 }) {
-  const titleId = useId();
-  const searchRef = useRef(/** @type {HTMLInputElement | null} */ (null));
-  const dialogRef = useModalDialog(searchRef);
-
-  const [selectedIds, setSelectedIds] = useState(assignedTableIds);
   const [query, setQuery] = useState('');
-  const [submitError, setSubmitError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
 
-  const normalizedQuery = query.trim().toLowerCase();
-  const matchingTables = tables.filter((table) =>
-    table.name.toLowerCase().includes(normalizedQuery),
-  );
-  const selectedTables = tables.filter((table) => selectedIds.includes(table.id));
-  const totalSeats = selectedTables.reduce(
-    (total, table) => total + (table.isActive ? table.seatCount : 0),
-    0,
+  const selected = tables.filter((table) =>
+    selectedIds.some((id) => String(id) === String(table.id)),
   );
 
-  /**
-   * @param {number} tableId
-   */
-  function toggleTable(tableId) {
-    setSelectedIds((current) =>
-      current.includes(tableId)
-        ? current.filter((id) => id !== tableId)
-        : [...current, tableId],
-    );
-  }
-
-  async function handleSave() {
-    setSubmitError('');
-    setSubmitting(true);
-
-    try {
-      await onSubmit(selectedTables.map((table) => table.id));
-    } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : 'The tables could not be assigned.');
-      setSubmitting(false);
-    }
-  }
+  const visible = tables.filter((table) =>
+    table.name.toLowerCase().includes(query.toLowerCase()),
+  );
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="staff-modal staff-modal--wide"
-      aria-labelledby={titleId}
-      onCancel={(event) => {
-        if (submitting) {
-          event.preventDefault();
-        }
-      }}
-      onClose={onClose}
+    <Modal
+      show={show}
+      onHide={onHide}
+      centered
+      size="lg"
+      dialogClassName="cap-assign-dialog"
     >
-      <div className="staff-modal__header">
+      <Modal.Header closeButton className="border-bottom-0">
         <div>
-          <h2 id={titleId}>Assign tables</h2>
-          <p>
-            {slot.name} · {slot.startTime} – {slot.endTime}
+          <Modal.Title>Assign tables</Modal.Title>
+
+          <p className="cap-modal-subtitle">
+            {slot?.name} · {slot?.startTime} – {slot?.endTime}
           </p>
         </div>
-        <button
-          type="button"
-          className="staff-button staff-button--icon"
-          aria-label="Close"
-          disabled={submitting}
-          onClick={onClose}
-        >
-          <StaffIcon name="close" />
-        </button>
-      </div>
+      </Modal.Header>
 
-      <div className="staff-modal__body staff-assign">
-        <div className="staff-assign__column">
-          <label className="staff-search">
-            <StaffIcon name="search" />
-            <input
-              ref={searchRef}
-              type="search"
-              placeholder="Search tables..."
-              aria-label="Search tables"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </label>
+      <Modal.Body>
+        {error && (
+          <Alert variant="danger">
+            {error}
+          </Alert>
+        )}
 
-          {matchingTables.length === 0 ? (
-            <p className="staff-empty">
-              {tables.length === 0
-                ? 'No tables yet. Add tables in the Tables panel first.'
-                : 'No tables match your search.'}
-            </p>
-          ) : (
-            <ul className="staff-assign__options">
-              {matchingTables.map((table) => {
-                const selected = selectedIds.includes(table.id);
+        <Row className="g-0 cap-assign-grid">
+          <Col xs={12} className="cap-assign-picker">
+            <div className="cap-search">
+              <i
+                className="bi bi-search"
+                aria-hidden="true"
+              />
 
-                return (
-                  <li key={table.id}>
-                    <label className={`staff-assign__option${selected ? ' is-selected' : ''}`}>
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        onChange={() => toggleTable(table.id)}
-                      />
-                      <StaffIcon name="grid" />
-                      <span className="staff-assign__name">
-                        {table.name}
-                        {!table.isActive && <span className="staff-badge">Inactive</span>}
-                      </span>
-                      <span className="staff-muted">{formatCount(table.seatCount, 'seat')}</span>
-                    </label>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search tables..."
+                aria-label="Search assignment tables"
+              />
+            </div>
 
-          <p className="staff-muted">{formatCount(matchingTables.length, 'table')}</p>
-        </div>
+            <div className="cap-assign-list">
+              {visible.map((table) => (
+                <label
+                  className="cap-assign-item d-flex align-items-center"
+                  key={table.id}
+                >
+                  <input
+                    type="checkbox"
+                    className="cap-assignment-checkbox"
+                    checked={selectedIds.some(
+                      (id) => String(id) === String(table.id),
+                    )}
+                    disabled={!table.isActive || saving}
+                    onChange={() => onToggle(table.id)}
+                    aria-label={`Select ${table.name}`}
+                  />
 
-        <div className="staff-assign__column staff-assign__summary">
-          <h3>
-            Selected tables
-            <span className="staff-count">{selectedTables.length}</span>
-          </h3>
-
-          {selectedTables.length === 0 ? (
-            <p className="staff-muted">
-              No tables selected. Saving leaves this time slot without seats.
-            </p>
-          ) : (
-            <ul className="staff-assign__picked">
-              {selectedTables.map((table) => (
-                <li key={table.id} className={table.isActive ? undefined : 'is-inactive'}>
-                  <span className="staff-table-item__icon">
-                    <StaffIcon name="grid" />
+                  <span className="cap-table-symbol">
+                    <i
+                      className="bi bi-table"
+                      aria-hidden="true"
+                    />
                   </span>
-                  <span className="staff-table-item__text">
-                    <span className="staff-table-item__name">{table.name}</span>
-                    <span className="staff-table-item__seats">
-                      {table.isActive ? formatCount(table.seatCount, 'seat') : 'Inactive, not counted'}
-                    </span>
+
+                  <strong>{table.name}</strong>
+
+                  <small>{table.seatCount} seats</small>
+                </label>
+              ))}
+
+              {visible.length === 0 && (
+                <p className="cap-empty">No tables found.</p>
+              )}
+            </div>
+
+            <small className="cap-list-count">
+              {tables.length} tables
+            </small>
+          </Col>
+
+          <Col
+            xs={12}
+            className="cap-selected-panel d-flex flex-column"
+          >
+            <div className="cap-selected-heading d-flex align-items-center justify-content-between">
+              <strong>Selected tables</strong>
+
+              <span>{selected.length}</span>
+            </div>
+
+            <div className="cap-selected-list">
+              {selected.map((table) => (
+                <div
+                  className="cap-selected-item d-flex align-items-center"
+                  key={table.id}
+                >
+                  <span className="cap-table-symbol">
+                    <i
+                      className="bi bi-table"
+                      aria-hidden="true"
+                    />
                   </span>
+
+                  <span className="d-flex flex-column">
+                    <strong>{table.name}</strong>
+
+                    <small>{table.seatCount} seats</small>
+                  </span>
+
                   <button
                     type="button"
-                    className="staff-button staff-button--icon"
+                    disabled={saving}
+                    onClick={() => onToggle(table.id)}
                     aria-label={`Remove ${table.name}`}
-                    onClick={() => toggleTable(table.id)}
                   >
-                    <StaffIcon name="close" />
+                    <i
+                      className="bi bi-x-lg"
+                      aria-hidden="true"
+                    />
                   </button>
-                </li>
+                </div>
               ))}
-            </ul>
-          )}
+            </div>
 
-          <div className="staff-assign__total">
-            <span>Total capacity</span>
-            <strong>{formatCount(totalSeats, 'seat')}</strong>
-          </div>
-        </div>
+            <div className="cap-selected-total d-flex flex-column mt-auto">
+              <small>Total capacity</small>
 
-        {submitError && (
-          <p className="staff-form-error staff-assign__error" role="alert">
-            {submitError}
-          </p>
-        )}
-      </div>
+              <strong>{capacity} seats</strong>
+            </div>
+          </Col>
+        </Row>
+      </Modal.Body>
 
-      <div className="staff-modal__footer">
+      <Modal.Footer className="border-top-0">
         <button
           type="button"
-          className="staff-button staff-button--secondary"
-          disabled={submitting}
-          onClick={onClose}
+          className="cap-outline"
+          disabled={saving}
+          onClick={onHide}
         >
           Cancel
         </button>
+
         <button
           type="button"
-          className="staff-button staff-button--primary"
-          disabled={submitting}
-          onClick={handleSave}
+          className="cap-primary"
+          disabled={saving || !slot}
+          onClick={onSave}
         >
-          {submitting ? 'Saving…' : 'Save tables'}
+          {saving ? (
+            <Spinner animation="border" size="sm" />
+          ) : (
+            'Assign tables'
+          )}
         </button>
-      </div>
-    </dialog>
+      </Modal.Footer>
+    </Modal>
   );
 }

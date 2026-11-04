@@ -270,7 +270,7 @@ describe('booking management API', () => {
       .query({ bookingDate, slotId });
 
     expect(unavailableResponse.body.availability.totalAvailableSeats).toBe(
-      0,
+      2,
     );
   });
 

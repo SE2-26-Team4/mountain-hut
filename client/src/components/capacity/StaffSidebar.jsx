@@ -1,53 +1,73 @@
+import { Button } from 'react-bootstrap';
+
 import MountainLogo from '../common/MountainLogo.jsx';
-import StaffIcon from './StaffIcons.jsx';
 
-/**
- * @typedef {import('./StaffIcons.jsx').StaffIconName} StaffIconName
- */
-
-/** @type {{ id: string, label: string, icon: StaffIconName, available: boolean }[]} */
-const SECTIONS = [
-  { id: 'dashboard', label: 'Dashboard', icon: 'home', available: false },
-  { id: 'reservations', label: 'Reservations', icon: 'calendarCheck', available: false },
-  { id: 'capacity', label: 'Tables & Slots', icon: 'grid', available: true },
-  { id: 'menu', label: 'Menu', icon: 'utensils', available: false },
-  { id: 'settings', label: 'Settings', icon: 'sliders', available: false },
+const links = [
+  ['house-door', 'Dashboard'],
+  ['calendar-check', 'Reservations'],
+  ['calendar3', 'Tables & Slots'],
+  ['fork-knife', 'Menu'],
+  ['gear', 'Settings'],
 ];
 
 /**
- * Staff navigation; only the capacity section exists in this sprint.
- *
- * @param {{ onLogout: () => void }} props
+ * @param {Object} props
+ * @param {() => void | Promise<void>} props.onLogout
  */
 export default function StaffSidebar({ onLogout }) {
   return (
-    <aside className="staff-sidebar">
-      <div className="staff-sidebar__brand">
-        <MountainLogo />
-        <span>MOUNTAIN HUT</span>
-      </div>
+    <aside className="cap-sidebar d-flex flex-column">
+      <a
+        href="/"
+        className="cap-brand d-flex flex-column align-items-center text-decoration-none"
+        aria-label="Mountain Hut home"
+      >
+        <span className="cap-brand-logo d-flex align-items-center justify-content-center flex-shrink-0">
+          <MountainLogo />
+        </span>
 
-      <nav className="staff-nav" aria-label="Staff sections">
-        <ul>
-          {SECTIONS.map((section) => (
-            <li key={section.id}>
-              <span
-                className={`staff-nav__item${section.available ? ' is-current' : ''}`}
-                aria-current={section.available ? 'page' : undefined}
-                title={section.available ? undefined : 'Available in a later release'}
-              >
-                <StaffIcon name={section.icon} />
-                {section.label}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <span>MOUNTAIN HUT</span>
+      </a>
+
+      <nav
+        className="cap-navigation"
+        aria-label="Staff navigation"
+      >
+        {links.map(([icon, label]) => {
+          const isActive = label === 'Tables & Slots';
+
+          return (
+            <div
+              key={label}
+              className={`cap-nav-item d-flex align-items-center ${
+                isActive ? 'active' : 'disabled'
+              }`}
+              aria-current={isActive ? 'page' : undefined}
+            >
+              <i
+                className={`bi bi-${icon}`}
+                aria-hidden="true"
+              />
+
+              <span>{label}</span>
+            </div>
+          );
+        })}
       </nav>
 
-      <button type="button" className="staff-sidebar__logout" onClick={onLogout}>
-        <StaffIcon name="logout" />
-        Log out
-      </button>
+      <Button
+        type="button"
+        variant="link"
+        className="cap-logout d-flex align-items-center mt-auto rounded-0 text-start text-decoration-none"
+        onClick={onLogout}
+      >
+        <i
+          className="bi bi-box-arrow-right"
+          aria-hidden="true"
+        />
+
+        <span>Log out</span>
+      </Button>
     </aside>
   );
 }

@@ -106,7 +106,7 @@ describe('booking availability', () => {
     });
   });
 
-  it('makes an occupied table completely unavailable', async () => {
+  it('keeps unreserved seats of an occupied table available', async () => {
     mocks.getBookingsByDateAndSlot.mockResolvedValue([
       booking(),
     ]);
@@ -117,9 +117,9 @@ describe('booking availability', () => {
     );
 
     expect(availability).toMatchObject({
-      totalAvailableSeats: 0,
+      totalAvailableSeats: 3,
       tables: [
-        { id: 10, reservedSeats: 1, availableSeats: 0 },
+        { id: 10, reservedSeats: 1, availableSeats: 3 },
         { id: 11, reservedSeats: 0, availableSeats: 0 },
       ],
     });
@@ -130,7 +130,7 @@ describe('booking availability', () => {
     );
   });
 
-  it('does not count unused seats of an occupied table', async () => {
+  it('counts free seats across empty and partially occupied tables', async () => {
     mocks.getMealSlotCapacity.mockResolvedValue({
       slotId: 1,
       slotName: 'Dinner',
@@ -154,10 +154,10 @@ describe('booking availability', () => {
     );
 
     expect(availability).toMatchObject({
-      totalAvailableSeats: 3,
+      totalAvailableSeats: 6,
       tables: [
         { id: 10, reservedSeats: 0, availableSeats: 3 },
-        { id: 11, reservedSeats: 3, availableSeats: 0 },
+        { id: 11, reservedSeats: 3, availableSeats: 3 },
       ],
     });
   });

@@ -1,25 +1,21 @@
-import SessionCard from '../auth/SessionCard.jsx';
+import ProfileMenu from '../common/ProfileMenu.jsx';
 
 /**
  * @typedef {import('../../API/session-api.js').SessionUser} SessionUser
  */
 
 /**
- * Page title with the signed-in staff member and their role.
- *
- * @param {{ user: SessionUser, title: string, description: string }} props
+ * @param {Object} props
+ * @param {SessionUser} props.user
+ * @param {() => void | Promise<void>} props.onLogout
  */
-export default function StaffHeader({ user, title, description }) {
+export default function StaffHeader({ user, onLogout }) {
   return (
-    <header className="staff-header">
-      <div className="staff-header__session">
-        <SessionCard user={user} />
-      </div>
-
-      <div className="staff-header__titles">
-        <h1>{title}</h1>
-        <p>{description}</p>
-      </div>
+    <header className="cap-topbar d-flex justify-content-end align-items-center">
+      <ProfileMenu
+        user={user}
+        onSignOut={onLogout}
+      />
     </header>
   );
 }

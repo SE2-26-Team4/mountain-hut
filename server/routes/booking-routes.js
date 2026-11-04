@@ -131,7 +131,11 @@ router.delete(
     const rawBookingId = req.params.id;
     const bookingId = Number(rawBookingId);
 
-    if (!/^[1-9]\d*$/.test(rawBookingId) || !Number.isSafeInteger(bookingId)) {
+    if (
+      typeof rawBookingId !== 'string' ||
+      !/^[1-9]\d*$/.test(rawBookingId) ||
+      !Number.isSafeInteger(bookingId)
+    ) {
       return res.status(400).json({
         error: {
           code: 'INVALID_BOOKING',
@@ -188,6 +192,8 @@ const handleBookingError = (error, _req, res, next) => {
 
       case 'SLOT_INACTIVE':
       case 'NO_AVAILABILITY':
+      case 'DUPLICATE_BOOKING':
+      case 'BOOKING_TOO_LATE':
         status = 409;
         break;
 

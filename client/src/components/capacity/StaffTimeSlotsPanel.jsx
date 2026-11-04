@@ -1,122 +1,172 @@
-import StaffIcon from './StaffIcons.jsx';
+import { Col, Row } from 'react-bootstrap';
 
 /**
- * @typedef {import('../../models/models.js').MealSlotDTO} MealSlotDTO
- * @typedef {import('../../models/models.js').MealSlotCapacityDTO} MealSlotCapacityDTO
+ * Types used by this component.
+ * ConfiguredMealSlot is defined locally while capacity-api.js is empty.
+ *
+ * @typedef {import('../../models/models.js').DiningTableDTO} DiningTableDTO
+ *
+ * @typedef {Object} ConfiguredMealSlot
+ * @property {number} id
+ * @property {string} name
+ * @property {string} startTime
+ * @property {string} endTime
+ * @property {boolean} isActive
+ * @property {number[]} tableIds
  */
 
 /**
- * Meal slots with their assigned tables and total seat capacity.
- *
- * @param {{
- *   mealSlots: MealSlotDTO[],
- *   capacityBySlotId: Map<number, MealSlotCapacityDTO>,
- *   onAdd: () => void,
- *   onEdit: (slot: MealSlotDTO) => void,
- *   onAssign: (slot: MealSlotDTO) => void,
- * }} props
+ * @param {Object} props
+ * @param {ConfiguredMealSlot[]} props.slots
+ * @param {DiningTableDTO[]} props.tables
+ * @param {() => void} props.onAdd
+ * @param {(slot: ConfiguredMealSlot) => void} props.onEdit
+ * @param {(slot: ConfiguredMealSlot) => void} props.onAssign
  */
 export default function StaffTimeSlotsPanel({
-  mealSlots,
-  capacityBySlotId,
+  slots,
+  tables,
   onAdd,
   onEdit,
   onAssign,
 }) {
+  const tableById = new Map(
+    tables.map((table) => [String(table.id), table]),
+  );
+
   return (
-    <section className="staff-panel" aria-labelledby="staff-slots-title">
-      <div className="staff-panel__header">
+    <section className="cap-panel cap-slots">
+      <div className="cap-panel-heading d-flex align-items-start justify-content-between">
         <div>
-          <h2 id="staff-slots-title">Time slots &amp; availability</h2>
+          <h2>Time slots</h2>
+
           <p>Set the available tables for each time slot.</p>
         </div>
-        <button type="button" className="staff-button staff-button--primary" onClick={onAdd}>
-          <StaffIcon name="plus" />
+
+        <button
+          type="button"
+          className="cap-primary"
+          onClick={onAdd}
+        >
+          <i
+            className="bi bi-plus-lg"
+            aria-hidden="true"
+          />
+
           Add time slot
         </button>
       </div>
 
-      {mealSlots.length === 0 ? (
-        <p className="staff-empty">No time slots yet. Add the first one.</p>
-      ) : (
-        <div className="staff-slots-scroll">
-          <table className="staff-slots">
-            <thead>
-              <tr>
-                <th scope="col">Time slot</th>
-                <th scope="col">Assigned tables</th>
-                <th scope="col">Total seats</th>
-                <th scope="col">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mealSlots.map((slot) => {
-                const capacity = capacityBySlotId.get(slot.id);
-                const assignedTables = capacity?.tables ?? [];
+      <Row className="g-0 cap-slot-head">
+        <Col as="span" className="cap-slot-column-time">
+          Time slot
+        </Col>
 
-                return (
-                  <tr key={slot.id} className={slot.isActive ? undefined : 'is-inactive'}>
-                    <th scope="row">
-                      <span className="staff-slot">
-                        <StaffIcon name="clock" />
-                        <span>
-                          <span className="staff-slot__time">
-                            {slot.startTime} – {slot.endTime}
-                          </span>
-                          <span className="staff-slot__name">
-                            {slot.name}
-                            {!slot.isActive && <span className="staff-badge">Inactive</span>}
-                          </span>
-                        </span>
-                      </span>
-                    </th>
-                    <td>
-                      {assignedTables.length === 0 ? (
-                        <span className="staff-muted">No tables assigned</span>
-                      ) : (
-                        <ul className="staff-chips">
-                          {assignedTables.map((table) => (
-                            <li
-                              key={table.id}
-                              className={`staff-chip${table.isActive ? '' : ' is-inactive'}`}
-                              title={table.isActive ? undefined : 'Inactive table: not counted'}
-                            >
-                              {table.name}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </td>
-                    <td>
-                      <span className="staff-seat-total">{capacity?.totalSeatCapacity ?? 0}</span>
-                    </td>
-                    <td>
-                      <span className="staff-slot-actions">
-                        <button
-                          type="button"
-                          className="staff-button staff-button--secondary"
-                          onClick={() => onAssign(slot)}
-                        >
-                          <StaffIcon name="grid" />
-                          Assign tables
-                        </button>
-                        <button
-                          type="button"
-                          className="staff-button staff-button--icon"
-                          aria-label={`Edit ${slot.name}`}
-                          onClick={() => onEdit(slot)}
-                        >
-                          <StaffIcon name="pencil" />
-                        </button>
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+        <Col as="span" className="cap-slot-column-tables">
+          Assigned tables
+        </Col>
+
+        <Col as="span" className="cap-slot-column-seats">
+          Total seats
+        </Col>
+
+        <Col as="span" className="cap-slot-column-actions">
+          Actions
+        </Col>
+      </Row>
+
+      <div className="cap-slot-list d-flex flex-column">
+        {slots.map((slot) => {
+          const assigned = (slot.tableIds || [])
+            .map((id) => tableById.get(String(id)))
+            .filter(
+              /**
+               * @param {DiningTableDTO | undefined} table
+               * @returns {table is DiningTableDTO}
+               */
+              (table) => table !== undefined && table.isActive,
+            );
+
+          const seats = assigned.reduce(
+            (sum, table) => sum + table.seatCount,
+            0,
+          );
+
+          return (
+            <Row
+              className="g-0 align-items-center cap-slot-row"
+              key={slot.id}
+            >
+              <Col className="cap-slot-column-time cap-slot-time d-flex align-items-center">
+                <i
+                  className="bi bi-clock"
+                  aria-hidden="true"
+                />
+
+                <span className="d-flex flex-column">
+                  <strong>
+                    {slot.startTime} – {slot.endTime}
+                  </strong>
+
+                  <small>
+                    {slot.name}
+                    {!slot.isActive ? ' · Inactive' : ''}
+                  </small>
+                </span>
+              </Col>
+
+              <Col className="cap-slot-column-tables cap-chips d-flex flex-wrap align-items-center">
+                {assigned.slice(0, 3).map((table) => (
+                  <span key={table.id}>{table.name}</span>
+                ))}
+
+                {assigned.length > 3 && (
+                  <span>+{assigned.length - 3}</span>
+                )}
+
+                {assigned.length === 0 && (
+                  <small>None assigned</small>
+                )}
+              </Col>
+
+              <Col className="cap-slot-column-seats">
+                <strong className="cap-seat-count d-block text-center">
+                  {seats}
+                </strong>
+              </Col>
+
+              <Col className="cap-slot-column-actions cap-slot-actions d-flex align-items-center">
+                <button
+                  type="button"
+                  className="cap-outline"
+                  onClick={() => onAssign(slot)}
+                >
+                  Assign tables
+                </button>
+
+                <button
+                  type="button"
+                  className="cap-more"
+                  onClick={() => onEdit(slot)}
+                  aria-label={`Edit ${slot.name}`}
+                  title={`Edit ${slot.name}`}
+                >
+                  <i
+                    className="bi bi-three-dots-vertical"
+                    aria-hidden="true"
+                  />
+                </button>
+              </Col>
+            </Row>
+          );
+        })}
+
+        {slots.length === 0 && (
+          <p className="cap-empty">
+            No time slots configured yet.
+          </p>
+        )}
+      </div>
     </section>
   );
 }

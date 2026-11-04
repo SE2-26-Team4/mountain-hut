@@ -73,9 +73,9 @@ function validateBookingSelection(bookingDate, slotId) {
 /* HELPERS */
 
 /**
- * Calculates availability from confirmed bookings.
- * An inactive or already assigned table has no bookable seats,
- * even when some of its physical seats are unused.
+ * Calculates remaining seats from confirmed bookings.
+ * Different parties may share a table.
+ * Inactive tables have no bookable seats.
  *
  * @param {DiningTableDTO[]} tables
  * @param {BookingDTO[]} bookings
@@ -103,13 +103,13 @@ function calculateAvailableTables(tables, bookings) {
 
   return tables.map((table) => {
     const reservedSeats = reservedSeatsByTable.get(table.id) ?? 0;
-    const isReserved = reservedSeatsByTable.has(table.id);
 
     return {
       ...table,
       reservedSeats,
-      availableSeats:
-        table.isActive && !isReserved ? table.seatCount : 0,
+      availableSeats: table.isActive
+        ? Math.max(0, table.seatCount - reservedSeats)
+        : 0,
     };
   });
 }
