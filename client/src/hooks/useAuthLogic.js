@@ -102,6 +102,12 @@ function useAuthLogic() {
     }
   };
 
+  const handleSessionExpired = () => {
+    setUser(null);
+    setFeedbackMessage('');
+    setErrorMessage('Your session has expired. Please sign in again.');
+  };
+
   const clearFeedbackMessage = () => {
     setFeedbackMessage('');
   };
@@ -115,6 +121,7 @@ function useAuthLogic() {
     clearFeedbackMessage,
     handleLogin,
     handleLogout,
+    handleSessionExpired,
   };
 }
 
