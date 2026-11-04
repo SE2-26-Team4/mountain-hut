@@ -129,6 +129,9 @@ router.post(
         getDiningTables(),
       ]);
       const mealSlot = mealSlots.find((slot) => slot.id === booking.slotId);
+      if (!mealSlot) {
+        throw new Error(`Meal slot ${booking.slotId} not found.`);
+      }
       const email = buildBookingConfirmationEmail({
         hiker: user,
         booking,
