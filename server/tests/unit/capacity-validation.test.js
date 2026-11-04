@@ -179,6 +179,18 @@ describe('dining-table validation', () => {
 
     expect(result).not.toHaveProperty('isActive');
   });
+
+  it('rejects a non-boolean active status', () => {
+    expect(() =>
+      validateDiningTable({
+        name: 'Table 1',
+        seatCount: 4,
+        isActive: 1,
+      }),
+    ).toThrow('Dining table active status must be a boolean.');
+  });
+
+
 });
 
 describe('slot-table assignment validation', () => {
