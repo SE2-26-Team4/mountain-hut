@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => {
   class BookingError extends Error {
@@ -106,7 +106,7 @@ describe('booking availability', () => {
     });
   });
 
-  it('makes an occupied table completely unavailable', async () => {
+  it('keeps unreserved seats of an occupied table available', async () => {
     mocks.getBookingsByDateAndSlot.mockResolvedValue([
       booking(),
     ]);
@@ -117,9 +117,9 @@ describe('booking availability', () => {
     );
 
     expect(availability).toMatchObject({
-      totalAvailableSeats: 0,
+      totalAvailableSeats: 3,
       tables: [
-        { id: 10, reservedSeats: 1, availableSeats: 0 },
+        { id: 10, reservedSeats: 1, availableSeats: 3 },
         { id: 11, reservedSeats: 0, availableSeats: 0 },
       ],
     });
@@ -130,7 +130,7 @@ describe('booking availability', () => {
     );
   });
 
-  it('does not count unused seats of an occupied table', async () => {
+  it('counts free seats across empty and partially occupied tables', async () => {
     mocks.getMealSlotCapacity.mockResolvedValue({
       slotId: 1,
       slotName: 'Dinner',
@@ -154,10 +154,10 @@ describe('booking availability', () => {
     );
 
     expect(availability).toMatchObject({
-      totalAvailableSeats: 3,
+      totalAvailableSeats: 6,
       tables: [
         { id: 10, reservedSeats: 0, availableSeats: 3 },
-        { id: 11, reservedSeats: 3, availableSeats: 0 },
+        { id: 11, reservedSeats: 3, availableSeats: 3 },
       ],
     });
   });
@@ -288,6 +288,73 @@ describe('booking creation', () => {
     slotId: 1,
     partySize: 3,
   };
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-04T12:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('rejects past dates without calling the DAO', async () => {
+    await expect(
+      createBookingForHiker({
+        ...input,
+        bookingDate: '2026-11-03',
+      })
+    ).rejects.toMatchObject({ code: 'INVALID_BOOKING' });
+
+    expect(mocks.createBooking).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['today', '2026-11-04'],
+    ['a future date', '2026-11-05'],
+  ])('allows bookings for %s', async (_label, bookingDate) => {
+    const request = { ...input, bookingDate };
+    const savedBooking = booking(request);
+
+    mocks.createBooking.mockResolvedValue(savedBooking);
+
+    await expect(
+      createBookingForHiker(request)
+    ).resolves.toEqual(savedBooking);
+
+    expect(mocks.createBooking).toHaveBeenCalledWith(request);
+  });
+
+  it.each([
+    ['winter', '2026-11-04T23:30:00Z', '2026-11-04', '2026-11-05'],
+    ['summer', '2026-07-04T22:30:00Z', '2026-07-04', '2026-07-05'],
+  ])(
+    'uses the Rome calendar date in %s',
+    async (_season, instant, pastDate, today) => {
+      vi.setSystemTime(new Date(instant));
+
+      await expect(
+        createBookingForHiker({
+          ...input,
+          bookingDate: pastDate,
+        })
+      ).rejects.toMatchObject({ code: 'INVALID_BOOKING' });
+
+      expect(mocks.createBooking).not.toHaveBeenCalled();
+
+      const request = { ...input, bookingDate: today };
+      const savedBooking = booking(request);
+
+      mocks.createBooking.mockResolvedValue(savedBooking);
+
+      await expect(
+        createBookingForHiker(request)
+      ).resolves.toEqual(savedBooking);
+
+      expect(mocks.createBooking).toHaveBeenCalledTimes(1);
+      expect(mocks.createBooking).toHaveBeenCalledWith(request);
+    }
+  );
 
   it('delegates valid creation to the DAO', async () => {
     const savedBooking = booking({

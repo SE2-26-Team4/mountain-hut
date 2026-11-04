@@ -73,9 +73,9 @@ function validateBookingSelection(bookingDate, slotId) {
 /* HELPERS */
 
 /**
- * Calculates availability from confirmed bookings.
- * An inactive or already assigned table has no bookable seats,
- * even when some of its physical seats are unused.
+ * Calculates remaining seats from confirmed bookings.
+ * Different parties may share a table.
+ * Inactive tables have no bookable seats.
  *
  * @param {DiningTableDTO[]} tables
  * @param {BookingDTO[]} bookings
@@ -103,13 +103,13 @@ function calculateAvailableTables(tables, bookings) {
 
   return tables.map((table) => {
     const reservedSeats = reservedSeatsByTable.get(table.id) ?? 0;
-    const isReserved = reservedSeatsByTable.has(table.id);
 
     return {
       ...table,
       reservedSeats,
-      availableSeats:
-        table.isActive && !isReserved ? table.seatCount : 0,
+      availableSeats: table.isActive
+        ? Math.max(0, table.seatCount - reservedSeats)
+        : 0,
     };
   });
 }
@@ -165,6 +165,30 @@ export async function getMealSlotAvailability(bookingDate, slotId) {
   };
 }
 
+/**
+ * Returns today's date in the hut's time zone.
+ *
+ * @returns {string}
+ */
+function getTodayInHutTimeZone() {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Rome',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+
+  if (!year || !month || !day) {
+    throw new Error('Unable to determine the current date.');
+  }
+
+  return `${year}-${month}-${day}`;
+}
+
 /* CREATE */
 
 /**
@@ -180,6 +204,13 @@ export async function createBookingForHiker({
   partySize,
 }) {
   validateBookingSelection(bookingDate, slotId);
+
+  if (bookingDate < getTodayInHutTimeZone()) {
+    throw new BookingError(
+      'INVALID_BOOKING',
+      'Booking date must be today or a future date.'
+    );
+  }
 
   if (!Number.isSafeInteger(hikerId) || hikerId <= 0) {
     throw new BookingError(

@@ -87,8 +87,8 @@ beforeAll(async () => {
 
     const agent = request.agent(app);
     const staffLoginResponse = await agent
-      .post('/api/sessions')
-      .send({ email: staffEmail, password });
+    .post('/api/staff/sessions')
+    .send({ email: staffEmail, password });
 
     expect(staffLoginResponse.status).toBe(201);
     staffAccounts[role] = { id: staffUser.lastID, agent };
@@ -226,6 +226,28 @@ describe('booking management API', () => {
     expect(response.body.error.code).toBe(code);
   });
 
+    it('rejects a past booking date without saving a booking', async () => {
+      const pastDate = '2000-01-01';
+
+      const response = await hikerAgent.post('/api/bookings').send({
+        bookingDate: pastDate,
+        slotId,
+        partySize: 2,
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe('INVALID_BOOKING');
+
+      const saved = await getAsync(
+        `SELECT COUNT(*) AS count
+        FROM bookings
+        WHERE hiker_id = ? AND slot_id = ? AND booking_date = ?`,
+        [hikerId, slotId, pastDate],
+      );
+
+      expect(saved.count).toBe(0);
+    });
+
   it('creates a booking', async () => {
     const createResponse = await hikerAgent.post('/api/bookings').send({
       bookingDate,
@@ -248,7 +270,7 @@ describe('booking management API', () => {
       .query({ bookingDate, slotId });
 
     expect(unavailableResponse.body.availability.totalAvailableSeats).toBe(
-      0,
+      2,
     );
   });
 

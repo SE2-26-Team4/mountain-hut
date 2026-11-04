@@ -39,6 +39,7 @@ function HomePage() {
     feedbackMessage,
     handleLogin,
     handleLogout,
+    handleSessionExpired,
   } = useAuth();
 
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -46,6 +47,14 @@ function HomePage() {
   const isStaff = user?.role === 'employee' || user?.role === 'warden';
 
   const handleSignIn = () => setIsLoginOpen(true);
+
+  const handleBookingLoginRequired = () => {
+    if (user) {
+      handleSessionExpired();
+    }
+
+    setIsLoginOpen(true);
+  };
 
   const handleCloseLogin = () => {
     if (!isSubmitting) {
@@ -134,7 +143,7 @@ function HomePage() {
           ) : (
             <BookingForm
               user={user}
-              onRequireLogin={handleSignIn}
+              onRequireLogin={handleBookingLoginRequired}
             />
           )}
         </section>
