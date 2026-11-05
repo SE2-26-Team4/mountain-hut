@@ -123,6 +123,7 @@ router.post(
     // A successful booking must remain successful even when email delivery fails.
     // Keep email preparation outside the booking transaction and handle failures
     // separately so a hiker never retries an already-saved booking by mistake.
+    let emailSent = false;
     try {
       const [mealSlots, tables] = await Promise.all([
         getMealSlots(),
@@ -142,6 +143,7 @@ router.post(
         tables: tables.filter((table) => allocatedTableIds.has(table.id)),
       });
       await sendBookingConfirmationEmail(email);
+      emailSent = true;
     } catch (emailError) {
       console.error(
         'Booking saved, but confirmation email could not be sent:',
@@ -149,7 +151,7 @@ router.post(
       );
     }
 
-    return res.status(201).json({ booking });
+    return res.status(201).json({ booking, emailSent });
   })
 );
 

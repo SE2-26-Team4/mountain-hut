@@ -8,16 +8,22 @@ export async function initializeAccounts() {
   }
 
   await initializeEmployeeAccount();
+  await initializeHikerAccount(
+    process.env.TEST_HIKER_EMAIL ?? 'hiker@example.com',
+    process.env.TEST_HIKER_PASSWORD ?? 'HikerTest123!',
+    'Test Hiker',
+    'Local test hiker'
+  );
+  await initializeHikerAccount(
+    process.env.EMAIL_TEST_HIKER_EMAIL ?? 'delivered@resend.dev',
+    process.env.EMAIL_TEST_HIKER_PASSWORD ?? 'EmailTest123!',
+    'Email Test Hiker',
+    'Email test hiker'
+  );
+}
 
-  const email = (
-    process.env.TEST_HIKER_EMAIL ?? 'hiker@example.com'
-  ).trim().toLowerCase();
-
-  const password =
-    process.env.TEST_HIKER_PASSWORD ?? 'HikerTest123!';
-
-  const fullName = 'Test Hiker';
-
+async function initializeHikerAccount(emailValue, password, fullName, label) {
+  const email = emailValue.trim().toLowerCase();
   if (!email || !password) {
     throw new Error('Test hiker email and password must not be empty.');
   }
@@ -28,7 +34,7 @@ export async function initializeAccounts() {
   );
 
   if (existingUser) {
-    console.log('Local test hiker account is ready.');
+    console.log(`${label} account is ready.`);
     return;
   }
 
@@ -40,7 +46,7 @@ export async function initializeAccounts() {
     [fullName, email, passwordHash],
   );
 
-  console.log('Local test hiker account created.');
+  console.log(`${label} account created.`);
 }
 
 async function initializeEmployeeAccount() {
