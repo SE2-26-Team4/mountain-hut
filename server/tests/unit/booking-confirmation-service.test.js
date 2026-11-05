@@ -54,8 +54,14 @@ describe('booking confirmation email service', () => {
     await expect(sendBookingConfirmationEmail(message)).rejects.toThrow('EMAIL_FROM');
   });
 
-  it('rejects incomplete messages', async () => {
+  it('rejects incomplete or whitespace-only messages', async () => {
     await expect(sendBookingConfirmationEmail({ ...message, to: '' })).rejects.toThrow('recipient');
+    await expect(sendBookingConfirmationEmail({ ...message, to: '   ' })).rejects.toThrow(
+      'A recipient, subject, HTML body, and text body are required.'
+    );
+    await expect(sendBookingConfirmationEmail({ ...message, subject: '   ' })).rejects.toThrow(
+      'A recipient, subject, HTML body, and text body are required.'
+    );
     expect(mocks.send).not.toHaveBeenCalled();
   });
 
