@@ -113,8 +113,11 @@ export default function BookingForm({ user, onRequireLogin }) {
                 </h2>
 
                 <p className="text-secondary mb-0">
-                  Your reservation is confirmed.
-                  We look forward to welcoming you!
+                  Your reservation is confirmed. We look forward to welcoming
+                  you!{' '}
+                  {reservation.emailSent
+                    ? 'A confirmation email has been sent to your email address.'
+                    : 'However, the confirmation email could not be sent.'}
                 </p>
               </div>
 

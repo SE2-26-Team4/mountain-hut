@@ -17,10 +17,15 @@ export async function sendBookingConfirmationEmail(message) {
   }
 
   if (
-    !message?.to?.trim() ||
-    !message?.subject?.trim() ||
-    !message?.html?.trim() ||
-    !message?.text?.trim()
+    !message ||
+    typeof message.to !== 'string' ||
+    typeof message.subject !== 'string' ||
+    typeof message.html !== 'string' ||
+    typeof message.text !== 'string' ||
+    !message.to.trim() ||
+    !message.subject.trim() ||
+    !message.html.trim() ||
+    !message.text.trim()
   ) {
     throw new Error(
       'A recipient, subject, HTML body, and text body are required.'
@@ -41,5 +46,9 @@ export async function sendBookingConfirmationEmail(message) {
     throw new Error(`Resend email failed: ${error.message ?? 'Unknown error'}`);
   }
 
-  return { id: data?.id };
+  if (!data?.id || typeof data.id !== 'string') {
+    throw new Error('Resend email failed: response did not include an email ID.');
+  }
+
+  return { id: data.id };
 }

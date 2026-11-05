@@ -67,6 +67,21 @@ To enable demo accounts, use one of these commands **instead of** the `npm run d
 SEED_DEMO_ACCOUNTS=true npm run dev
 ```
 
+To test booking confirmation emails, copy `.env.example` to `.env`, replace
+`RESEND_API_KEY` with a Resend API key, then run the same command. The example
+uses Resend's test sender: keep `onboarding@resend.dev` as `EMAIL_FROM` and use
+the dedicated email-test hiker account configured by
+`EMAIL_TEST_HIKER_EMAIL` and `EMAIL_TEST_HIKER_PASSWORD`. The example uses
+`delivered@resend.dev` and `EmailTest123!`; log in with those credentials before
+creating a booking. The regular demo account remains
+`hiker@example.com` with password `HikerTest123!`.
+The `.env` file is local-only and must never be committed. Without these
+variables, bookings still work but confirmation email delivery is skipped and
+the confirmation popup reports the delivery failure.
+
+Once the container is running, open the application in your browser at:
+
+**http://localhost:8080**
 ```powershell
 # Windows PowerShell (from server/)
 $env:SEED_DEMO_ACCOUNTS = "true"; npm run dev

@@ -86,16 +86,16 @@ async function getAvailability(bookingDate, slotId) {
 
 /**
  * @param {CreateBookingRequestDTO} booking
- * @returns {Promise<BookingDTO>}
+ * @returns {Promise<{ booking: BookingDTO, emailSent: boolean }>}
  */
 async function createBooking(booking) {
-  /** @type {{ booking: BookingDTO }} */
+  /** @type {{ booking: BookingDTO, emailSent: boolean }} */
   const data = await request('/bookings', {
     method: 'POST',
     body: JSON.stringify(booking),
   });
 
-  return data.booking;
+  return data;
 }
 
 const BookingAPI = {

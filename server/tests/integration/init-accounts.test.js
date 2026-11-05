@@ -31,6 +31,8 @@ beforeEach(async () => {
   for (const key of [
     'TEST_HIKER_EMAIL',
     'TEST_HIKER_PASSWORD',
+    'EMAIL_TEST_HIKER_EMAIL',
+    'EMAIL_TEST_HIKER_PASSWORD',
     'TEST_EMPLOYEE_EMAIL',
     'TEST_EMPLOYEE_PASSWORD',
   ]) {
@@ -90,18 +92,20 @@ describe('demo account initialization', () => {
       'SELECT * FROM users ORDER BY id',
     );
 
-    expect(before).toHaveLength(2);
+    expect(before).toHaveLength(3);
 
     expect(before.map((user) => user.email).sort()).toEqual([
+      'delivered@resend.dev',
       'employee@example.com',
       'hiker@example.com',
     ]);
 
     for (const user of before) {
-      const password =
-        user.role === 'hiker'
-          ? 'HikerTest123!'
-          : 'EmployeeTest123!';
+      const password = {
+        'employee@example.com': 'EmployeeTest123!',
+        'hiker@example.com': 'HikerTest123!',
+        'delivered@resend.dev': 'EmailTest123!',
+      }[user.email];
 
       expect(
         await verifyPassword(password, user.password_hash),
@@ -141,15 +145,25 @@ describe('demo account initialization', () => {
 
     const users = await db.allAsync('SELECT * FROM users');
 
-    expect(users).toHaveLength(2);
+    expect(users).toHaveLength(3);
 
     for (const user of users) {
-      expect(user.email).toBe(`${user.role}-override@example.com`);
+      const expectedEmail = {
+        employee: 'employee-override@example.com',
+        hiker: 'hiker-override@example.com',
+      }[user.role];
+      if (user.full_name === 'Email Test Hiker') {
+        expect(user.email).toBe('delivered@resend.dev');
+      } else {
+        expect(user.email).toBe(expectedEmail);
+      }
 
       const password =
-        user.role === 'hiker'
-          ? 'CustomHiker!'
-          : 'CustomEmployee!';
+        user.full_name === 'Email Test Hiker'
+          ? 'EmailTest123!'
+          : user.role === 'hiker'
+            ? 'CustomHiker!'
+            : 'CustomEmployee!';
 
       expect(
         await verifyPassword(password, user.password_hash),
@@ -161,6 +175,9 @@ describe('demo account initialization', () => {
     ['TEST_HIKER_EMAIL', '', 'hiker'],
     ['TEST_HIKER_EMAIL', '   ', 'hiker'],
     ['TEST_HIKER_PASSWORD', '', 'hiker'],
+    ['EMAIL_TEST_HIKER_EMAIL', '', 'hiker'],
+    ['EMAIL_TEST_HIKER_EMAIL', '   ', 'hiker'],
+    ['EMAIL_TEST_HIKER_PASSWORD', '', 'hiker'],
     ['TEST_EMPLOYEE_EMAIL', '', 'employee'],
     ['TEST_EMPLOYEE_EMAIL', '   ', 'employee'],
     ['TEST_EMPLOYEE_PASSWORD', '', 'employee'],
