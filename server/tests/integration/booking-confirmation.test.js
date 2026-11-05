@@ -83,6 +83,11 @@ describe('Booking confirmation flow (real persistence, mocked email)', () => {
     expect(response.status).toBe(201);
     const booking = response.body.booking;
     expect(booking).toMatchObject({ bookingDate, slotId, partySize: 2, status: 'confirmed' });
+    const bookingCount = await getAsync(
+      'SELECT COUNT(*) AS count FROM bookings WHERE id = ?',
+      [booking.id]
+    );
+    expect(bookingCount.count).toBe(1);
     expect(emailMocks.send).toHaveBeenCalledTimes(1);
 
     const [message] = emailMocks.send.mock.calls[0];
@@ -122,6 +127,11 @@ describe('Booking confirmation flow (real persistence, mocked email)', () => {
       bookingDate: '2099-11-02', slotId, partySize: 1,
     });
     expect(response.status).toBe(201);
+    const bookingCount = await getAsync(
+      'SELECT COUNT(*) AS count FROM bookings WHERE slot_id = ? AND booking_date = ?',
+      [slotId, '2099-11-02']
+    );
+    expect(bookingCount.count).toBe(1);
     expect(emailMocks.send).toHaveBeenCalledTimes(1);
     expect(persistedAtSend).toBe(true);
   });
@@ -136,8 +146,33 @@ describe('Booking confirmation flow (real persistence, mocked email)', () => {
       expect(response.status).toBe(201);
       expect(emailMocks.send).toHaveBeenCalledTimes(1);
       const booking = response.body.booking;
-      const stored = await getAsync('SELECT id FROM bookings WHERE id = ?', [booking.id]);
-      expect(stored?.id).toBe(booking.id);
+      const bookingCount = await getAsync(
+        'SELECT COUNT(*) AS count FROM bookings WHERE id = ?',
+        [booking.id]
+      );
+      expect(bookingCount.count).toBe(1);
+      const stored = await getAsync(
+        'SELECT id, hiker_id, slot_id, party_size, status FROM bookings WHERE id = ?',
+        [booking.id]
+      );
+      expect(stored).toMatchObject({
+        id: booking.id,
+        hiker_id: hikerId,
+        slot_id: slotId,
+        party_size: 1,
+        status: 'confirmed',
+      });
+      const allocation = await getAsync(
+        `SELECT booking_id, table_id, seats_reserved
+         FROM booking_table_allocations
+         WHERE booking_id = ?`,
+        [booking.id]
+      );
+      expect(allocation).toMatchObject({
+        booking_id: booking.id,
+        table_id: tableId,
+        seats_reserved: 1,
+      });
       expect(errorSpy).toHaveBeenCalledWith(
         'Booking saved, but confirmation email could not be sent:',
         expect.any(Error)
@@ -153,5 +188,10 @@ describe('Booking confirmation flow (real persistence, mocked email)', () => {
     });
     expect(response.status).toBe(400);
     expect(emailMocks.send).not.toHaveBeenCalled();
+    const bookingCount = await getAsync(
+      'SELECT COUNT(*) AS count FROM bookings WHERE slot_id = ? AND booking_date = ?',
+      [slotId, 'bad-date']
+    );
+    expect(bookingCount.count).toBe(0);
   });
 });
