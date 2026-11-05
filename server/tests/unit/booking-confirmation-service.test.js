@@ -54,14 +54,34 @@ describe('booking confirmation email service', () => {
     await expect(sendBookingConfirmationEmail(message)).rejects.toThrow('EMAIL_FROM');
   });
 
-  it('rejects incomplete messages', async () => {
+  it('rejects incomplete or whitespace-only messages', async () => {
     await expect(sendBookingConfirmationEmail({ ...message, to: '' })).rejects.toThrow('recipient');
+    await expect(sendBookingConfirmationEmail({ ...message, to: '   ' })).rejects.toThrow(
+      'A recipient, subject, HTML body, and text body are required.'
+    );
+    await expect(sendBookingConfirmationEmail({ ...message, subject: '   ' })).rejects.toThrow(
+      'A recipient, subject, HTML body, and text body are required.'
+    );
     expect(mocks.send).not.toHaveBeenCalled();
   });
 
   it('raises Resend API errors', async () => {
     mocks.send.mockResolvedValue({ data: null, error: { message: 'Invalid sender' } });
     await expect(sendBookingConfirmationEmail(message)).rejects.toThrow('Invalid sender');
+  });
+
+  it('rejects a successful API response without an email ID', async () => {
+    mocks.send.mockResolvedValue({ data: {}, error: null });
+    await expect(sendBookingConfirmationEmail(message)).rejects.toThrow(
+      'did not include an email ID'
+    );
+  });
+
+  it('rejects non-string message fields before calling Resend', async () => {
+    await expect(
+      sendBookingConfirmationEmail({ ...message, text: 123 })
+    ).rejects.toThrow('recipient, subject, HTML body, and text body');
+    expect(mocks.send).not.toHaveBeenCalled();
   });
 
   it('propagates network errors', async () => {

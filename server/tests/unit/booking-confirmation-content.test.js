@@ -122,4 +122,40 @@ describe('booking confirmation email content', () => {
       'Party requirements must be an array of items with a description.'
     );
   });
+
+
+  it('rejects invalid calendar dates and mismatched party sizes', () => {
+    const input = createInput();
+
+    expect(() =>
+      buildBookingConfirmationEmail({
+        ...input,
+        booking: { ...input.booking, bookingDate: '2026-02-30' },
+      })
+    ).toThrow('Booking ID, date, party size, and table allocations are required.');
+
+    expect(() =>
+      buildBookingConfirmationEmail({
+        ...input,
+        booking: { ...input.booking, partySize: 10, allocations: [{ tableId: 1, seatsReserved: 5 }] },
+      })
+    ).toThrow('Booking ID, date, party size, and table allocations are required.');
+
+    expect(() =>
+      buildBookingConfirmationEmail({
+        ...input,
+        tables: [{ id: 1, name: '' }],
+      })
+    ).toThrow('Dining tables must be an array of valid table records.');
+
+    expect(() =>
+      buildBookingConfirmationEmail({
+        ...input,
+        requirements: [{ hasAllergies: 'yes', description: 'allergy' }],
+      })
+    ).toThrow('Party requirements must be an array of items with a description.');
+  });
+
+
+
 });

@@ -13,6 +13,12 @@ services:
       SESSION_SECRET: ${SESSION_SECRET:-mountain-hut-local-development-secret}
       COOKIE_SECURE: "false"
       SEED_DEMO_ACCOUNTS: ${SEED_DEMO_ACCOUNTS:-true}
+      TEST_HIKER_EMAIL: ${TEST_HIKER_EMAIL:-hiker@example.com}
+      TEST_HIKER_PASSWORD: ${TEST_HIKER_PASSWORD:-HikerTest123!}
+      EMAIL_TEST_HIKER_EMAIL: ${EMAIL_TEST_HIKER_EMAIL:-delivered@resend.dev}
+      EMAIL_TEST_HIKER_PASSWORD: ${EMAIL_TEST_HIKER_PASSWORD:-EmailTest123!}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
     volumes:
       - mountain_hut_sqlite_data:/app/data
     restart: unless-stopped

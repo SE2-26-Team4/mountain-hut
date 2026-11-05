@@ -16,6 +16,7 @@ import BookingAPI, { BookingApiError } from '../API/booking-api.js';
  * @property {string} startTime
  * @property {string} endTime
  * @property {number} partySize
+ * @property {boolean} emailSent
  */
 
 /**
@@ -428,7 +429,8 @@ export default function useBookingLogic({ user, onRequireLogin }) {
     setIsSearching(false);
 
     try {
-      const savedBooking = await BookingAPI.createBooking(bookingData);
+      const { booking: savedBooking, emailSent } =
+        await BookingAPI.createBooking(bookingData);
 
       setConfirmedReservation({
         id: savedBooking.id,
@@ -437,6 +439,7 @@ export default function useBookingLogic({ user, onRequireLogin }) {
         startTime,
         endTime,
         partySize: guests,
+        emailSent,
       });
 
       if (selectionRef.current === currentSelection) {
