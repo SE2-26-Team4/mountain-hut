@@ -32,11 +32,12 @@ RETROSPECTIVE (Team 04)
 > place technical tasks corresponding to story `#0` and leave out story points (not applicable in this case)
 
 - Hours per task  <span style="color:red">per person</span>  (average, standard deviation)
-  - Estimated: average 0.89h (53m), standard deviation 0.70h (42m)
-  - Actual: average 0.85h (51m), standard deviation 0.71h (43m)
-  - Computed on all 72 tasks. Hours of whole-team tasks (Sprint Planning, Daily Scrum, Technology selection, Sprint Retrospective) are divided by the 5 members.
+  - $n = 72$ tasks. Whole-team tasks (Sprint Planning, Daily Scrum, Technology selection, Retrospective: 20h est., 20.17h actual) are split among 5 members.
+  - $h_i = \frac{\text{hours}_i}{\text{members}_i}, \quad \mu = \frac{1}{n}\sum_i h_i, \quad \sigma = \sqrt{\frac{\sum_i (h_i - \mu)^2}{n-1}}$
+  - Estimated: $\mu = \frac{80 - 20 + 20/5}{72} = 0.89\text{h}, \quad \sigma = 0.70\text{h}$
+  - Actual: $\mu = \frac{77.15 - 20.17 + 20.17/5}{72} = 0.85\text{h}, \quad \sigma = 0.71\text{h}$
 - Total task estimation error ratio: sum of total hours estimation / sum of total hours spent -1
-  - 80h 00m / 77h 09m − 1 = **+0.037** (+3.7%, slight overestimate)
+  - $\frac{80}{77.15} - 1 = +0.037$ (slight overestimate)
 
   
 ## QUALITY MEASURES 
@@ -76,7 +77,7 @@ Overall, our estimate was accurate: we spent 77h 09m against 80h 00m planned, an
 - **Frontend tasks (underestimated).** The two largest overruns of the sprint were frontend tasks: *Hiker login interface and sign-in integration* (1h 30m estimated, 2h 30m spent) and *Staff capacity management interface* (2h 00m estimated, 2h 30m spent). The frontend we built ended up quite different from the structure we assumed during planning.
 - **Setup tasks (overestimated).** *Backend project setup* (1h 30m -> 1h 00m), *Automated testing environment setup* (2h 00m -> 1h 30m) and *README completion* (1h 00m -> 30m) were simpler than we expected and quite similar to previous project configuration (except docker).
 
-We also overestimated the three test coverage reviews (1h 30m -> 1h 00m each ) and the three final code reviews (1h 00m -> 30–40m each). Overall, final code review is not necessarly long if all features are all working and with all previous code review during sprint.
+We also overestimated the three test coverage reviews (1h 30m -> 1h 00m each ) and the three final code reviews (1h 00m -> 30–40m each). Overall, final code review is not necessarily long when all features are all working and with all previous code review during sprint.
 
 __- What lessons did you learn (both positive and negative) in this sprint?__
 
