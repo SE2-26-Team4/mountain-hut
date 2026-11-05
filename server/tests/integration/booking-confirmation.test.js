@@ -253,7 +253,7 @@ describe('Booking confirmation flow (real persistence, mocked email)', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       const response = await agent.post('/api/bookings').send({
-        bookingDate: '2099-11-05', slotId, partySize: 1,
+        bookingDate, slotId, partySize: 1,
       });
       expect(response.status).toBe(201);
       expect(emailMocks.send).not.toHaveBeenCalled();
