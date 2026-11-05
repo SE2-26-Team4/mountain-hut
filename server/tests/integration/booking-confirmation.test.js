@@ -25,6 +25,7 @@ const suffix = randomUUID();
 const hikerName = 'Confirmation Integration Hiker';
 const hikerEmail = `confirmation-integration-${suffix}@example.com`;
 const password = 'IntegrationBooking123!';
+const bookingDate = '2099-11-01';
 let hikerId;
 let slotId;
 let tableId;
@@ -46,9 +47,11 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   slotId = (await runAsync(
-    `INSERT INTO meal_slots (name, start_time, end_time)
-     VALUES (?, '18:00', '20:00')`,
-    [`Integration dinner ${suffix}`]
+    `INSERT INTO meal_slots (
+      slot_date, name, start_time, end_time
+    )
+    VALUES (?, ?, '18:00', '20:00')`,
+    [bookingDate, `Integration dinner ${suffix}`]
   )).lastID;
   tableId = (await runAsync(
     'INSERT INTO dining_tables (name, seat_count) VALUES (?, 4)',
@@ -81,7 +84,6 @@ afterAll(async () => {
 
 describe('Booking confirmation flow (real persistence, mocked email)', () => {
   it('sends exactly one email to the authenticated booking owner containing persisted details', async () => {
-    const bookingDate = '2099-11-01';
     const response = await agent.post('/api/bookings').send({
       bookingDate, slotId, partySize: 2,
     });
@@ -130,12 +132,12 @@ describe('Booking confirmation flow (real persistence, mocked email)', () => {
     });
 
     const response = await agent.post('/api/bookings').send({
-      bookingDate: '2099-11-02', slotId, partySize: 1,
+      bookingDate, slotId, partySize: 1,
     });
     expect(response.status).toBe(201);
     const bookingCount = await getAsync(
       'SELECT COUNT(*) AS count FROM bookings WHERE slot_id = ? AND booking_date = ?',
-      [slotId, '2099-11-02']
+      [slotId, bookingDate]
     );
     expect(bookingCount.count).toBe(1);
     expect(emailMocks.send).toHaveBeenCalledTimes(1);
@@ -147,7 +149,7 @@ describe('Booking confirmation flow (real persistence, mocked email)', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       const response = await agent.post('/api/bookings').send({
-        bookingDate: '2099-11-03', slotId, partySize: 1,
+        bookingDate, slotId, partySize: 1,
       });
       expect(response.status).toBe(201);
       expect(emailMocks.send).toHaveBeenCalledTimes(1);
@@ -193,7 +195,7 @@ describe('Booking confirmation flow (real persistence, mocked email)', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       const response = await agent.post('/api/bookings').send({
-        bookingDate: '2099-11-04', slotId, partySize: 1,
+        bookingDate, slotId, partySize: 1,
       });
       expect(response.status).toBe(201);
       expect(emailMocks.send).not.toHaveBeenCalled();
