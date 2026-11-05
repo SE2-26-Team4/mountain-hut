@@ -290,6 +290,11 @@ export default function useBookingLogic({ user, onRequireLogin }) {
   async function handleSearch(event) {
     event.preventDefault();
 
+    if (!user) {
+      onRequireLogin?.();
+      return;
+    }
+
     if (bookingInProgressRef.current) return;
 
     invalidateAvailability();

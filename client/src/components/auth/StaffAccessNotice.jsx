@@ -26,7 +26,7 @@ export default function StaffAccessNotice() {
     <Col
       as="section"
       xs={12}
-      className="mh-staff-login-card"
+      className="mh-staff-login-card text-center"
       aria-labelledby="staff-access-title"
     >
       <h1 id="staff-access-title" className="h3 mb-3">
@@ -43,9 +43,9 @@ export default function StaffAccessNotice() {
         </Alert>
       )}
 
-      <div className="d-grid gap-3">
+      <div className="d-flex flex-column align-items-center gap-3">
         <Button
-          className="mh-primary-button w-100 d-flex align-items-center justify-content-center gap-2"
+          className="mh-primary-button mh-signout-button d-flex align-items-center justify-content-center gap-2"
           onClick={handleSignOut}
           disabled={isSigningOut}
         >

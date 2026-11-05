@@ -71,7 +71,7 @@ export default function StaffDateSelector({
       </button>
 
       <span className="cap-date-note">
-        Time slots are configured for the selected date
+        Showing slots for the selected date
       </span>
     </div>
   );

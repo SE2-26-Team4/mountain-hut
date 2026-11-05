@@ -121,8 +121,9 @@ export default function StaffTimeSlotsPanel({
 
               <Col className="cap-slot-column-seats">
                 <strong className="cap-seat-count d-block text-center">
-                  {seats}
-                </strong>
+                {seats}
+                <span className="cap-seat-label"> seats</span>
+              </strong>
               </Col>
 
               <Col className="cap-slot-column-actions cap-slot-actions d-flex align-items-center">
@@ -136,15 +137,12 @@ export default function StaffTimeSlotsPanel({
 
                 <button
                   type="button"
-                  className="cap-more"
+                  className="cap-icon-button"
                   onClick={() => onEdit(slot)}
-                  aria-label={`Edit ${slot.name}`}
-                  title={`Edit ${slot.name}`}
+                  aria-label="View time slot"
+                  title="View time slot"
                 >
-                  <i
-                    className="bi bi-three-dots-vertical"
-                    aria-hidden="true"
-                  />
+                  <i className="bi bi-eye" aria-hidden="true" />
                 </button>
               </Col>
             </Row>
@@ -156,6 +154,11 @@ export default function StaffTimeSlotsPanel({
             No time slots configured yet.
           </p>
         )}
+      </div>
+      <div className="cap-panel-footer cap-slots-footer">
+        <span>
+          {slots.length} {slots.length === 1 ? 'time slot' : 'time slots'}
+        </span>
       </div>
     </section>
   );

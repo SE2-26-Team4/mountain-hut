@@ -52,27 +52,49 @@ export default function CapacityFormModal(props) {
 
   const label = props.kind === 'table' ? 'table' : 'time slot';
 
+  const isSlotPreview = props.kind === 'slot' && editing;
+
   return (
     <Modal
       show={show}
       onHide={onHide}
       centered
     >
-      <Form onSubmit={onSubmit}>
+      <Form
+        onSubmit={(event) => {
+          if (isSlotPreview) {
+            event.preventDefault();
+            return;
+          }
+
+          onSubmit(event);
+        }}
+      >
         <Modal.Header closeButton>
           <Modal.Title>
-
-            {props.kind === 'slot' && (
-              <p className="mb-0 mt-1 text-secondary">
-                Date: {props.form.slotDate}
-              </p>
-            )}
-
-            {editing ? 'Edit' : 'Add'} {label}
+            {isSlotPreview ? 'View' : editing ? 'Edit' : 'Add'} {label}
           </Modal.Title>
         </Modal.Header>
 
         <Modal.Body>
+          {props.kind === 'slot' && (
+            <div className="bg-light rounded-3 px-3 py-3 mb-4">
+              <span className="d-block small text-secondary mb-1">
+                Selected date
+              </span>
+
+              <span className="fw-semibold">
+                {new Date(`${props.form.slotDate}T12:00:00`).toLocaleDateString(
+                  'en-GB',
+                  {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  }
+                )}
+              </span>
+            </div>
+          )}
           {error && (
             <Alert variant="danger">
               {error}
@@ -90,6 +112,7 @@ export default function CapacityFormModal(props) {
               onChange={onChange}
               required
               placeholder={props.kind === 'table' ? 'Table 1' : 'Lunch'}
+              disabled={isSlotPreview}
             />
           </Form.Group>
 
@@ -105,6 +128,7 @@ export default function CapacityFormModal(props) {
                 required
                 value={props.form.seatCount}
                 onChange={onChange}
+                disabled={isSlotPreview}
               />
             </Form.Group>
           ) : (
@@ -119,6 +143,7 @@ export default function CapacityFormModal(props) {
                     value={props.form.startTime}
                     onChange={onChange}
                     required
+                    disabled={isSlotPreview}
                   />
                 </Form.Group>
               </Col>
@@ -133,6 +158,7 @@ export default function CapacityFormModal(props) {
                     value={props.form.endTime}
                     onChange={onChange}
                     required
+                    disabled={isSlotPreview}
                   />
                 </Form.Group>
               </Col>
@@ -149,12 +175,13 @@ export default function CapacityFormModal(props) {
           />
         </Modal.Body>
 
+        {!isSlotPreview && (
         <Modal.Footer>
           <button
             type="button"
             className="cap-outline"
             onClick={onHide}
-            disabled={saving}
+            disabled={saving || isSlotPreview}
           >
             Cancel
           </button>
@@ -174,6 +201,7 @@ export default function CapacityFormModal(props) {
             )}
           </button>
         </Modal.Footer>
+        )}
       </Form>
     </Modal>
   );

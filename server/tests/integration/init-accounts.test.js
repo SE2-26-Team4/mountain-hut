@@ -7,7 +7,7 @@ import {
   vi,
 } from 'vitest';
 
-// Use a real SQLite database in memory, regardless of the configured path.
+// Always use an isolated SQLite database in memory.
 vi.mock('sqlite3', async () => {
   const actual = await vi.importActual('sqlite3');
 
@@ -22,6 +22,34 @@ vi.mock('sqlite3', async () => {
 });
 
 let db;
+
+const universityAccounts = [
+  {
+    email: 's353204@studenti.polito.it',
+    role: 'hiker',
+    password: 's353204Test123!',
+  },
+  {
+    email: 's356826@studenti.polito.it',
+    role: 'hiker',
+    password: 's356826Test123!',
+  },
+  {
+    email: 's358411@studenti.polito.it',
+    role: 'hiker',
+    password: 's358411Test123!',
+  },
+  {
+    email: 's362713@studenti.polito.it',
+    role: 'hiker',
+    password: 's362713Test123!',
+  },
+  {
+    email: 's349410@studenti.polito.it',
+    role: 'hiker',
+    password: 's349410Test123!',
+  },
+];
 
 beforeEach(async () => {
   vi.resetModules();
@@ -38,7 +66,6 @@ beforeEach(async () => {
   }
 
   db = await import('../../db.js');
-
   await db.initializeDatabase();
 });
 
@@ -72,10 +99,12 @@ describe('demo account initialization', () => {
 
     await initializeAccounts();
 
-    expect(await db.allAsync('SELECT * FROM users')).toEqual([]);
+    expect(
+      await db.allAsync('SELECT * FROM users'),
+    ).toEqual([]);
   });
 
-  it('creates default accounts and preserves existing records', async () => {
+  it('creates one employee and six hikers and preserves existing records', async () => {
     const { initializeAccounts } = await import(
       '../../init/init-accounts.js'
     );
@@ -90,26 +119,55 @@ describe('demo account initialization', () => {
       'SELECT * FROM users ORDER BY id',
     );
 
-    expect(before).toHaveLength(2);
+    const expectedAccounts = [
+      {
+        email: 'employee@example.com',
+        role: 'employee',
+        password: 'EmployeeTest123!',
+      },
+      {
+        email: 'hiker@example.com',
+        role: 'hiker',
+        password: 'HikerTest123!',
+      },
+      ...universityAccounts,
+    ];
 
-    expect(before.map((user) => user.email).sort()).toEqual([
-      'employee@example.com',
-      'hiker@example.com',
-    ]);
+    expect(before).toHaveLength(7);
 
-    for (const user of before) {
-      const password =
-        user.role === 'hiker'
-          ? 'HikerTest123!'
-          : 'EmployeeTest123!';
+    expect(
+      before.filter((user) => user.role === 'hiker'),
+    ).toHaveLength(6);
+
+    expect(
+      before.filter((user) => user.role === 'employee'),
+    ).toHaveLength(1);
+
+    for (const expected of expectedAccounts) {
+      const user = before.find(
+        (account) => account.email === expected.email,
+      );
+
+      expect(user).toBeDefined();
+      expect(user.role).toBe(expected.role);
 
       expect(
-        await verifyPassword(password, user.password_hash),
+        await verifyPassword(
+          expected.password,
+          user.password_hash,
+        ),
       ).toBe(true);
     }
 
-    vi.stubEnv('TEST_HIKER_PASSWORD', 'ChangedHikerPassword123!');
-    vi.stubEnv('TEST_EMPLOYEE_PASSWORD', 'ChangedEmployeePassword123!');
+    vi.stubEnv(
+      'TEST_HIKER_PASSWORD',
+      'ChangedHikerPassword123!',
+    );
+
+    vi.stubEnv(
+      'TEST_EMPLOYEE_PASSWORD',
+      'ChangedEmployeePassword123!',
+    );
 
     await initializeAccounts();
 
@@ -121,13 +179,22 @@ describe('demo account initialization', () => {
   });
 
   it('uses configured credentials and normalizes emails', async () => {
-    vi.stubEnv('TEST_HIKER_EMAIL', '  HIKER-OVERRIDE@example.com  ');
+    vi.stubEnv(
+      'TEST_HIKER_EMAIL',
+      '  HIKER-OVERRIDE@example.com  ',
+    );
+
     vi.stubEnv('TEST_HIKER_PASSWORD', 'CustomHiker!');
+
     vi.stubEnv(
       'TEST_EMPLOYEE_EMAIL',
       '  EMPLOYEE-OVERRIDE@example.com  ',
     );
-    vi.stubEnv('TEST_EMPLOYEE_PASSWORD', 'CustomEmployee!');
+
+    vi.stubEnv(
+      'TEST_EMPLOYEE_PASSWORD',
+      'CustomEmployee!',
+    );
 
     const { initializeAccounts } = await import(
       '../../init/init-accounts.js'
@@ -141,20 +208,45 @@ describe('demo account initialization', () => {
 
     const users = await db.allAsync('SELECT * FROM users');
 
-    expect(users).toHaveLength(2);
+    const expectedAccounts = [
+      {
+        email: 'employee-override@example.com',
+        role: 'employee',
+        password: 'CustomEmployee!',
+      },
+      {
+        email: 'hiker-override@example.com',
+        role: 'hiker',
+        password: 'CustomHiker!',
+      },
+      ...universityAccounts,
+    ];
 
-    for (const user of users) {
-      expect(user.email).toBe(`${user.role}-override@example.com`);
+    expect(users).toHaveLength(7);
 
-      const password =
-        user.role === 'hiker'
-          ? 'CustomHiker!'
-          : 'CustomEmployee!';
+    for (const expected of expectedAccounts) {
+      const user = users.find(
+        (account) => account.email === expected.email,
+      );
+
+      expect(user).toBeDefined();
+      expect(user.role).toBe(expected.role);
 
       expect(
-        await verifyPassword(password, user.password_hash),
+        await verifyPassword(
+          expected.password,
+          user.password_hash,
+        ),
       ).toBe(true);
     }
+
+    expect(
+      users.some((user) => user.email === 'hiker@example.com'),
+    ).toBe(false);
+
+    expect(
+      users.some((user) => user.email === 'employee@example.com'),
+    ).toBe(false);
   });
 
   it.each([
@@ -173,7 +265,9 @@ describe('demo account initialization', () => {
         '../../init/init-accounts.js'
       );
 
-      await expect(initializeAccounts()).rejects.toThrow(
+      await expect(
+        initializeAccounts(),
+      ).rejects.toThrow(
         `Test ${role} email and password must not be empty.`,
       );
     },

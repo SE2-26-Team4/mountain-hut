@@ -43,7 +43,7 @@ function LoginModal({
           aria-label="Close sign-in"
           onClick={onClose}
         >
-          ×
+          <i className="bi bi-x-lg" aria-hidden="true" />
         </button>
 
         <Row className="g-0 mh-login-dialog-row">

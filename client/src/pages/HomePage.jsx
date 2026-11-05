@@ -99,10 +99,17 @@ function HomePage() {
           className="mh-reserve-hero"
           aria-labelledby="reserve-title"
         >
-          <img
-            src="/images/reserve-hero.png"
-            alt="Alpine mountain hut with panoramic views"
-          />
+          <picture className="mh-reserve-picture">
+            <source
+              media="(max-width: 767px)"
+              srcSet="/images/reserve-hero-mobile.png"
+            />
+
+            <img
+              src="/images/reserve-hero.png"
+              alt="Alpine mountain hut with panoramic views"
+            />
+          </picture>
 
           <div className="mh-hero-content">
             <span

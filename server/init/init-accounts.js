@@ -1,79 +1,134 @@
 import { getAsync, runAsync } from '../db.js';
 import { hashPassword } from '../services/password.js';
 
-// Seed demo accounts only when explicitly enabled; preserve existing accounts.
+// Seed demo accounts only when explicitly enabled.
 export async function initializeAccounts() {
   if (process.env.SEED_DEMO_ACCOUNTS !== 'true') {
     return;
   }
 
   await initializeEmployeeAccount();
+  await initializeHikerAccounts();
+}
 
-  const email = (
-    process.env.TEST_HIKER_EMAIL ?? 'hiker@example.com'
-  ).trim().toLowerCase();
+async function initializeEmployeeAccount() {
+  await initializeAccount({
+    email: process.env.TEST_EMPLOYEE_EMAIL ?? 'employee@example.com',
+    password:
+      process.env.TEST_EMPLOYEE_PASSWORD ?? 'EmployeeTest123!',
+    fullName: 'Test Employee',
+    role: 'employee',
+    label: 'Test employee',
+  });
+}
 
-  const password =
-    process.env.TEST_HIKER_PASSWORD ?? 'HikerTest123!';
+async function initializeHikerAccounts() {
+  const universityHikers = [
+    {
+      studentId: 's349410',
+      fullName: 'Lorenzo Bosso',
+    },
+    {
+      studentId: 's353204',
+      fullName: 'Jessica Barroero',
+    },
+    {
+      studentId: 's356826',
+      fullName: 'Masha Dolati',
+    },
+    {
+      studentId: 's358411',
+      fullName: 'Shoya Alimi',
+    },
+    {
+      studentId: 's362713',
+      fullName: 'Alessandro Michele Berardi',
+    },
+  ];
 
-  const fullName = 'Test Hiker';
+  const accounts = [
+    {
+      email: process.env.TEST_HIKER_EMAIL ?? 'hiker@example.com',
+      password: process.env.TEST_HIKER_PASSWORD ?? 'HikerTest123!',
+      fullName: 'Test Hiker',
+      label: 'Test hiker',
+    },
+    ...universityHikers.map(({ studentId, fullName }) => ({
+      email: `${studentId}@studenti.polito.it`,
+      password: `${studentId}Test123!`,
+      fullName,
+      label: fullName,
+    })),
+  ];
 
-  if (!email || !password) {
-    throw new Error('Test hiker email and password must not be empty.');
+  for (const account of accounts) {
+    await initializeAccount({
+      ...account,
+      role: 'hiker',
+    });
+
+    // Update the names of these five demo accounts if already present.
+    const isUniversityDemoAccount = universityHikers.some(
+      ({ studentId }) =>
+        account.email === `${studentId}@studenti.polito.it`,
+    );
+
+    if (isUniversityDemoAccount) {
+      await runAsync(
+        `UPDATE users
+         SET full_name = ?
+         WHERE email = ? AND role = 'hiker'`,
+        [account.fullName, account.email],
+      );
+    }
+  }
+}
+
+/**
+ * Creates an account only if its email is not already present.
+ *
+ * @param {Object} account
+ * @param {string} account.email
+ * @param {string} account.password
+ * @param {string} account.fullName
+ * @param {'hiker' | 'employee'} account.role
+ * @param {string} account.label
+ * @returns {Promise<void>}
+ */
+async function initializeAccount({
+  email,
+  password,
+  fullName,
+  role,
+  label,
+}) {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (!normalizedEmail || !password) {
+    throw new Error(
+      `${label} email and password must not be empty.`,
+    );
   }
 
   const existingUser = await getAsync(
     'SELECT id FROM users WHERE email = ?',
-    [email],
+    [normalizedEmail],
   );
 
   if (existingUser) {
-    console.log('Local test hiker account is ready.');
+    console.log(`${label} account is ready.`);
     return;
   }
 
   const passwordHash = await hashPassword(password);
 
   await runAsync(
-    `INSERT INTO users (full_name, email, password_hash, role)
-     VALUES (?, ?, ?, 'hiker')`,
-    [fullName, email, passwordHash],
+    `INSERT INTO users (
+       full_name, email, password_hash, role
+     )
+     VALUES (?, ?, ?, ?)`,
+    [fullName, normalizedEmail, passwordHash, role],
   );
 
-  console.log('Local test hiker account created.');
-}
-
-async function initializeEmployeeAccount() {
-  const email = (
-    process.env.TEST_EMPLOYEE_EMAIL ?? 'employee@example.com'
-  ).trim().toLowerCase();
-
-  const password =
-    process.env.TEST_EMPLOYEE_PASSWORD ?? 'EmployeeTest123!';
-
-  const fullName = 'Test Employee';
-
-  if (!email || !password) {
-    throw new Error('Test employee email and password must not be empty.');
-  }
-
-  const existingEmployee = await getAsync(
-    'SELECT id FROM users WHERE email = ?',
-    [email],
-  );
-
-  if (existingEmployee) {
-    console.log('Local test employee account is ready.');
-    return;
-  }
-
-  const passwordHash = await hashPassword(password);
-
-  await runAsync(
-    `INSERT INTO users (full_name, email, password_hash, role)
-     VALUES (?, ?, ?, 'employee')`,
-    [fullName, email, passwordHash],
-  );
-
-  console.log('Local test employee account created.');
+  console.log(`${label} account created.`);
 }

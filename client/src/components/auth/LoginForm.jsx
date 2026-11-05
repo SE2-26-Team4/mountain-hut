@@ -16,7 +16,7 @@ const AREA_COPY = {
   },
   staff: {
     title: 'Staff sign in',
-    description: 'Welcome back! Sign in with your employee or warden account to manage hut services.',
+    description: 'Welcome back! Sign in with your staff account to manage hut services.',
   },
 };
 

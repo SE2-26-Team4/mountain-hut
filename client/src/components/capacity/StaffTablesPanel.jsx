@@ -16,7 +16,6 @@ export default function StaffTablesPanel({
   onEdit,
 }) {
   const [query, setQuery] = useState('');
-  const [page, setPage] = useState(1);
 
   const filtered = useMemo(
     () =>
@@ -26,22 +25,13 @@ export default function StaffTablesPanel({
     [tables, query],
   );
 
-  const pageSize = 9;
-  const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const current = Math.min(page, pages);
-
-  const visibleTables = filtered.slice(
-    (current - 1) * pageSize,
-    current * pageSize,
-  );
-
   return (
     <section className="cap-panel cap-tables">
       <div className="cap-panel-heading d-flex align-items-start justify-content-between">
         <div>
           <h2>Tables</h2>
 
-          <p>Manage your tables and seating capacity.</p>
+          <p>Manage tables and seats.</p>
         </div>
 
         <button
@@ -69,14 +59,13 @@ export default function StaffTablesPanel({
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
-            setPage(1);
           }}
           aria-label="Search tables"
         />
       </div>
 
       <div className="cap-table-list d-flex flex-column">
-        {visibleTables.map((table) => (
+        {filtered.map((table) => (
           <div
             className="cap-table-item d-flex align-items-center"
             key={table.id}
@@ -116,38 +105,8 @@ export default function StaffTablesPanel({
         )}
       </div>
 
-      <div className="cap-panel-footer d-flex align-items-center justify-content-between cap-tables-footer">
+      <div className="cap-panel-footer cap-tables-footer">
         <span>{filtered.length} tables</span>
-
-        <div className="cap-pagination d-flex align-items-center">
-          <button
-            type="button"
-            disabled={current === 1}
-            onClick={() => setPage(current - 1)}
-            aria-label="Previous page"
-          >
-            <i
-              className="bi bi-chevron-left"
-              aria-hidden="true"
-            />
-          </button>
-
-          <span>
-            {current} / {pages}
-          </span>
-
-          <button
-            type="button"
-            disabled={current === pages}
-            onClick={() => setPage(current + 1)}
-            aria-label="Next page"
-          >
-            <i
-              className="bi bi-chevron-right"
-              aria-hidden="true"
-            />
-          </button>
-        </div>
       </div>
     </section>
   );

@@ -72,7 +72,11 @@ export default function BookingForm({ user, onRequireLogin }) {
         </Alert>
       )}
 
-      <BookingSearch booking={booking} />
+      <BookingSearch
+        booking={booking}
+        isAuthenticated={Boolean(user)}
+        onRequireLogin={onRequireLogin}
+      />
 
       <div
         ref={availabilityRef}
@@ -83,7 +87,7 @@ export default function BookingForm({ user, onRequireLogin }) {
           isAuthenticated={Boolean(user)}
         />
       </div>
-    
+
       <Modal
         show={Boolean(reservation)}
         onHide={booking.closeReservationConfirmation}
