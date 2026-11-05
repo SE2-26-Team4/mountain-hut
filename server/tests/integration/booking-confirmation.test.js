@@ -6,9 +6,15 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 // No live Resend calls: exercise the real Express route, DB transaction,
 // booking content builder and authenticated hiker session.
 const emailMocks = vi.hoisted(() => ({ send: vi.fn() }));
+const capacityMocks = vi.hoisted(() => ({ getDiningTables: vi.fn() }));
 vi.mock('../../services/booking-confirmation-service.js', () => ({
   sendBookingConfirmationEmail: emailMocks.send,
 }));
+vi.mock('../../dao/capacity-dao.js', async (importOriginal) => {
+  const actual = await importOriginal();
+  capacityMocks.getDiningTables.mockImplementation(actual.getDiningTables);
+  return { ...actual, getDiningTables: capacityMocks.getDiningTables };
+});
 
 import app from '../../app.js';
 import { getAsync, initializeDatabase, runAsync } from '../../db.js';
@@ -162,6 +168,42 @@ describe('Booking confirmation flow (real persistence, mocked email)', () => {
         party_size: 1,
         status: 'confirmed',
       });
+      const allocation = await getAsync(
+        `SELECT booking_id, table_id, seats_reserved
+         FROM booking_table_allocations
+         WHERE booking_id = ?`,
+        [booking.id]
+      );
+      expect(allocation).toMatchObject({
+        booking_id: booking.id,
+        table_id: tableId,
+        seats_reserved: 1,
+      });
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Booking saved, but confirmation email could not be sent:',
+        expect.any(Error)
+      );
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('keeps the booking when email preparation fails', async () => {
+    capacityMocks.getDiningTables.mockRejectedValueOnce(new Error('Capacity lookup offline'));
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const response = await agent.post('/api/bookings').send({
+        bookingDate: '2099-11-04', slotId, partySize: 1,
+      });
+      expect(response.status).toBe(201);
+      expect(emailMocks.send).not.toHaveBeenCalled();
+
+      const booking = response.body.booking;
+      const bookingCount = await getAsync(
+        'SELECT COUNT(*) AS count FROM bookings WHERE id = ?',
+        [booking.id]
+      );
+      expect(bookingCount.count).toBe(1);
       const allocation = await getAsync(
         `SELECT booking_id, table_id, seats_reserved
          FROM booking_table_allocations
