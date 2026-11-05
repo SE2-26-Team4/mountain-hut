@@ -1,20 +1,13 @@
-TEMPLATE FOR RETROSPECTIVE (Team 04)
+RETROSPECTIVE (Team 04)
 =====================================
-
-The retrospective should include _at least_ the following
-sections:
-
-- [process measures](#process-measures)
-- [quality measures](#quality-measures)
-- [general assessment](#assessment)
 
 ## PROCESS MEASURES 
 
 ### Macro statistics
 
-- Number of stories committed vs done :
-- Total points committed vs done :
-- Nr of hours planned vs spent (as a team) :
+- Number of stories committed vs done : 3 vs 3
+- Total points committed vs done : 21 vs 21
+- Nr of hours planned vs spent (as a team) : 80h 00m vs 77h 09m
 
 **Remember**  a story is done ONLY if it fits the Definition of Done:
  
@@ -23,47 +16,67 @@ sections:
 - Code present on VCS
 - End-to-End tests performed
 
-> Please refine your DoD 
+<!-- > Please refine your DoD  -->
 
 ### Detailed statistics
 
 | Story  | # Tasks | Points | Hours est. | Hours actual |
 |--------|---------|--------|------------|--------------|
-| _#0_   |         |    -   |            |              |
-| n      |         |        |            |              |
+| _#0_   | 20      |    -   | 32h 30m    | 31h 34m      |
+| MH-01 Book a table | 20 | 8 | 18h 35m | 17h 45m |
+| MH-02 Define slot capacity | 20 | 8 | 18h 10m | 17h 10m |
+| MH-03 Receive confirmation | 12 | 5 | 10h 45m | 10h 40m |
+| **Total** | **72** | **21** | **80h 00m** | **77h 09m** |
    
 
 > place technical tasks corresponding to story `#0` and leave out story points (not applicable in this case)
 
 - Hours per task  <span style="color:red">per person</span>  (average, standard deviation)
+  - Estimated: average 0.89h (53m), standard deviation 0.70h (42m)
+  - Actual: average 0.85h (51m), standard deviation 0.71h (43m)
+  - Computed on all 72 tasks. Hours of whole-team tasks (Sprint Planning, Daily Scrum, Technology selection, Sprint Retrospective) are divided by the 5 members.
 - Total task estimation error ratio: sum of total hours estimation / sum of total hours spent -1
+  - 80h 00m / 77h 09m − 1 = **+0.037** (+3.7%, slight overestimate)
 
   
 ## QUALITY MEASURES 
 
-- Unit Testing:
-  - Total hours estimated
-  - Total hours spent
-  - Nr of automated unit test cases 
-  - Coverage (if available)
-- Integration testing:
-  - Total hours estimated
-  - Total hours spent
-- E2E testing:
-  - Total hours estimated
-  - Total hours spent
-- Code review: 
-  - Total hours estimated 
-  - Total hours spent
+> We had no tasks dedicated only to unit or integration tests. Tests were written inside the implementation tasks. The hours below are those of the tasks whose description required each kind of test, so they also include implementation time.
 
-  
+- Unit Testing:
+  - Total hours estimated: 5h 30m
+  - Total hours spent: 5h 40m
+  - Nr of automated unit test cases: 84 (6 test files), all passing
+  - Coverage (if available): 98.7% lines on the services layer (unit tests only); 98.4% lines, 98.45% statements, 96.49% branches, 100% functions on the whole backend (unit + integration tests)
+  - Tasks: *Booking availability and table allocation*, *Slot and table capacity validation*, *Booking confirmation email service*
+- Integration testing:
+  - Total hours estimated: 15h 30m
+  - Total hours spent: 14h 05m
+  - Nr of automated integration test cases: 169 (19 test files), all passing
+  - Tasks: *Automated testing environment setup*, *Minimal login setup (backend)*, *Booking data access and transaction support*, *Create booking API*, *Employee access for capacity management*, *Meal-slot and dining-table data access*, *Slot-table assignment and capacity aggregation*, *Meal-slot and capacity API*, *Booking confirmation integration tests*
+- Test coverage review (one per story, adds missing unit and integration tests):
+  - Total hours estimated: 4h 30m
+  - Total hours spent: 3h 00m
+- E2E testing:
+  - Total hours estimated: 1h 30m
+  - Total hours spent: 1h 25m
+- Code review: 
+  - Total hours estimated: 9h 20m
+  - Total hours spent: 8h 44m
+  - Of which per-task reviews (28 tasks): 6h 20m estimated, 6h 54m spent
+  - Of which final code reviews (3 tasks): 3h 00m estimated, 1h 50m spent
 
 
 ## ASSESSMENT
 
 __- What caused your errors in estimation (if any)?__
 
-_waiting for report time stats_
+Overall, our estimate was accurate: we spent 77h 09m against 80h 00m planned, an error ratio of +3.7% (slight overestimate). The errors on single tasks were larger, and they came from different causes:
+
+- **Frontend tasks (underestimated).** The two largest overruns of the sprint were frontend tasks: *Hiker login interface and sign-in integration* (1h 30m estimated, 2h 30m spent) and *Staff capacity management interface* (2h 00m estimated, 2h 30m spent). The frontend we built ended up quite different from the structure we assumed during planning.
+- **Setup tasks (overestimated).** *Backend project setup* (1h 30m -> 1h 00m), *Automated testing environment setup* (2h 00m -> 1h 30m) and *README completion* (1h 00m -> 30m) were simpler than we expected and quite similar to previous project configuration (except docker).
+
+We also overestimated the three test coverage reviews (1h 30m -> 1h 00m each ) and the three final code reviews (1h 00m -> 30–40m each). Overall, final code review is not necessarly long if all features are all working and with all previous code review during sprint.
 
 __- What lessons did you learn (both positive and negative) in this sprint?__
 
