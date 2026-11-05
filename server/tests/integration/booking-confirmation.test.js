@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import request from 'supertest';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // No live Resend calls: exercise the real Express route, DB transaction,
 // booking content builder and authenticated hiker session.
@@ -33,6 +33,12 @@ beforeAll(async () => {
      VALUES (?, ?, ?, 'hiker')`,
     [hikerName, hikerEmail, await hashPassword(password)]
   )).lastID;
+  agent = request.agent(app);
+  const login = await agent.post('/api/sessions').send({ email: hikerEmail, password });
+  expect(login.status).toBe(201);
+});
+
+beforeEach(async () => {
   slotId = (await runAsync(
     `INSERT INTO meal_slots (name, start_time, end_time)
      VALUES (?, '18:00', '20:00')`,
@@ -44,17 +50,11 @@ beforeAll(async () => {
   )).lastID;
   await runAsync('INSERT INTO slot_tables (slot_id, table_id) VALUES (?, ?)', [slotId, tableId]);
 
-  agent = request.agent(app);
-  const login = await agent.post('/api/sessions').send({ email: hikerEmail, password });
-  expect(login.status).toBe(201);
-});
-
-beforeEach(() => {
   emailMocks.send.mockReset();
   emailMocks.send.mockResolvedValue({ id: 'mock-email-id' });
 });
 
-afterAll(async () => {
+afterEach(async () => {
   if (slotId) {
     await runAsync(
       'DELETE FROM booking_table_allocations WHERE booking_id IN (SELECT id FROM bookings WHERE slot_id = ?)',
@@ -65,6 +65,11 @@ afterAll(async () => {
   }
   if (tableId) await runAsync('DELETE FROM dining_tables WHERE id = ?', [tableId]);
   if (slotId) await runAsync('DELETE FROM meal_slots WHERE id = ?', [slotId]);
+  slotId = undefined;
+  tableId = undefined;
+});
+
+afterAll(async () => {
   if (hikerId) await runAsync('DELETE FROM users WHERE id = ?', [hikerId]);
 });
 
