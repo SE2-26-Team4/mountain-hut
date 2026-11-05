@@ -132,11 +132,14 @@ router.post(
       if (!mealSlot) {
         throw new Error(`Meal slot ${booking.slotId} not found.`);
       }
+      const allocatedTableIds = new Set(
+        booking.allocations.map((allocation) => allocation.tableId)
+      );
       const email = buildBookingConfirmationEmail({
         hiker: user,
         booking,
         mealSlot,
-        tables,
+        tables: tables.filter((table) => allocatedTableIds.has(table.id)),
       });
       await sendBookingConfirmationEmail(email);
     } catch (emailError) {
