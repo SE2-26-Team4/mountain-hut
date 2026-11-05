@@ -64,6 +64,20 @@ describe('booking confirmation email service', () => {
     await expect(sendBookingConfirmationEmail(message)).rejects.toThrow('Invalid sender');
   });
 
+  it('rejects a successful API response without an email ID', async () => {
+    mocks.send.mockResolvedValue({ data: {}, error: null });
+    await expect(sendBookingConfirmationEmail(message)).rejects.toThrow(
+      'did not include an email ID'
+    );
+  });
+
+  it('rejects non-string message fields before calling Resend', async () => {
+    await expect(
+      sendBookingConfirmationEmail({ ...message, text: 123 })
+    ).rejects.toThrow('recipient, subject, HTML body, and text body');
+    expect(mocks.send).not.toHaveBeenCalled();
+  });
+
   it('propagates network errors', async () => {
     mocks.send.mockRejectedValue(new Error('Connection unavailable'));
     await expect(sendBookingConfirmationEmail(message)).rejects.toThrow('Connection unavailable');
