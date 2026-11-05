@@ -6,14 +6,22 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 // No live Resend calls: exercise the real Express route, DB transaction,
 // booking content builder and authenticated hiker session.
 const emailMocks = vi.hoisted(() => ({ send: vi.fn() }));
-const capacityMocks = vi.hoisted(() => ({ getDiningTables: vi.fn() }));
+const capacityMocks = vi.hoisted(() => ({
+  getDiningTables: vi.fn(),
+  getMealSlots: vi.fn(),
+}));
 vi.mock('../../services/booking-confirmation-service.js', () => ({
   sendBookingConfirmationEmail: emailMocks.send,
 }));
 vi.mock('../../dao/capacity-dao.js', async (importOriginal) => {
   const actual = await importOriginal();
   capacityMocks.getDiningTables.mockImplementation(actual.getDiningTables);
-  return { ...actual, getDiningTables: capacityMocks.getDiningTables };
+  capacityMocks.getMealSlots.mockImplementation(actual.getMealSlots);
+  return {
+    ...actual,
+    getDiningTables: capacityMocks.getDiningTables,
+    getMealSlots: capacityMocks.getMealSlots,
+  };
 });
 
 import app from '../../app.js';
@@ -236,4 +244,25 @@ describe('Booking confirmation flow (real persistence, mocked email)', () => {
     );
     expect(bookingCount.count).toBe(0);
   });
+
+
+  it('keeps the booking when meal slot cannot be found during email preparation', async () => {
+    capacityMocks.getMealSlots.mockResolvedValueOnce([]);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const response = await agent.post('/api/bookings').send({
+        bookingDate: '2099-11-05', slotId, partySize: 1,
+      });
+      expect(response.status).toBe(201);
+      expect(emailMocks.send).not.toHaveBeenCalled();
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Booking saved, but confirmation email could not be sent:',
+        expect.any(Error)
+      );
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+
 });
