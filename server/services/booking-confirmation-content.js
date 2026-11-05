@@ -48,6 +48,24 @@ function isPositiveInteger(value) {
 }
 
 /**
+ * @param {unknown} value
+ * @returns {value is string}
+ */
+function isValidBookingDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
+/**
  * Escapes values before inserting them into the HTML body.
  *
  * @param {string | number} value
@@ -96,11 +114,19 @@ function validateInput({ hiker, booking, mealSlot, tables, requirements }) {
 
   if (
     !isPositiveInteger(booking?.id) ||
-    typeof booking.bookingDate !== 'string' ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(booking.bookingDate) ||
+    !isValidBookingDate(booking?.bookingDate) ||
     !isPositiveInteger(booking.partySize) ||
     !Array.isArray(booking.allocations) ||
-    booking.allocations.length === 0
+    booking.allocations.length === 0 ||
+    !booking.allocations.every(
+      (allocation) =>
+        isPositiveInteger(allocation?.tableId) &&
+        isPositiveInteger(allocation?.seatsReserved)
+    ) ||
+    booking.allocations.reduce(
+      (total, allocation) => total + allocation.seatsReserved,
+      0
+    ) !== booking.partySize
   ) {
     throw new Error(
       'Booking ID, date, party size, and table allocations are required.'
@@ -115,15 +141,25 @@ function validateInput({ hiker, booking, mealSlot, tables, requirements }) {
     throw new Error('Meal service name and times are required.');
   }
 
-  if (tables !== undefined && !Array.isArray(tables)) {
-    throw new TypeError('Dining tables must be provided as an array.');
+  if (
+    tables !== undefined &&
+    (!Array.isArray(tables) ||
+      !tables.every(
+        (table) =>
+          isPositiveInteger(table?.id) && isNonEmptyString(table?.name)
+      ))
+  ) {
+    throw new TypeError(
+      'Dining tables must be an array of valid table records.'
+    );
   }
 
   if (
     requirements !== undefined &&
     (!Array.isArray(requirements) ||
       !requirements.every((requirement) =>
-        isNonEmptyString(requirement?.description)
+        typeof requirement?.hasAllergies === 'boolean' &&
+        isNonEmptyString(requirement.description)
       ))
   ) {
     throw new TypeError(
