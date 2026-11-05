@@ -11,6 +11,7 @@ import Alert from '../common/AutoDismissAlert.jsx';
 
 /**
  * @typedef {Object} SlotForm
+ * @property {string} slotDate
  * @property {string} name
  * @property {string} startTime
  * @property {string} endTime
@@ -60,6 +61,13 @@ export default function CapacityFormModal(props) {
       <Form onSubmit={onSubmit}>
         <Modal.Header closeButton>
           <Modal.Title>
+
+            {props.kind === 'slot' && (
+              <p className="mb-0 mt-1 text-secondary">
+                Date: {props.form.slotDate}
+              </p>
+            )}
+
             {editing ? 'Edit' : 'Add'} {label}
           </Modal.Title>
         </Modal.Header>

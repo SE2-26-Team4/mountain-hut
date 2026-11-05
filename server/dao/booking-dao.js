@@ -1,4 +1,5 @@
 import {withTransaction } from '../db.js';
+import { getBookingDeadline } from '../services/booking-time.js';
 
 /**
  * @typedef {import('../models/models.js').CreateBookingRequestDTO} CreateBookingRequestDTO
@@ -57,16 +58,27 @@ export async function createBooking({
   }
 
   return withTransaction(async ({ runAsync, getAsync, allAsync }) => {
-    // Check the slot inside the transaction.
+
     const slot = await getAsync(
-      `SELECT id, start_time AS startTime, is_active AS isActive
-       FROM meal_slots
-       WHERE id = ?`,
+      `SELECT
+        id,
+        slot_date AS slotDate,
+        start_time AS startTime,
+        is_active AS isActive
+      FROM meal_slots
+      WHERE id = ?`,
       [slotId]
     );
 
     if (!slot) {
       throw new BookingError('SLOT_NOT_FOUND', 'Meal slot not found.');
+    }
+
+    if (slot.slotDate !== bookingDate) {
+      throw new BookingError(
+        'INVALID_BOOKING',
+        'The selected meal slot does not belong to the booking date.'
+      );
     }
 
     if (!slot.isActive) {
@@ -76,17 +88,24 @@ export async function createBooking({
       );
     }
 
-    const mealStartTimestamp = getMealStartTimestamp(
-      bookingDate,
-      slot.startTime
-    );
+    let bookingDeadline;
 
-    const minimumNotice = 2 * 60 * 60 * 1000;
+    try {
+      bookingDeadline = getBookingDeadline(
+        bookingDate,
+        slot.startTime
+      );
+    } catch {
+      throw new BookingError(
+        'INVALID_BOOKING',
+        'The selected meal time is not valid in the hut time zone.'
+      );
+    }
 
-    if (mealStartTimestamp - Date.now() < minimumNotice) {
+    if (Date.now() > bookingDeadline) {
       throw new BookingError(
         'BOOKING_TOO_LATE',
-        'Bookings must be made at least two hours before the meal service starts.'
+        'Bookings close two hours before the meal service starts.'
       );
     }
 
@@ -326,57 +345,6 @@ export async function getBookingsByDateAndSlot(bookingDate, slotId) {
       })
     );
   });
-}
-
-/**
- * Converts a meal date and time in Europe/Rome to a timestamp.
- *
- * @param {string} bookingDate
- * @param {string} startTime
- * @returns {number}
- */
-function getMealStartTimestamp(bookingDate, startTime) {
-  const localTime = `${bookingDate}T${startTime}:00`;
-  const wallClockTimestamp = Date.parse(`${localTime}Z`);
-
-  const formatter = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/Rome',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  });
-
-  let timestamp = wallClockTimestamp;
-
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const parts = formatter.formatToParts(new Date(timestamp));
-
-    /** @param {Intl.DateTimeFormatPartTypes} type */
-    const value = (type) =>
-      parts.find((part) => part.type === type)?.value;
-
-    const displayedTimestamp = Date.parse(
-      `${value('year')}-${value('month')}-${value('day')}` +
-      `T${value('hour')}:${value('minute')}:${value('second')}Z`
-    );
-
-    const correction = wallClockTimestamp - displayedTimestamp;
-
-    if (correction === 0) {
-      return timestamp;
-    }
-
-    timestamp += correction;
-  }
-
-  throw new BookingError(
-    'INVALID_BOOKING',
-    'The selected meal time is not valid in the hut time zone.'
-  );
 }
 
 /* UPDATE */

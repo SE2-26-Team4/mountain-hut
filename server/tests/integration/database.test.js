@@ -97,37 +97,41 @@ describe('database initialization', () => {
   });
 
   it('preserves existing data when initialized again', async () => {
-    await loadDatabase();
-    await db.initializeDatabase();
+  await loadDatabase();
+  await db.initializeDatabase();
 
-    const result = await db.runAsync(
-      `INSERT INTO meal_slots (name, start_time, end_time)
-       VALUES (?, ?, ?)`,
-      ['Test Dinner', '18:00', '20:00'],
-    );
+  const result = await db.runAsync(
+    `INSERT INTO meal_slots (
+       slot_date, name, start_time, end_time
+     )
+     VALUES (?, ?, ?, ?)`,
+    ['2099-12-30', 'Test Dinner', '18:00', '20:00'],
+  );
 
-    await db.initializeDatabase();
+  await db.initializeDatabase();
 
-    expect(
-      await db.getAsync(
-        `SELECT id, name, start_time, end_time
-         FROM meal_slots
-         WHERE id = ?`,
-        [result.lastID],
-      ),
-    ).toEqual({
-      id: result.lastID,
-      name: 'Test Dinner',
-      start_time: '18:00',
-      end_time: '20:00',
-    });
-
-    expect(
-      await db.getAsync('SELECT COUNT(*) AS total FROM meal_slots'),
-    ).toEqual({
-      total: 1,
-    });
+  expect(
+    await db.getAsync(
+      `SELECT id, slot_date, name, start_time, end_time
+       FROM meal_slots
+       WHERE id = ?`,
+      [result.lastID],
+    ),
+  ).toEqual({
+    id: result.lastID,
+    slot_date: '2099-12-30',
+    name: 'Test Dinner',
+    start_time: '18:00',
+    end_time: '20:00',
   });
+
+  expect(
+    await db.getAsync('SELECT COUNT(*) AS total FROM meal_slots'),
+  ).toEqual({
+    total: 1,
+  });
+});
+
 
   it('rejects an incomplete schema', async () => {
     await loadDatabase();

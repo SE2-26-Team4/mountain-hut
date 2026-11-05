@@ -18,6 +18,7 @@ function BookingAvailability({ booking, isAuthenticated }) {
     canAccommodateParty,
     isBooking,
     handleReserve,
+    isBookingWindowClosed,
   } = booking;
 
   if (!availability) return null;
@@ -28,6 +29,8 @@ function BookingAvailability({ booking, isAuthenticated }) {
 
   const mealLabel = selectedMealSlot?.name || 'Selected service';
 
+  const canBook = canAccommodateParty && !isBookingWindowClosed;
+
   return (
     <section
       className="mh-availability"
@@ -37,7 +40,7 @@ function BookingAvailability({ booking, isAuthenticated }) {
       <div className="mh-availability-confirmation">
         <div
           className={`mh-availability-status d-flex align-items-center ${
-            canAccommodateParty
+            canBook
               ? 'mh-availability-status-success'
               : 'mh-availability-status-unavailable'
           }`}
@@ -47,7 +50,7 @@ function BookingAvailability({ booking, isAuthenticated }) {
             className="mh-availability-status-icon d-flex align-items-center justify-content-center"
             aria-hidden="true"
           >
-            {canAccommodateParty ? (
+            {canBook ? (
               <i className="bi bi-check-lg" />
             ) : (
               '!'
@@ -56,13 +59,20 @@ function BookingAvailability({ booking, isAuthenticated }) {
 
           <div className="mh-availability-status-content">
             <h2 id="availability-title">
-              {canAccommodateParty
-                ? 'A table is available'
-                : 'No tables available'}
+              {isBookingWindowClosed
+                ? 'Bookings are closed'
+                : canAccommodateParty
+                  ? 'A table is available'
+                  : 'No tables available'}
             </h2>
 
             <p className="mb-0">
-              {canAccommodateParty ? (
+              {isBookingWindowClosed ? (
+                <>
+                  Bookings close two hours before the meal service starts.
+                  Please choose another date or service.
+                </>
+              ) : canAccommodateParty ? (
                 <>
                   We can welcome {guestLabel} for{' '}
                   {mealLabel.toLowerCase()} on{' '}
@@ -124,6 +134,7 @@ function BookingAvailability({ booking, isAuthenticated }) {
 
                     <strong>
                       {mealLabel}
+
                       <span className="d-block">
                         {availability.startTime}–{availability.endTime}
                       </span>
@@ -155,7 +166,7 @@ function BookingAvailability({ booking, isAuthenticated }) {
             </Col>
 
             <Col xs={12} className="mh-availability-actions">
-              {!isAuthenticated && (
+              {!isAuthenticated && !isBookingWindowClosed && (
                 <p className="text-secondary small mb-2">
                   Sign in to confirm your reservation.
                   Your selection will be saved.
@@ -165,7 +176,7 @@ function BookingAvailability({ booking, isAuthenticated }) {
               <Button
                 className="mh-booking-confirm-button d-flex align-items-center justify-content-between w-100"
                 type="button"
-                disabled={isBooking}
+                disabled={isBooking || isBookingWindowClosed}
                 onClick={handleReserve}
               >
                 {isBooking ? (
@@ -181,9 +192,11 @@ function BookingAvailability({ booking, isAuthenticated }) {
                 ) : (
                   <>
                     <span>
-                      {isAuthenticated
-                        ? 'Confirm reservation'
-                        : 'Sign in to continue'}
+                      {isBookingWindowClosed
+                        ? 'Bookings closed'
+                        : isAuthenticated
+                          ? 'Confirm reservation'
+                          : 'Sign in to continue'}
                     </span>
 
                     <span aria-hidden="true">→</span>

@@ -11,6 +11,7 @@ import {
   setMealSlotTables,
   updateDiningTable,
   updateMealSlot,
+  DuplicateMealSlotError,
 } from '../../dao/capacity-dao.js';
 import { initializeDatabase, runAsync } from '../../db.js';
 
@@ -23,6 +24,7 @@ beforeAll(async () => {
   await initializeDatabase();
 
   const slot = await createMealSlot({
+    slotDate: '2099-12-30',
     name: `Capacity test slot ${uniqueSuffix}`,
     startTime: '18:00',
     endTime: '20:00',
@@ -56,6 +58,7 @@ describe('meal-slot and dining-table data access', () => {
     const tables = await getDiningTables();
 
     expect(slots.find((slot) => slot.id === slotId)).toMatchObject({
+      slotDate: '2099-12-30',
       name: `Capacity test slot ${uniqueSuffix}`,
       startTime: '18:00',
       endTime: '20:00',
@@ -71,6 +74,7 @@ describe('meal-slot and dining-table data access', () => {
 
   it('updates a meal slot and a dining table', async () => {
     const updatedSlot = await updateMealSlot(slotId, {
+      slotDate: '2099-12-30',
       name: `Updated capacity test slot ${uniqueSuffix}`,
       startTime: '19:00',
       endTime: '21:00',
@@ -85,6 +89,7 @@ describe('meal-slot and dining-table data access', () => {
 
     expect(updatedSlot).toMatchObject({
       id: slotId,
+      slotDate: '2099-12-30',
       name: `Updated capacity test slot ${uniqueSuffix}`,
       startTime: '19:00',
       endTime: '21:00',
@@ -101,6 +106,7 @@ describe('meal-slot and dining-table data access', () => {
 
   it('returns null when updating a meal slot or table that does not exist', async () => {
     const missingSlot = await updateMealSlot(-1, {
+      slotDate: '2099-12-30',
       name: 'Missing slot',
       startTime: '18:00',
       endTime: '20:00',
@@ -123,6 +129,7 @@ describe('meal-slot and dining-table data access', () => {
 
     try {
       const slot = await createMealSlot({
+        slotDate: '2099-12-30',
         name: `Inactive slot ${uniqueSuffix}`,
         startTime: '08:00',
         endTime: '09:00',
@@ -180,6 +187,7 @@ describe('meal-slot and dining-table data access', () => {
 
     try {
       duplicateSlotId = (await createMealSlot({
+        slotDate: '2099-12-30',
         name: slotName,
         startTime: '08:00',
         endTime: '09:00',
@@ -191,10 +199,11 @@ describe('meal-slot and dining-table data access', () => {
       }))?.id;
 
       await expect(createMealSlot({
+        slotDate: '2099-12-30',
         name: slotName.toUpperCase(),
-        startTime: '09:00',
-        endTime: '10:00',
-      })).rejects.toBeInstanceOf(DuplicateNameError);
+        startTime: '08:00',
+        endTime: '09:00',
+      })).rejects.toBeInstanceOf(DuplicateMealSlotError);
 
       await expect(createDiningTable({
         name: tableName.toLowerCase(),
@@ -225,11 +234,13 @@ describe('meal-slot and dining-table data access', () => {
 
     try {
       const firstSlot = await createMealSlot({
+        slotDate: '2099-12-30',
         name: `Rename slot A ${uniqueSuffix}`,
         startTime: '06:00',
         endTime: '07:00',
       });
       const secondSlot = await createMealSlot({
+        slotDate: '2099-12-30',
         name: `Rename slot B ${uniqueSuffix}`,
         startTime: '07:00',
         endTime: '08:00',
@@ -247,11 +258,12 @@ describe('meal-slot and dining-table data access', () => {
       createdTableIds.push(firstTable?.id, secondTable?.id);
 
       await expect(updateMealSlot(secondSlot?.id ?? -1, {
+        slotDate: '2099-12-30',
         name: `Rename slot A ${uniqueSuffix}`,
-        startTime: '07:00',
-        endTime: '08:00',
+        startTime: '06:00',
+        endTime: '07:00',
         isActive: true,
-      })).rejects.toBeInstanceOf(DuplicateNameError);
+      })).rejects.toBeInstanceOf(DuplicateMealSlotError);
 
       await expect(updateDiningTable(secondTable?.id ?? -1, {
         name: `RENAME TABLE A ${uniqueSuffix}`,
@@ -265,6 +277,7 @@ describe('meal-slot and dining-table data access', () => {
       )?.name).toBe(`Rename table B ${uniqueSuffix}`);
 
       const sameSlot = await updateMealSlot(firstSlot?.id ?? -1, {
+        slotDate: '2099-12-30',
         name: `RENAME SLOT A ${uniqueSuffix}`,
         startTime: '06:00',
         endTime: '07:30',
@@ -329,6 +342,7 @@ describe('slot-table assignment and capacity aggregation', () => {
 
   beforeAll(async () => {
     const slot = await createMealSlot({
+      slotDate: '2099-12-30',
       name: assignmentSlotName,
       startTime: '12:00',
       endTime: '13:00',
@@ -424,6 +438,7 @@ describe('slot-table assignment and capacity aggregation', () => {
 
     try {
       const updatedSlot = await updateMealSlot(assignmentSlotId, {
+        slotDate: '2099-12-30',
         name: assignmentSlotName,
         startTime: '12:00',
         endTime: '13:00',
@@ -568,5 +583,110 @@ describe('slot-table assignment and capacity aggregation', () => {
   it('returns null when requesting capacity for a meal slot that does not exist', async () => {
     await expect(getMealSlotCapacity(-1)).resolves.toBeNull();
     await expect(setMealSlotTables(-1, [fourSeatTableId])).resolves.toBeNull();
+  });
+});
+
+describe('dated meal-slot configuration', () => {
+  const slotIds = [];
+  const tableIds = [];
+  const suffix = `${Date.now()}-${Math.random()}`;
+
+  async function createDatedSlot(slotDate) {
+    const slot = await createMealSlot({
+      slotDate,
+      name: `Dated lunch ${suffix}`,
+      startTime: '12:00',
+      endTime: '13:00',
+    });
+
+    slotIds.push(slot.id);
+    return slot;
+  }
+
+  afterAll(async () => {
+    for (const id of slotIds) {
+      await runAsync(
+        'DELETE FROM slot_tables WHERE slot_id = ?',
+        [id],
+      );
+
+      await runAsync(
+        'DELETE FROM meal_slots WHERE id = ?',
+        [id],
+      );
+    }
+
+    for (const id of tableIds) {
+      await runAsync(
+        'DELETE FROM dining_tables WHERE id = ?',
+        [id],
+      );
+    }
+  });
+
+  it('allows identical names and times on different dates', async () => {
+    const first = await createDatedSlot('2099-11-01');
+    const second = await createDatedSlot('2099-11-02');
+
+    expect(first.id).not.toBe(second.id);
+
+    expect(first.slotDate).toBe('2099-11-01');
+    expect(second.slotDate).toBe('2099-11-02');
+
+    const savedSlots = await getMealSlots();
+
+    expect(savedSlots).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: first.id,
+          slotDate: '2099-11-01',
+        }),
+        expect.objectContaining({
+          id: second.id,
+          slotDate: '2099-11-02',
+        }),
+      ]),
+    );
+  });
+
+  it('allows reusing the same table at the same time on different dates', async () => {
+    const first = await createDatedSlot('2099-11-03');
+    const second = await createDatedSlot('2099-11-04');
+
+    const table = await createDiningTable({
+      name: `Reusable dated table ${suffix}`,
+      seatCount: 4,
+    });
+
+    tableIds.push(table.id);
+
+    await setMealSlotTables(first.id, [table.id]);
+
+    await expect(
+      setMealSlotTables(second.id, [table.id]),
+    ).resolves.toMatchObject({
+      totalSeatCapacity: 4,
+    });
+  });
+
+  it('rejects moving a slot onto an existing identical slot', async () => {
+    const first = await createDatedSlot('2099-11-05');
+    const second = await createDatedSlot('2099-11-06');
+
+    await expect(
+      updateMealSlot(second.id, {
+        slotDate: first.slotDate,
+        name: second.name,
+        startTime: second.startTime,
+        endTime: second.endTime,
+        isActive: true,
+      }),
+    ).rejects.toBeInstanceOf(DuplicateMealSlotError);
+
+    const savedSlot = (await getMealSlots()).find(
+      (slot) => slot.id === second.id,
+    );
+
+    expect(savedSlot.slotDate).toBe('2099-11-06');
   });
 });

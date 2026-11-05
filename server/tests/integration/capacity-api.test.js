@@ -78,6 +78,7 @@ beforeAll(async () => {
   );
 
   const activeSlot = await createMealSlot({
+    slotDate: '2099-12-30',
     name: `Active API test slot ${uniqueSuffix}`,
     startTime: '18:00',
     endTime: '20:00',
@@ -86,6 +87,7 @@ beforeAll(async () => {
   activeSlotId = activeSlot.id;
 
   const inactiveSlot = await createMealSlot({
+    slotDate: '2099-12-30',
     name: `Inactive API test slot ${uniqueSuffix}`,
     startTime: '20:00',
     endTime: '22:00',
@@ -174,6 +176,7 @@ describe('meal-slot and capacity API', () => {
     const response = await employeeAgent
       .post('/api/capacity/meal-slots')
       .send({
+        slotDate: '2099-12-30',
         name: 'Invalid API slot',
         startTime: '20:00',
         endTime: '18:00',
@@ -187,6 +190,7 @@ describe('meal-slot and capacity API', () => {
     const createdResponse = await employeeAgent
       .post('/api/capacity/meal-slots')
       .send({
+        slotDate: '2099-12-30',
         name: `Created API slot ${uniqueSuffix}`,
         startTime: '16:00',
         endTime: '18:00',
@@ -194,6 +198,7 @@ describe('meal-slot and capacity API', () => {
 
     expect(createdResponse.status).toBe(201);
     expect(createdResponse.body.mealSlot).toMatchObject({
+      slotDate: '2099-12-30',
       name: `Created API slot ${uniqueSuffix}`,
       startTime: '16:00',
       endTime: '18:00',
@@ -206,6 +211,7 @@ describe('meal-slot and capacity API', () => {
     const updatedResponse = await employeeAgent
       .put(`/api/capacity/meal-slots/${createdSlotId}`)
       .send({
+        slotDate: '2099-12-30',
         name: `Updated API slot ${uniqueSuffix}`,
         startTime: '17:00',
         endTime: '19:00',
@@ -215,6 +221,7 @@ describe('meal-slot and capacity API', () => {
     expect(updatedResponse.status).toBe(200);
     expect(updatedResponse.body.mealSlot).toMatchObject({
       id: createdSlotId,
+      slotDate: '2099-12-30',
       name: `Updated API slot ${uniqueSuffix}`,
       startTime: '17:00',
       endTime: '19:00',
@@ -314,6 +321,7 @@ describe('meal-slot and capacity API', () => {
 // Additional validation, authorization, persistence, and failure scenarios.
 describe('capacity API edge cases', () => {
   const slotInput = {
+    slotDate: '2099-12-30',
     name: `Updated API test slot ${uniqueSuffix}`,
     startTime: '18:00',
     endTime: '20:00',
@@ -481,74 +489,138 @@ describe('capacity API edge cases', () => {
   );
 });
 
-// Names identify slots and tables for staff and hikers, so they must be unique.
 describe('capacity API name conflicts', () => {
-  it('rejects a duplicate meal-slot name on creation, ignoring letter case', async () => {
+  it('allows repeated slot names with different times but rejects exact duplicates', async () => {
     const name = `Conflict API slot ${uniqueSuffix}`;
 
-    const created = await employeeAgent
+    const first = await employeeAgent
       .post('/api/capacity/meal-slots')
-      .send({ name, startTime: '07:00', endTime: '08:00' });
+      .send({
+        slotDate: '2099-12-30',
+        name,
+        startTime: '07:00',
+        endTime: '08:00',
+      });
 
-    expect(created.status).toBe(201);
-    createdSlotIds.push(created.body.mealSlot.id);
+    expect(first.status).toBe(201);
+    createdSlotIds.push(first.body.mealSlot.id);
+
+    const differentTimes = await employeeAgent
+      .post('/api/capacity/meal-slots')
+      .send({
+        slotDate: '2099-12-30',
+        name,
+        startTime: '08:00',
+        endTime: '09:00',
+      });
+
+    expect(differentTimes.status).toBe(201);
+    createdSlotIds.push(differentTimes.body.mealSlot.id);
 
     for (const duplicateName of [name, name.toUpperCase()]) {
-      const response = await employeeAgent
+      const duplicate = await employeeAgent
         .post('/api/capacity/meal-slots')
-        .send({ name: duplicateName, startTime: '08:00', endTime: '09:00' });
+        .send({
+          slotDate: '2099-12-30',
+          name: duplicateName,
+          startTime: '07:00',
+          endTime: '08:00',
+        });
 
-      expect(response.status).toBe(409);
-      expect(response.body.error).toEqual({
-        code: 'DUPLICATE_NAME',
-        message: `A meal slot named "${duplicateName}" already exists.`,
-      });
+      expect(duplicate.status).toBe(409);
+      expect(duplicate.body.error.code).toBe(
+        'DUPLICATE_MEAL_SLOT',
+      );
     }
   });
 
-  it('rejects renaming a meal slot to a name used by another slot', async () => {
-    const taken = await employeeAgent
-      .post('/api/capacity/meal-slots')
-      .send({ name: `Taken API slot ${uniqueSuffix}`, startTime: '09:00', endTime: '10:00' });
-    const renamed = await employeeAgent
-      .post('/api/capacity/meal-slots')
-      .send({ name: `Renamed API slot ${uniqueSuffix}`, startTime: '10:00', endTime: '11:00' });
+  it('allows renaming to an existing name with different times but rejects an exact duplicate', async () => {
+    const takenName = `Taken API slot ${uniqueSuffix}`;
 
-    createdSlotIds.push(taken.body.mealSlot.id, renamed.body.mealSlot.id);
-
-    const response = await employeeAgent
-      .put(`/api/capacity/meal-slots/${renamed.body.mealSlot.id}`)
+    const first = await employeeAgent
+      .post('/api/capacity/meal-slots')
       .send({
-        name: `Taken API slot ${uniqueSuffix}`,
+        slotDate: '2099-12-30',
+        name: takenName,
+        startTime: '09:00',
+        endTime: '10:00',
+      });
+
+    expect(first.status).toBe(201);
+    createdSlotIds.push(first.body.mealSlot.id);
+
+    const second = await employeeAgent
+      .post('/api/capacity/meal-slots')
+      .send({
+        slotDate: '2099-12-30',
+        name: `Renamed API slot ${uniqueSuffix}`,
+        startTime: '10:00',
+        endTime: '11:00',
+      });
+
+    expect(second.status).toBe(201);
+    createdSlotIds.push(second.body.mealSlot.id);
+
+    const renamed = await employeeAgent
+      .put(`/api/capacity/meal-slots/${second.body.mealSlot.id}`)
+      .send({
+        slotDate: '2099-12-30',
+        name: takenName,
         startTime: '10:00',
         endTime: '11:00',
         isActive: true,
       });
 
-    expect(response.status).toBe(409);
-    expect(response.body.error.code).toBe('DUPLICATE_NAME');
+    expect(renamed.status).toBe(200);
+    expect(renamed.body.mealSlot.name).toBe(takenName);
 
-    const capacity = await employeeAgent.get('/api/capacity');
-    expect(capacity.body.mealSlots).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        id: renamed.body.mealSlot.id,
-        name: `Renamed API slot ${uniqueSuffix}`,
-      }),
-    ]));
+    const duplicate = await employeeAgent
+      .put(`/api/capacity/meal-slots/${second.body.mealSlot.id}`)
+      .send({
+        slotDate: '2099-12-30',
+        name: takenName,
+        startTime: '09:00',
+        endTime: '10:00',
+        isActive: true,
+      });
+
+    expect(duplicate.status).toBe(409);
+    expect(duplicate.body.error.code).toBe(
+      'DUPLICATE_MEAL_SLOT',
+    );
+
+    const configuration = await employeeAgent.get('/api/capacity');
+
+    expect(configuration.body.mealSlots).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: second.body.mealSlot.id,
+          name: takenName,
+          startTime: '10:00',
+          endTime: '11:00',
+        }),
+      ]),
+    );
   });
 
   it('lets a meal slot keep its own name or change its letter case', async () => {
     const name = `Own name API slot ${uniqueSuffix}`;
     const created = await employeeAgent
       .post('/api/capacity/meal-slots')
-      .send({ name, startTime: '11:00', endTime: '12:00' });
+      .send({
+        slotDate: '2099-12-30',
+        name,
+        startTime: '11:00',
+        endTime: '12:00',
+      });
 
+    expect(created.status).toBe(201);
     createdSlotIds.push(created.body.mealSlot.id);
 
     for (const sameName of [name, name.toUpperCase()]) {
       const response = await employeeAgent
         .put(`/api/capacity/meal-slots/${created.body.mealSlot.id}`)
-        .send({ name: sameName, startTime: '11:00', endTime: '12:30', isActive: true });
+        .send({ slotDate: '2099-12-30', name: sameName, startTime: '11:00', endTime: '12:30', isActive: true });
 
       expect(response.status).toBe(200);
       expect(response.body.mealSlot.name).toBe(sameName);

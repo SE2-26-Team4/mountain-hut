@@ -1,19 +1,38 @@
-// These tests describe the expected behavior and fail until the rules
-// are implemented.
-// (follow clarifications on MH-01 story)
-
 import { randomUUID } from 'node:crypto';
 
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
+
+vi.mock('../../services/booking-confirmation-service.js', () => ({
+  sendBookingConfirmationEmail: vi.fn().mockResolvedValue({
+    id: 'test-email-id',
+  }),
+}));
 
 import app from '../../app.js';
-import { getAsync, initializeDatabase, runAsync } from '../../db.js';
+import {
+  getAsync,
+  initializeDatabase,
+  runAsync,
+} from '../../db.js';
 import { initializeAccounts } from '../../init/init-accounts.js';
 import { hashPassword } from '../../services/password.js';
 
 const password = 'BookingRulesTest123!';
 const uniqueSuffix = randomUUID();
+
+const sharedDate = '2099-10-01';
+const multiTableDate = '2099-10-03';
+const soonDate = '2030-01-04';
 
 /** @type {{ id: number, agent: import('supertest').Agent }[]} */
 const hikers = [];
@@ -28,46 +47,36 @@ let sharedSlotId;
 let sharedTableId;
 let multiTableSlotId;
 let soonSlotId;
-let soonBookingDate;
 
 /**
- * @param {number} value
- * @returns {string}
- */
-function pad(value) {
-  return String(value).padStart(2, '0');
-}
-
-/**
- * @param {Date} date
- * @returns {string} Local date in YYYY-MM-DD format.
- */
-function toLocalDate(date) {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-/**
- * @param {Date} date
- * @returns {string} Local time in HH:MM format.
- */
-function toLocalTime(date) {
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-/**
- * Creates an active meal slot with new tables of the given sizes.
- *
+ * @param {string} slotDate
  * @param {string} startTime
  * @param {string} endTime
  * @param {number[]} seatCounts
- * @returns {Promise<{ slotId: number, slotTableIds: number[] }>}
+ * @returns {Promise<{
+ *   slotId: number,
+ *   slotTableIds: number[]
+ * }>}
  */
-async function createSlotWithTables(startTime, endTime, seatCounts) {
+async function createSlotWithTables(
+  slotDate,
+  startTime,
+  endTime,
+  seatCounts,
+) {
   const slot = await runAsync(
-    `INSERT INTO meal_slots (name, start_time, end_time)
-     VALUES (?, ?, ?)`,
-    [`Booking rules slot ${slotIds.length} ${uniqueSuffix}`, startTime, endTime],
+    `INSERT INTO meal_slots (
+       slot_date, name, start_time, end_time
+     )
+     VALUES (?, ?, ?, ?)`,
+    [
+      slotDate,
+      `Booking rules slot ${slotIds.length} ${uniqueSuffix}`,
+      startTime,
+      endTime,
+    ],
   );
+
   slotIds.push(slot.lastID);
 
   const slotTableIds = [];
@@ -76,8 +85,12 @@ async function createSlotWithTables(startTime, endTime, seatCounts) {
     const table = await runAsync(
       `INSERT INTO dining_tables (name, seat_count)
        VALUES (?, ?)`,
-      [`Booking rules table ${tableIds.length} ${uniqueSuffix}`, seatCount],
+      [
+        `Booking rules table ${tableIds.length} ${uniqueSuffix}`,
+        seatCount,
+      ],
     );
+
     tableIds.push(table.lastID);
     slotTableIds.push(table.lastID);
 
@@ -87,7 +100,10 @@ async function createSlotWithTables(startTime, endTime, seatCounts) {
     );
   }
 
-  return { slotId: slot.lastID, slotTableIds };
+  return {
+    slotId: slot.lastID,
+    slotTableIds,
+  };
 }
 
 /**
@@ -96,7 +112,11 @@ async function createSlotWithTables(startTime, endTime, seatCounts) {
  * @param {number} slotId
  * @returns {Promise<number>}
  */
-async function countConfirmedBookings(hikerId, bookingDate, slotId) {
+async function countConfirmedBookings(
+  hikerId,
+  bookingDate,
+  slotId,
+) {
   const row = await getAsync(
     `SELECT COUNT(*) AS count
      FROM bookings
@@ -110,6 +130,23 @@ async function countConfirmedBookings(hikerId, bookingDate, slotId) {
   return row.count;
 }
 
+async function clearBookings() {
+  for (const slotId of slotIds) {
+    await runAsync(
+      `DELETE FROM booking_table_allocations
+       WHERE booking_id IN (
+         SELECT id FROM bookings WHERE slot_id = ?
+       )`,
+      [slotId],
+    );
+
+    await runAsync(
+      'DELETE FROM bookings WHERE slot_id = ?',
+      [slotId],
+    );
+  }
+}
+
 beforeAll(async () => {
   await initializeDatabase();
   await initializeAccounts();
@@ -117,109 +154,150 @@ beforeAll(async () => {
   const passwordHash = await hashPassword(password);
 
   for (const index of [1, 2]) {
-    const email = `booking-rules-${index}-${uniqueSuffix}@example.com`;
+    const email =
+      `booking-rules-${index}-${uniqueSuffix}@example.com`;
+
     const user = await runAsync(
-      `INSERT INTO users (full_name, email, password_hash, role)
+      `INSERT INTO users (
+         full_name, email, password_hash, role
+       )
        VALUES (?, ?, ?, 'hiker')`,
       [`Booking Rules Hiker ${index}`, email, passwordHash],
     );
 
     const agent = request.agent(app);
-    const loginResponse = await agent
+
+    const login = await agent
       .post('/api/sessions')
       .send({ email, password });
 
-    expect(loginResponse.status).toBe(201);
-    hikers.push({ id: user.lastID, agent });
+    expect(login.status).toBe(201);
+
+    hikers.push({
+      id: user.lastID,
+      agent,
+    });
   }
 
-  const shared = await createSlotWithTables('12:00', '14:00', [4]);
+  const shared = await createSlotWithTables(
+    sharedDate,
+    '12:00',
+    '14:00',
+    [4],
+  );
+
   sharedSlotId = shared.slotId;
   [sharedTableId] = shared.slotTableIds;
 
-  const multiTable = await createSlotWithTables('19:00', '21:00', [4, 4]);
+  const multiTable = await createSlotWithTables(
+    multiTableDate,
+    '19:00',
+    '21:00',
+    [4, 4],
+  );
+
   multiTableSlotId = multiTable.slotId;
 
-  // A slot starting one hour from now, in local time.
-  const soonStart = new Date(Date.now() + 60 * 60 * 1000);
-  const soonEnd = new Date(soonStart.getTime() + 60 * 60 * 1000);
-  soonBookingDate = toLocalDate(soonStart);
-
   const soon = await createSlotWithTables(
-    toLocalTime(soonStart),
-    toLocalTime(soonEnd),
+    soonDate,
+    '12:00',
+    '14:00',
     [4],
   );
+
   soonSlotId = soon.slotId;
 });
 
+beforeEach(async () => {
+  await clearBookings();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 afterAll(async () => {
+  await clearBookings();
+
   for (const slotId of slotIds) {
     await runAsync(
-      `DELETE FROM booking_table_allocations
-       WHERE booking_id IN (SELECT id FROM bookings WHERE slot_id = ?)`,
+      'DELETE FROM slot_tables WHERE slot_id = ?',
       [slotId],
     );
-    await runAsync('DELETE FROM bookings WHERE slot_id = ?', [slotId]);
-    await runAsync('DELETE FROM slot_tables WHERE slot_id = ?', [slotId]);
-    await runAsync('DELETE FROM meal_slots WHERE id = ?', [slotId]);
+
+    await runAsync(
+      'DELETE FROM meal_slots WHERE id = ?',
+      [slotId],
+    );
   }
 
   for (const tableId of tableIds) {
-    await runAsync('DELETE FROM dining_tables WHERE id = ?', [tableId]);
+    await runAsync(
+      'DELETE FROM dining_tables WHERE id = ?',
+      [tableId],
+    );
   }
 
   for (const { id } of hikers) {
-    await runAsync('DELETE FROM users WHERE id = ?', [id]);
+    await runAsync(
+      'DELETE FROM users WHERE id = ?',
+      [id],
+    );
   }
 });
 
 describe('MH-01 table sharing', () => {
   it('counts the free seats of a partially occupied table as available', async () => {
-    const bookingDate = '2099-10-01';
-
-    const first = await hikers[0].agent.post('/api/bookings').send({
-      bookingDate,
-      slotId: sharedSlotId,
-      partySize: 2,
-    });
+    const first = await hikers[0].agent
+      .post('/api/bookings')
+      .send({
+        bookingDate: sharedDate,
+        slotId: sharedSlotId,
+        partySize: 2,
+      });
 
     expect(first.status).toBe(201);
 
     const response = await request(app)
       .get('/api/bookings/availability')
-      .query({ bookingDate, slotId: sharedSlotId });
+      .query({
+        bookingDate: sharedDate,
+        slotId: sharedSlotId,
+      });
 
     expect(response.status).toBe(200);
+
     expect(
       response.body.availability.totalAvailableSeats,
-      'MH-01: sharing is the standard rule, so 2 of 4 seats stay available',
     ).toBe(2);
   });
 
   it('seats another party at a partially occupied table', async () => {
-    const bookingDate = '2099-10-02';
-
-    const first = await hikers[0].agent.post('/api/bookings').send({
-      bookingDate,
-      slotId: sharedSlotId,
-      partySize: 2,
-    });
+    const first = await hikers[0].agent
+      .post('/api/bookings')
+      .send({
+        bookingDate: sharedDate,
+        slotId: sharedSlotId,
+        partySize: 2,
+      });
 
     expect(first.status).toBe(201);
 
-    const response = await hikers[1].agent.post('/api/bookings').send({
-      bookingDate,
-      slotId: sharedSlotId,
-      partySize: 2,
-    });
+    const second = await hikers[1].agent
+      .post('/api/bookings')
+      .send({
+        bookingDate: sharedDate,
+        slotId: sharedSlotId,
+        partySize: 2,
+      });
 
-    expect(
-      response.status,
-      'MH-01: a party may share a table with other parties',
-    ).toBe(201);
-    expect(response.body.booking.allocations).toEqual([
-      { tableId: sharedTableId, seatsReserved: 2 },
+    expect(second.status).toBe(201);
+
+    expect(second.body.booking.allocations).toEqual([
+      {
+        tableId: sharedTableId,
+        seatsReserved: 2,
+      },
     ]);
   });
 });
@@ -227,59 +305,170 @@ describe('MH-01 table sharing', () => {
 describe('MH-01 booking constraints', () => {
   it('rejects a second booking by the same hiker for the same date and slot', async () => {
     const [hiker] = hikers;
-    const bookingDate = '2099-10-03';
-    const booking = { bookingDate, slotId: multiTableSlotId, partySize: 1 };
 
-    const first = await hiker.agent.post('/api/bookings').send(booking);
+    const booking = {
+      bookingDate: multiTableDate,
+      slotId: multiTableSlotId,
+      partySize: 1,
+    };
+
+    const first = await hiker.agent
+      .post('/api/bookings')
+      .send(booking);
 
     expect(first.status).toBe(201);
 
-    // A second free table exists, so capacity alone does not reject it.
-    const second = await hiker.agent.post('/api/bookings').send(booking);
+    const second = await hiker.agent
+      .post('/api/bookings')
+      .send(booking);
+
+    expect(second.status).toBe(409);
+    expect(second.body.error.code).toBe('DUPLICATE_BOOKING');
 
     expect(
-      second.status,
-      'MH-01: only one booking per time slot on a date',
-    ).toBe(409);
-    expect(
-      await countConfirmedBookings(hiker.id, bookingDate, multiTableSlotId),
+      await countConfirmedBookings(
+        hiker.id,
+        multiTableDate,
+        multiTableSlotId,
+      ),
     ).toBe(1);
   });
 
   it('rejects a booking for a past date', async () => {
     const [hiker] = hikers;
-    const bookingDate = '2000-01-01';
+    const pastDate = '2000-01-01';
 
-    const response = await hiker.agent.post('/api/bookings').send({
-      bookingDate,
-      slotId: multiTableSlotId,
-      partySize: 1,
-    });
+    const response = await hiker.agent
+      .post('/api/bookings')
+      .send({
+        bookingDate: pastDate,
+        slotId: multiTableSlotId,
+        partySize: 1,
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('INVALID_BOOKING');
 
     expect(
-      [400, 409],
-      'MH-01: a past date/time combination is not available',
-    ).toContain(response.status);
-    expect(
-      await countConfirmedBookings(hiker.id, bookingDate, multiTableSlotId),
+      await countConfirmedBookings(
+        hiker.id,
+        pastDate,
+        multiTableSlotId,
+      ),
     ).toBe(0);
   });
 
   it('rejects a booking less than two hours before the meal slot starts', async () => {
-    const [hiker] = hikers;
+  // January 4, 11:00 in Rome: lunch starts in one hour.
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2030-01-04T10:00:00Z'));
 
-    const response = await hiker.agent.post('/api/bookings').send({
-      bookingDate: soonBookingDate,
+  const [hiker] = hikers;
+
+  const account = await getAsync(
+    'SELECT email FROM users WHERE id = ?',
+    [hiker.id],
+  );
+
+  // Create the session after setting the simulated clock.
+  const agent = request.agent(app);
+
+  const login = await agent
+    .post('/api/sessions')
+    .send({
+      email: account.email,
+      password,
+    });
+
+  expect(login.status).toBe(201);
+
+  const response = await agent
+    .post('/api/bookings')
+    .send({
+      bookingDate: soonDate,
       slotId: soonSlotId,
       partySize: 1,
     });
 
+  expect(response.status).toBe(409);
+  expect(response.body.error.code).toBe('BOOKING_TOO_LATE');
+
+  expect(
+    await countConfirmedBookings(
+      hiker.id,
+      soonDate,
+      soonSlotId,
+    ),
+  ).toBe(0);
+});
+
+it.each([
+  [
+    'just before the deadline',
+    '2030-01-04T08:59:59.999Z',
+    201,
+  ],
+  [
+    'exactly at the deadline',
+    '2030-01-04T09:00:00.000Z',
+    201,
+  ],
+  [
+    'just after the deadline',
+    '2030-01-04T09:00:00.001Z',
+    409,
+  ],
+])(
+  'handles booking %s',
+  async (_label, instant, expectedStatus) => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(instant));
+
+    const [hiker] = hikers;
+
+    const account = await getAsync(
+      'SELECT email FROM users WHERE id = ?',
+      [hiker.id],
+    );
+
+    // Authenticate after setting the simulated clock.
+    const agent = request.agent(app);
+
+    const login = await agent
+      .post('/api/sessions')
+      .send({
+        email: account.email,
+        password,
+      });
+
+    expect(login.status).toBe(201);
+
+    const response = await agent
+      .post('/api/bookings')
+      .send({
+        bookingDate: soonDate,
+        slotId: soonSlotId,
+        partySize: 1,
+      });
+
     expect(
-      [400, 409],
-      'MH-01: a hiker can book only up to 2 hours before the due time',
-    ).toContain(response.status);
+      response.status,
+      JSON.stringify(response.body),
+    ).toBe(expectedStatus);
+
+    if (expectedStatus === 409) {
+      expect(response.body.error.code).toBe(
+        'BOOKING_TOO_LATE',
+      );
+    }
+
     expect(
-      await countConfirmedBookings(hiker.id, soonBookingDate, soonSlotId),
-    ).toBe(0);
-  });
+      await countConfirmedBookings(
+        hiker.id,
+        soonDate,
+        soonSlotId,
+      ),
+    ).toBe(expectedStatus === 201 ? 1 : 0);
+  },
+);
 });

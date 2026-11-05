@@ -11,6 +11,9 @@ import {
   setMealSlotTables,
   updateDiningTable,
   updateMealSlot,
+  CapacityConflictError,
+  TableSlotConflictError,
+  DuplicateMealSlotError,
 } from '../dao/capacity-dao.js';
 import { requireStaff } from '../middleware/require-role.js';
 import {
@@ -18,6 +21,7 @@ import {
   validateMealSlot,
   validateSlotTableAssignment,
 } from '../services/capacity-validation.js';
+import { getBookingDeadline } from '../services/booking-time.js';
 
 /**
  * @typedef {import('../models/models.js').MealSlotInputDTO} MealSlotInputDTO
@@ -84,7 +88,17 @@ router.get(
     const mealSlots = await getMealSlots();
 
     return res.json({
-      mealSlots: mealSlots.filter((mealSlot) => mealSlot.isActive),
+      mealSlots: mealSlots
+        .filter((mealSlot) => mealSlot.isActive)
+        .map((mealSlot) => ({
+          ...mealSlot,
+          bookingClosesAt: new Date(
+            getBookingDeadline(
+              mealSlot.slotDate,
+              mealSlot.startTime,
+            )
+          ).toISOString(),
+        })),
     });
   }),
 );
@@ -336,15 +350,19 @@ router.put(
 
 /** @type {import('express').ErrorRequestHandler} */
 const handleCapacityError = (error, _req, res, _next) => {
-  // Meal-slot and dining-table names are unique, ignoring letter case.
-  if (error instanceof DuplicateNameError) {
-    return res.status(409).json({
-      error: {
-        code: error.code,
-        message: error.message,
-      },
-    });
-  }
+    if (
+      error instanceof DuplicateNameError ||
+      error instanceof CapacityConflictError ||
+      error instanceof TableSlotConflictError ||
+      error instanceof DuplicateMealSlotError
+    ) {
+      return res.status(409).json({
+        error: {
+          code: error.code,
+          message: error.message,
+        },
+      });
+    }
 
   console.error('Capacity API error:', error);
 

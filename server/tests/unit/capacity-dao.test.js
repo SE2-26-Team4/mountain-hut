@@ -18,6 +18,7 @@ import {
   createMealSlot,
   createDiningTable,
   DuplicateNameError,
+  DuplicateMealSlotError,
 } from '../../dao/capacity-dao.js';
 
 beforeEach(() => {
@@ -39,6 +40,7 @@ beforeEach(() => {
 describe('capacity DAO missing records after insertion', () => {
   it('returns null when the inserted meal slot cannot be read', async () => {
     const result = await createMealSlot({
+      slotDate: '2099-12-30',
       name: 'Dinner',
       startTime: '18:00',
       endTime: '20:00',
@@ -68,19 +70,21 @@ describe('capacity DAO missing records after insertion', () => {
 });
 
 describe('capacity DAO duplicate names', () => {
-  it('does not insert a meal slot whose name is already used', async () => {
+  it('does not insert a meal slot with the same name and times', async () => {
     mocks.getAsync.mockResolvedValueOnce({ id: 7 });
 
     await expect(createMealSlot({
+      slotDate: '2099-12-30',
       name: 'Dinner',
       startTime: '18:00',
       endTime: '20:00',
-    })).rejects.toBeInstanceOf(DuplicateNameError);
+    })).rejects.toBeInstanceOf(DuplicateMealSlotError);
 
     expect(mocks.getAsync).toHaveBeenCalledWith(
       expect.stringContaining('COLLATE NOCASE'),
-      ['Dinner', 0],
+      ['2099-12-30', 'Dinner', '18:00', '20:00', 0],
     );
+
     expect(mocks.runAsync).not.toHaveBeenCalled();
   });
 

@@ -10,12 +10,14 @@ describe('meal-slot validation', () => {
   it('trims the name and accepts valid times', () => {
     expect(
       validateMealSlot({
+        slotDate: '2099-12-30',
         name: ' Dinner ',
         startTime: '18:00',
         endTime: '20:00',
         isActive: true,
       }),
     ).toEqual({
+      slotDate: '2099-12-30',
       name: 'Dinner',
       startTime: '18:00',
       endTime: '20:00',
@@ -26,6 +28,7 @@ describe('meal-slot validation', () => {
   it('rejects an empty name', () => {
     expect(() =>
       validateMealSlot({
+        slotDate: '2099-12-30',
         name: '  ',
         startTime: '18:00',
         endTime: '20:00',
@@ -36,6 +39,7 @@ describe('meal-slot validation', () => {
   it('rejects invalid time formats and times', () => {
     expect(() =>
       validateMealSlot({
+        slotDate: '2099-12-30',
         name: 'Dinner',
         startTime: '6pm',
         endTime: '20:00',
@@ -44,6 +48,7 @@ describe('meal-slot validation', () => {
 
     expect(() =>
       validateMealSlot({
+        slotDate: '2099-12-30',
         name: 'Dinner',
         startTime: '18:60',
         endTime: '20:00',
@@ -54,6 +59,7 @@ describe('meal-slot validation', () => {
   it('requires the end time to be later than the start time', () => {
     expect(() =>
       validateMealSlot({
+        slotDate: '2099-12-30',
         name: 'Dinner',
         startTime: '20:00',
         endTime: '18:00',
@@ -64,6 +70,7 @@ describe('meal-slot validation', () => {
   it('rejects a non-boolean active status', () => {
     expect(() =>
       validateMealSlot({
+        slotDate: '2099-12-30',
         name: 'Dinner',
         startTime: '18:00',
         endTime: '20:00',
@@ -84,6 +91,7 @@ describe('meal-slot validation', () => {
   it('rejects a non-string name', () => {
     expect(() =>
       validateMealSlot({
+        slotDate: '2099-12-30',
         name: 123,
         startTime: '18:00',
         endTime: '20:00',
@@ -94,6 +102,7 @@ describe('meal-slot validation', () => {
   it('rejects a non-string start time', () => {
     expect(() =>
       validateMealSlot({
+        slotDate: '2099-12-30',
         name: 'Dinner',
         startTime: 1800,
         endTime: '20:00',
@@ -104,6 +113,7 @@ describe('meal-slot validation', () => {
   it('rejects an invalid end time', () => {
     expect(() =>
       validateMealSlot({
+        slotDate: '2099-12-30',
         name: 'Dinner',
         startTime: '18:00',
         endTime: '24:00',
@@ -113,12 +123,14 @@ describe('meal-slot validation', () => {
 
   it('accepts valid input without active status', () => {
     const result = validateMealSlot({
+      slotDate: '2099-12-30',
       name: 'Dinner',
       startTime: '18:00',
       endTime: '20:00',
     });
 
     expect(result).toEqual({
+      slotDate: '2099-12-30',
       name: 'Dinner',
       startTime: '18:00',
       endTime: '20:00',
@@ -233,6 +245,7 @@ describe('slot-table assignment validation', () => {
 it('rejects a meal slot missing start or end time', () => {
     expect(() =>
       validateMealSlot({
+        slotDate: '2099-12-30',
         name: 'Dinner',
         endTime: '20:00',
       }),
@@ -240,6 +253,7 @@ it('rejects a meal slot missing start or end time', () => {
 
     expect(() =>
       validateMealSlot({
+        slotDate: '2099-12-30',
         name: 'Dinner',
         startTime: '18:00',
       }),
@@ -263,3 +277,53 @@ it('rejects a meal slot missing start or end time', () => {
       }),
     ).toThrow('Dining table active status must be a boolean.');
   });
+
+  describe('meal-slot date validation', () => {
+  const validInput = {
+    name: 'Lunch',
+    startTime: '12:00',
+    endTime: '13:00',
+  };
+
+  it.each([
+    undefined,
+    null,
+    '',
+    '30/12/2099',
+    '2099-02-30',
+    '2099-13-01',
+    '0000-01-01',
+    20991230,
+  ])('rejects invalid or missing slot date: %j', (slotDate) => {
+    expect(() =>
+      validateMealSlot({
+        ...validInput,
+        slotDate,
+      }),
+    ).toThrow(
+      'A valid meal slot date in YYYY-MM-DD format is required.',
+    );
+  });
+
+  it('accepts February 29 in a leap year', () => {
+    expect(
+      validateMealSlot({
+        ...validInput,
+        slotDate: '2032-02-29',
+      }),
+    ).toMatchObject({
+      slotDate: '2032-02-29',
+    });
+  });
+
+  it('rejects February 29 in a non-leap year', () => {
+    expect(() =>
+      validateMealSlot({
+        ...validInput,
+        slotDate: '2030-02-29',
+      }),
+    ).toThrow(
+      'A valid meal slot date in YYYY-MM-DD format is required.',
+    );
+  });
+});

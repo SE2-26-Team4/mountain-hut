@@ -1,18 +1,8 @@
 import { Col, Row } from 'react-bootstrap';
 
 /**
- * Types used by this component.
- * ConfiguredMealSlot is defined locally while capacity-api.js is empty.
- *
  * @typedef {import('../../models/models.js').DiningTableDTO} DiningTableDTO
- *
- * @typedef {Object} ConfiguredMealSlot
- * @property {number} id
- * @property {string} name
- * @property {string} startTime
- * @property {string} endTime
- * @property {boolean} isActive
- * @property {number[]} tableIds
+ * @typedef {import('../../API/capacity-api.js').ConfiguredMealSlot} ConfiguredMealSlot
  */
 
 /**

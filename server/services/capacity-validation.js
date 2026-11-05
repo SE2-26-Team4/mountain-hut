@@ -1,3 +1,5 @@
+import { isValidCalendarDate } from './date-validation.js';
+
 /**
  * @typedef {import('../models/models.js').MealSlotInputDTO} MealSlotInputDTO
  * @typedef {import('../models/models.js').DiningTableInputDTO} DiningTableInputDTO
@@ -79,7 +81,13 @@ export function validateMealSlot(input) {
   requireObject(input, 'Meal slot');
 
   const name = typeof input.name === 'string' ? input.name.trim() : '';
-  const { startTime, endTime, isActive } = input;
+  const { slotDate, startTime, endTime, isActive } = input;
+
+  if (!isValidCalendarDate(slotDate)) {
+    throw new Error(
+      'A valid meal slot date in YYYY-MM-DD format is required.'
+    );
+  }
 
   if (!name) {
     throw new Error('Meal slot name is required.');
@@ -96,6 +104,7 @@ export function validateMealSlot(input) {
   validateIsActive(isActive, 'Meal slot');
 
   return {
+    slotDate,
     name,
     startTime,
     endTime,

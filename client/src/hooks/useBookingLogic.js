@@ -19,15 +19,24 @@ import BookingAPI, { BookingApiError } from '../API/booking-api.js';
  */
 
 /**
+ * Returns the calendar date in the hut's time zone.
+ *
  * @param {Date} date
  * @returns {string}
  */
 function getLocalDateString(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Rome',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
 
-  return `${year}-${month}-${day}`;
+  /** @param {Intl.DateTimeFormatPartTypes} type */
+  const value = (type) =>
+    parts.find((part) => part.type === type)?.value;
+
+  return `${value('year')}-${value('month')}-${value('day')}`;
 }
 
 /**
@@ -38,6 +47,61 @@ function getErrorMessage(error) {
   return error instanceof Error
     ? error.message
     : 'An unexpected error occurred.';
+}
+
+/**
+ * @param {number} remainingMilliseconds
+ * @returns {string}
+ */
+function formatBookingCountdown(remainingMilliseconds) {
+  if (remainingMilliseconds < 0) {
+    return 'Bookings closed';
+  }
+
+  const totalSeconds = Math.ceil(
+    remainingMilliseconds / 1000
+  );
+
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  /** @param {number} value */
+  const dayLabel = (value) =>
+    `${value} ${value === 1 ? 'day' : 'days'}`;
+
+  /** @param {number} value */
+  const hourLabel = (value) =>
+    `${value} ${value === 1 ? 'hour' : 'hours'}`;
+
+  /** @param {number} value */
+  const minuteLabel = (value) =>
+    `${value} ${value === 1 ? 'minute' : 'minutes'}`;
+
+  /** @param {number} value */
+  const secondLabel = (value) =>
+    `${value} ${value === 1 ? 'second' : 'seconds'}`;
+
+  if (days > 0) {
+    return `Book within ${dayLabel(days)}${
+      hours > 0 ? ` and ${hourLabel(hours)}` : ''
+    }`;
+  }
+
+  if (hours > 0) {
+    return `Book within ${hourLabel(hours)}${
+      minutes > 0 ? ` and ${minuteLabel(minutes)}` : ''
+    }`;
+  }
+
+  if (minutes > 0) {
+    return `Book within ${minuteLabel(minutes)}${
+      seconds > 0 ? ` and ${secondLabel(seconds)}` : ''
+    }`;
+  }
+
+  return `Book within ${secondLabel(seconds)}`;
 }
 
 /**
@@ -67,6 +131,10 @@ export default function useBookingLogic({ user, onRequireLogin }) {
   const [isBooking, setIsBooking] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  const [currentTime, setCurrentTime] = useState(
+    () => Date.now()
+  );
+
   const feedbackMessage = '';
 
   const requestId = useRef(0);
@@ -79,7 +147,23 @@ export default function useBookingLogic({ user, onRequireLogin }) {
     selectionRef.current = selectionKey;
   }, [selectionKey]);
 
-  const activeMealSlots = mealSlots.filter((slot) => slot.isActive);
+  const activeMealSlots = mealSlots.filter((slot) => {
+    if (!slot.isActive || slot.slotDate !== bookingDate) {
+      return false;
+    }
+
+    // Keep the selected slot visible if it expires during compilation.
+    if (String(slot.id) === selectedMealSlotId) {
+      return true;
+    }
+
+    const deadline = Date.parse(slot.bookingClosesAt ?? '');
+
+    return (
+      Number.isFinite(deadline) &&
+      currentTime <= deadline
+    );
+  });
 
   const selectedMealSlot = activeMealSlots.find(
     (slot) => String(slot.id) === selectedMealSlotId,
@@ -87,6 +171,30 @@ export default function useBookingLogic({ user, onRequireLogin }) {
 
   const requestedPartySize = Number(partySize);
   const totalAvailableSeats = availability?.totalAvailableSeats ?? 0;
+
+  const deadlineValue =
+    selectedMealSlot?.bookingClosesAt ??
+    availability?.bookingClosesAt;
+
+  const bookingDeadline = deadlineValue
+    ? Date.parse(deadlineValue)
+    : NaN;
+
+  const isBookingWindowClosed =
+    Boolean(selectedMealSlot) &&
+    Number.isFinite(bookingDeadline) &&
+    currentTime > bookingDeadline;
+
+  const isBookingDeadlineNear =
+    Boolean(selectedMealSlot) &&
+    Number.isFinite(bookingDeadline) &&
+    !isBookingWindowClosed &&
+    bookingDeadline - currentTime <= 5 * 60 * 1000;
+
+  const bookingCountdownLabel =
+    selectedMealSlot && Number.isFinite(bookingDeadline)
+      ? formatBookingCountdown(bookingDeadline - currentTime)
+      : '';
 
   const canAccommodateParty =
     availability !== null &&
@@ -115,11 +223,6 @@ export default function useBookingLogic({ user, onRequireLogin }) {
 
         setMealSlots(slots);
 
-        const firstActive = slots.find((slot) => slot.isActive);
-
-        setSelectedMealSlotId(
-          firstActive ? String(firstActive.id) : '',
-        );
       })
       .catch((error) => {
         if (mounted) {
@@ -155,6 +258,7 @@ export default function useBookingLogic({ user, onRequireLogin }) {
 
     invalidateAvailability();
     setBookingDate(value);
+    setSelectedMealSlotId('');
   }
 
   /** @param {string} value */
@@ -162,6 +266,7 @@ export default function useBookingLogic({ user, onRequireLogin }) {
     if (bookingInProgressRef.current) return;
 
     invalidateAvailability();
+    setCurrentTime(Date.now());
     setSelectedMealSlotId(value);
   }
 
@@ -172,6 +277,14 @@ export default function useBookingLogic({ user, onRequireLogin }) {
     invalidateAvailability();
     setPartySize(value);
   }
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
 
   /** @param {import('react').SubmitEvent<HTMLFormElement>} event */
   async function handleSearch(event) {
@@ -191,6 +304,23 @@ export default function useBookingLogic({ user, onRequireLogin }) {
     ) {
       setErrorMessage(
         'Choose today or a later date, a meal service, and a positive whole number of guests.',
+      );
+
+      return;
+    }
+
+    const searchDeadline = Date.parse(
+      selectedMealSlot?.bookingClosesAt ?? ''
+    );
+
+    if (
+      !Number.isFinite(searchDeadline) ||
+      Date.now() > searchDeadline
+    ) {
+      setCurrentTime(Date.now());
+
+      setErrorMessage(
+        'Bookings for this service are closed. Choose another service.',
       );
 
       return;
@@ -250,6 +380,18 @@ export default function useBookingLogic({ user, onRequireLogin }) {
       return;
     }
 
+    const deadline = Date.parse(availability.bookingClosesAt);
+
+  if (!Number.isFinite(deadline) || Date.now() > deadline) {
+    setCurrentTime(Date.now());
+
+    setErrorMessage(
+      'Bookings close two hours before the meal service starts. Choose another service.',
+    );
+
+    return;
+  }
+
     if (bookingDate < getLocalDateString(new Date())) {
       invalidateAvailability();
       setErrorMessage(
@@ -296,56 +438,75 @@ export default function useBookingLogic({ user, onRequireLogin }) {
         setAvailability(null);
       }
     } catch (error) {
-      if (error instanceof BookingApiError && error.status === 401) {
-        onRequireLogin?.();
-      } else if (
-        error instanceof BookingApiError &&
-        (
-          error.code === 'SLOT_INACTIVE' ||
-          error.code === 'SLOT_NOT_FOUND'
-        )
-      ) {
-        setAvailability(null);
+  if (
+    error instanceof BookingApiError &&
+    error.status === 401
+  ) {
+    onRequireLogin?.();
+  } else if (
+    error instanceof BookingApiError &&
+    (
+      error.code === 'SLOT_INACTIVE' ||
+      error.code === 'SLOT_NOT_FOUND'
+    )
+  ) {
+    setAvailability(null);
 
-        setMealSlots((slots) =>
-          slots.filter((slot) => slot.id !== slotId),
+    setMealSlots((slots) =>
+      slots.filter((slot) => slot.id !== slotId),
+    );
+
+    setSelectedMealSlotId('');
+
+    setErrorMessage(
+      'This meal service is no longer available. Choose another service.',
+    );
+  } else if (
+    error instanceof BookingApiError &&
+    error.code === 'BOOKING_TOO_LATE'
+  ) {
+    setAvailability(null);
+
+    setErrorMessage(
+      'Bookings close two hours before the meal service starts. Choose another service.',
+    );
+  } else if (
+    error instanceof BookingApiError &&
+    error.status === 409
+  ) {
+    setAvailability(null);
+
+    setErrorMessage(
+      error.code === 'NO_AVAILABILITY'
+        ? 'There are no longer enough seats. Please check availability again.'
+        : error.code === 'DUPLICATE_BOOKING'
+          ? 'You already have a confirmed booking for this date and meal service.'
+          : 'Availability has changed. Please check again.',
+    );
+
+    if (error.code !== 'DUPLICATE_BOOKING') {
+      try {
+        const updated = await BookingAPI.getAvailability(
+          date,
+          slotId,
         );
 
-        setSelectedMealSlotId('');
-
-        setErrorMessage(
-          'This meal service is no longer available. Choose another service.',
-        );
-      } else if (
-        error instanceof BookingApiError &&
-        error.status === 409
-      ) {
-        setAvailability(null);
-
-        setErrorMessage(
-          error.code === 'NO_AVAILABILITY'
-            ? 'There are no longer enough seats. Please check availability again.'
-            : 'Availability has changed. Please check again.',
-        );
-
-        try {
-          const updated = await BookingAPI.getAvailability(date, slotId);
-
-          if (selectionRef.current === currentSelection) {
-            setAvailability(updated);
-          }
-        } catch {
-          if (selectionRef.current === currentSelection) {
-            setAvailability(null);
-          }
+        if (selectionRef.current === currentSelection) {
+          setAvailability(updated);
         }
-      } else {
-        setErrorMessage(getErrorMessage(error));
+      } catch {
+        if (selectionRef.current === currentSelection) {
+          setAvailability(null);
+        }
       }
-    } finally {
-      bookingInProgressRef.current = false;
-      setIsBooking(false);
     }
+  } else {
+    setErrorMessage(getErrorMessage(error));
+  }
+} finally {
+  bookingInProgressRef.current = false;
+  setIsBooking(false);
+}
  }
   return {
     bookingDate,
@@ -370,5 +531,8 @@ export default function useBookingLogic({ user, onRequireLogin }) {
     changePartySize,
     handleSearch,
     handleReserve,
+    isBookingWindowClosed,
+    bookingCountdownLabel,
+    isBookingDeadlineNear,
   };
 }

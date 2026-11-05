@@ -9,6 +9,8 @@ import {
   getMealSlots,
 } from '../dao/capacity-dao.js';
 
+import { getBookingDeadline } from './booking-time.js';
+
 /**
  * @typedef {import('../models/models.js').CreateBookingRequestDTO} CreateBookingRequestDTO
  * @typedef {import('../models/models.js').BookingDTO} BookingDTO
@@ -129,7 +131,12 @@ export async function getMealSlotAvailability(bookingDate, slotId) {
   validateBookingSelection(bookingDate, slotId);
 
   const mealSlots = await getMealSlots();
-  const mealSlot = mealSlots.find((slot) => slot.id === slotId);
+
+  const mealSlot = mealSlots.find(
+    (slot) =>
+      slot.id === slotId &&
+      slot.slotDate === bookingDate
+  );
 
   if (!mealSlot || !mealSlot.isActive) {
     return null;
@@ -153,6 +160,9 @@ export async function getMealSlotAvailability(bookingDate, slotId) {
 
   return {
     bookingDate,
+    bookingClosesAt: new Date(
+      getBookingDeadline(bookingDate, mealSlot.startTime)
+    ).toISOString(),
     slotId: mealSlot.id,
     slotName: mealSlot.name,
     startTime: mealSlot.startTime,

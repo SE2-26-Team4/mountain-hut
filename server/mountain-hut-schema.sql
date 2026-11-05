@@ -15,10 +15,20 @@ CREATE TABLE users (
 
 CREATE TABLE meal_slots (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE CHECK (length(trim(name)) > 0),
+  slot_date TEXT NOT NULL,
+  name TEXT NOT NULL CHECK (length(trim(name)) > 0),
   start_time TEXT NOT NULL,
   end_time TEXT NOT NULL,
-  is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1))
+  is_active INTEGER NOT NULL DEFAULT 1
+    CHECK (is_active IN (0, 1))
+);
+
+CREATE UNIQUE INDEX idx_meal_slots_name_times
+ON meal_slots (
+  slot_date,
+  trim(name) COLLATE NOCASE,
+  start_time,
+  end_time
 );
 
 CREATE TABLE dining_tables (

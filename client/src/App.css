@@ -2356,3 +2356,115 @@
 .mh-staff-login-card > a:hover {
   color: var(--mh-copper);
 }
+
+/* Assignment modal: keep header and buttons visible. */
+.cap-assign-dialog .modal-content {
+  display: flex;
+  flex-direction: column;
+  max-height: 90dvh;
+  overflow: hidden;
+}
+
+.cap-assign-dialog .modal-header,
+.cap-assign-dialog .modal-footer {
+  flex-shrink: 0;
+}
+
+.cap-assign-dialog .modal-body {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Both panels have a bounded height and complete borders. */
+.cap-assign-dialog .cap-assign-grid {
+  align-items: stretch;
+}
+
+.cap-assign-dialog .cap-assign-picker,
+.cap-assign-dialog .cap-selected-panel {
+  display: flex;
+  flex-direction: column;
+  height: min(52dvh, 34rem);
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Search, filter and counters stay outside the scrolling lists. */
+.cap-assign-dialog .cap-search,
+.cap-assign-dialog .cap-assign-picker > label,
+.cap-assign-dialog .cap-list-count,
+.cap-assign-dialog .cap-selected-heading {
+  flex-shrink: 0;
+}
+
+/* Only the two table lists scroll. */
+.cap-assign-dialog .cap-assign-list,
+.cap-assign-dialog .cap-selected-list {
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.cap-assign-dialog .cap-selected-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mh-cap-size-5);
+}
+
+.cap-assign-dialog .cap-selected-item {
+  flex-shrink: 0;
+}
+
+.cap-assign-dialog .cap-list-count {
+  padding-top: 0.5rem;
+}
+
+/* Capacity occupies its own space, below the scrolling list. */
+.cap-assign-dialog .cap-selected-total {
+  position: static;
+  flex-shrink: 0;
+  padding-top: 0.75rem;
+  margin-top: 0.75rem !important;
+}
+
+/* On small screens the panels stack and the modal body scrolls. */
+@media (max-width: 750px) {
+  .cap-assign-dialog .cap-assign-picker,
+  .cap-assign-dialog .cap-selected-panel {
+    height: min(48dvh, 28rem);
+    min-height: 0;
+  }
+}
+
+/* Keep table pagination at the bottom on large screens. */
+@media (min-width: 1200px) {
+  .cap-tables {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .cap-tables > .cap-tables-footer {
+    margin-top: auto;
+    padding-top: 1rem;
+    flex-shrink: 0;
+  }
+}
+
+.mh-meal-service-label {
+  width: 100%;
+}
+
+.mh-booking-countdown {
+  font-size: 0.75rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.mh-booking-countdown-warning {
+  color: #a84b12;
+}

@@ -1,8 +1,6 @@
-import { useState } from 'react';
-
 /**
  * @param {Date} date
- * @returns {string} Local calendar date in YYYY-MM-DD format.
+ * @returns {string}
  */
 function formatDate(date) {
   const year = date.getFullYear();
@@ -12,25 +10,31 @@ function formatDate(date) {
   return `${year}-${month}-${day}`;
 }
 
-export default function StaffDateSelector() {
-  const [date, setDate] = useState(() => formatDate(new Date()));
-
+/**
+ * @param {Object} props
+ * @param {string} props.date
+ * @param {(value: string) => void} props.onChange
+ * @param {boolean} props.disabled
+ */
+export default function StaffDateSelector({
+  date,
+  onChange,
+  disabled,
+}) {
   /** @param {number} days */
   function shiftDate(days) {
-    const next = new Date(`${date}T12:00:00`);
+    if (!date) return;
 
+    const next = new Date(`${date}T12:00:00`);
     next.setDate(next.getDate() + days);
 
-    setDate(formatDate(next));
+    onChange(formatDate(next));
   }
 
   return (
     <div className="cap-datebar d-flex align-items-center">
       <label className="cap-date-field d-flex align-items-center">
-        <i
-          className="bi bi-calendar3"
-          aria-hidden="true"
-        />
+        <i className="bi bi-calendar3" aria-hidden="true" />
 
         <span className="d-flex flex-column">
           <small>Date</small>
@@ -38,8 +42,10 @@ export default function StaffDateSelector() {
           <input
             type="date"
             value={date}
-            onChange={(event) => setDate(event.target.value)}
-            aria-label="Reference date"
+            disabled={disabled}
+            onChange={(event) => onChange(event.target.value)}
+            aria-label="Configuration date"
+            required
           />
         </span>
       </label>
@@ -47,29 +53,25 @@ export default function StaffDateSelector() {
       <button
         type="button"
         className="cap-circle-button"
+        disabled={disabled}
         onClick={() => shiftDate(-1)}
         aria-label="Previous day"
       >
-        <i
-          className="bi bi-chevron-left"
-          aria-hidden="true"
-        />
+        <i className="bi bi-chevron-left" aria-hidden="true" />
       </button>
 
       <button
         type="button"
         className="cap-circle-button"
+        disabled={disabled}
         onClick={() => shiftDate(1)}
         aria-label="Next day"
       >
-        <i
-          className="bi bi-chevron-right"
-          aria-hidden="true"
-        />
+        <i className="bi bi-chevron-right" aria-hidden="true" />
       </button>
 
       <span className="cap-date-note">
-        Current configuration applies to all dates
+        Time slots are configured for the selected date
       </span>
     </div>
   );

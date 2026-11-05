@@ -116,7 +116,7 @@ export default function StaffTablesPanel({
         )}
       </div>
 
-      <div className="cap-panel-footer d-flex align-items-center justify-content-between">
+      <div className="cap-panel-footer d-flex align-items-center justify-content-between cap-tables-footer">
         <span>{filtered.length} tables</span>
 
         <div className="cap-pagination d-flex align-items-center">

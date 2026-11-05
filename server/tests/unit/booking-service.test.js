@@ -36,6 +36,7 @@ import {
 
 const testMealSlot = {
   id: 1,
+  slotDate: '2099-12-30',
   name: 'Dinner',
   startTime: '18:00',
   endTime: '20:00',
@@ -94,6 +95,7 @@ describe('booking availability', () => {
 
     expect(availability).toMatchObject({
       bookingDate: '2099-12-30',
+      bookingClosesAt: '2099-12-30T15:00:00.000Z',
       slotId: 1,
       slotName: 'Dinner',
       startTime: '18:00',
@@ -278,6 +280,23 @@ describe('booking availability', () => {
 
     expect(mocks.getMealSlots).not.toHaveBeenCalled();
     expect(mocks.getBookingsByDateAndSlot).not.toHaveBeenCalled();
+  });
+
+  it('does not return availability for a slot on another date', async () => {
+    const availability = await getMealSlotAvailability(
+      '2099-12-31',
+      testMealSlot.id,
+    );
+
+    expect(availability).toBeNull();
+
+    expect(
+      mocks.getBookingsByDateAndSlot,
+    ).not.toHaveBeenCalled();
+
+    expect(
+      mocks.getMealSlotCapacity,
+    ).not.toHaveBeenCalled();
   });
 });
 

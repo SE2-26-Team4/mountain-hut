@@ -13,6 +13,7 @@ import CapacityAPI from '../API/capacity-api.js';
 
 /** @type {MealSlotInputDTO & { isActive: boolean }} */
 const emptySlotForm = {
+  slotDate: '',
   name: '',
   startTime: '',
   endTime: '',
@@ -35,7 +36,28 @@ function getErrorMessage(error) {
     : 'An unexpected error occurred.';
 }
 
+/** Returns today's date in the hut's time zone. */
+function getTodayInHutTimeZone() {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Rome',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+
+  /** @param {Intl.DateTimeFormatPartTypes} type */
+  const value = (type) =>
+    parts.find((part) => part.type === type)?.value;
+
+  return `${value('year')}-${value('month')}-${value('day')}`;
+}
+
 export default function useStaffCapacity() {
+
+  const [selectedDate, setSelectedDate] = useState(
+    getTodayInHutTimeZone
+  );
+
   const [mealSlots, setMealSlots] = useState(
     /** @type {ConfiguredMealSlot[]} */ ([]),
   );
@@ -72,9 +94,52 @@ export default function useStaffCapacity() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
+  const visibleMealSlots = mealSlots
+  .filter((slot) => slot.slotDate === selectedDate)
+  .sort(
+    (first, second) =>
+      first.startTime.localeCompare(second.startTime) ||
+      first.id - second.id
+  );
+
   const selectedSlot = mealSlots.find(
     (slot) => String(slot.id) === selectedSlotId,
   );
+
+  /**
+ * Returns an empty string when the table can be assigned,
+ * otherwise the reason why it is unavailable.
+ *
+ * @param {DiningTableDTO} table
+ * @returns {string}
+ */
+function getTableUnavailableReason(table) {
+  if (!table.isActive) {
+    return 'Inactive table';
+  }
+
+  if (!selectedSlot || !selectedSlot.isActive) {
+    return '';
+  }
+
+  const conflictingSlot = mealSlots.find((slot) =>
+      slot.id !== selectedSlot.id &&
+      slot.slotDate === selectedSlot.slotDate &&
+      slot.isActive &&
+      slot.startTime < selectedSlot.endTime &&
+      slot.endTime > selectedSlot.startTime &&
+      slot.tableIds.includes(table.id)
+    );
+
+    if (!conflictingSlot) {
+      return '';
+    }
+
+    return (
+      `Already assigned to ${conflictingSlot.name}, ` +
+      `${conflictingSlot.startTime}–${conflictingSlot.endTime}`
+    );
+  }
 
   const [previousSelectedSlot, setPreviousSelectedSlot] =
     useState(selectedSlot);
@@ -178,7 +243,10 @@ export default function useStaffCapacity() {
 
   function openNewSlotForm() {
     setEditingSlotId(null);
-    setSlotForm(emptySlotForm);
+    setSlotForm({
+      ...emptySlotForm,
+      slotDate: selectedDate,
+    });
     setErrorMessage('');
     setIsSlotModalOpen(true);
   }
@@ -195,6 +263,7 @@ export default function useStaffCapacity() {
     setEditingSlotId(slot.id);
 
     setSlotForm({
+      slotDate: slot.slotDate,
       name: slot.name,
       startTime: slot.startTime,
       endTime: slot.endTime,
@@ -410,6 +479,21 @@ export default function useStaffCapacity() {
     }
   }
 
+  /** @param {string} value */
+  function changeSelectedDate(value) {
+    if (isSaving || !value) return;
+
+    setSelectedDate(value);
+    setSelectedSlotId('');
+    setSelectedTableIds([]);
+    setEditingSlotId(null);
+    setSlotForm(emptySlotForm);
+    setIsSlotModalOpen(false);
+    setIsAssignmentModalOpen(false);
+    setErrorMessage('');
+    setFeedbackMessage('');
+  }
+
   return {
     mealSlots,
     diningTables,
@@ -420,6 +504,10 @@ export default function useStaffCapacity() {
     selectedSlotId,
     selectedTableIds,
     isTableSelected,
+    getTableUnavailableReason,
+    selectedDate,
+    visibleMealSlots,
+    changeSelectedDate,
     assignedCapacity,
     slotForm,
     tableForm,

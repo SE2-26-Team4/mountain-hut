@@ -55,6 +55,44 @@ export class DuplicateNameError extends Error {
   }
 }
 
+/** A configuration change would invalidate confirmed bookings. */
+export class CapacityConflictError extends Error {
+  constructor() {
+    super(
+      'This change conflicts with existing confirmed bookings.'
+    );
+
+    this.name = 'CapacityConflictError';
+    this.code = 'CAPACITY_CONFLICT';
+  }
+}
+
+export class TableSlotConflictError extends Error {
+  /**
+   * @param {string} tableName
+   * @param {string} slotName
+   */
+  constructor(tableName, slotName) {
+    super(
+      `Table "${tableName}" is already assigned to the active slot "${slotName}" with overlapping times.`
+    );
+
+    this.name = 'TableSlotConflictError';
+    this.code = 'TABLE_SLOT_CONFLICT';
+  }
+}
+
+export class DuplicateMealSlotError extends Error {
+  constructor() {
+    super(
+      'A meal slot with the same date, name, start time and end time already exists.'
+    );
+
+    this.name = 'DuplicateMealSlotError';
+    this.code = 'DUPLICATE_MEAL_SLOT';
+  }
+}
+
 /* HELPERS */
 
 /**
@@ -187,6 +225,107 @@ async function assertNameAvailable(getAsync, tableName, name, excludedId) {
   }
 }
 
+/** Returns today's calendar date in the hut's time zone. */
+function getTodayInHutTimeZone() {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Rome',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+
+  /** @param {Intl.DateTimeFormatPartTypes} type */
+  const value = (type) =>
+    parts.find((part) => part.type === type)?.value;
+
+  return `${value('year')}-${value('month')}-${value('day')}`;
+}
+
+/**
+ * Rejects using the same table in overlapping active slots
+ * on the same date. Consecutive slots are allowed.
+ *
+ * @param {TransactionQueries['getAsync']} getAsync
+ * @param {number} slotId
+ * @param {string} slotDate
+ * @param {string} startTime
+ * @param {string} endTime
+ * @param {number[]} tableIds
+ * @returns {Promise<void>}
+ */
+async function assertNoTableSlotOverlap(
+  getAsync,
+  slotId,
+  slotDate,
+  startTime,
+  endTime,
+  tableIds,
+) {
+  if (tableIds.length === 0) return;
+
+  const placeholders = tableIds.map(() => '?').join(', ');
+
+  const conflict = await getAsync(
+    `SELECT
+       t.name AS tableName,
+       s.name AS slotName
+     FROM slot_tables AS st
+     JOIN meal_slots AS s ON s.id = st.slot_id
+     JOIN dining_tables AS t ON t.id = st.table_id
+     WHERE st.table_id IN (${placeholders})
+       AND s.id <> ?
+       AND s.slot_date = ?
+       AND s.is_active = 1
+       AND s.start_time < ?
+       AND s.end_time > ?
+     ORDER BY s.start_time, s.id, t.id
+     LIMIT 1`,
+    [...tableIds, slotId, slotDate, endTime, startTime]
+  );
+
+  if (conflict) {
+    throw new TableSlotConflictError(
+      conflict.tableName,
+      conflict.slotName,
+    );
+  }
+}
+
+/**
+ * Rejects duplicate slots on the same date.
+ *
+ * @param {TransactionQueries['getAsync']} getAsync
+ * @param {string} slotDate
+ * @param {string} name
+ * @param {string} startTime
+ * @param {string} endTime
+ * @param {number} [excludedId]
+ * @returns {Promise<void>}
+ */
+async function assertMealSlotAvailable(
+  getAsync,
+  slotDate,
+  name,
+  startTime,
+  endTime,
+  excludedId,
+) {
+  const existing = await getAsync(
+    `SELECT id
+     FROM meal_slots
+     WHERE slot_date = ?
+       AND trim(name) = trim(?) COLLATE NOCASE
+       AND start_time = ?
+       AND end_time = ?
+       AND id <> ?`,
+    [slotDate, name, startTime, endTime, excludedId ?? 0]
+  );
+
+  if (existing) {
+    throw new DuplicateMealSlotError();
+  }
+}
+
 /* CREATE */
 
 /**
@@ -195,20 +334,28 @@ async function assertNameAvailable(getAsync, tableName, name, excludedId) {
  * @throws {DuplicateNameError} If another meal slot uses the name.
  */
 export async function createMealSlot({
+  slotDate,
   name,
   startTime,
   endTime,
   isActive = true,
 }) {
   return withTransaction(async ({ runAsync, getAsync }) => {
-    await assertNameAvailable(getAsync, 'meal_slots', name);
+
+    await assertMealSlotAvailable(
+      getAsync,
+      slotDate,
+      name,
+      startTime,
+      endTime,
+    );
 
     const result = await runAsync(
       `INSERT INTO meal_slots (
-         name, start_time, end_time, is_active
-       )
-       VALUES (?, ?, ?, ?)`,
-      [name, startTime, endTime, isActive ? 1 : 0]
+        slot_date, name, start_time, end_time, is_active
+      )
+      VALUES (?, ?, ?, ?, ?)`,
+      [slotDate, name, startTime, endTime, isActive ? 1 : 0]
     );
 
     /** @type {MealSlotRow | undefined} */
@@ -216,6 +363,7 @@ export async function createMealSlot({
       `SELECT
          id,
          name,
+         slot_date AS slotDate,
          start_time AS startTime,
          end_time AS endTime,
          is_active AS isActive
@@ -277,6 +425,7 @@ export async function getMealSlots() {
       `SELECT
          id,
          name,
+         slot_date AS slotDate,
          start_time AS startTime,
          end_time AS endTime,
          is_active AS isActive
@@ -336,27 +485,105 @@ export async function getMealSlotCapacity(slotId) {
  */
 export async function updateMealSlot(
   slotId,
-  { name, startTime, endTime, isActive }
+  { slotDate, name, startTime, endTime, isActive }
 ) {
-  return withTransaction(async ({ runAsync, getAsync }) => {
-    // A missing slot is reported as null before any name conflict.
+  return withTransaction(async ({
+    runAsync,
+    getAsync,
+    allAsync,
+  }) => {
+
     const existingSlot = await getAsync(
-      'SELECT id FROM meal_slots WHERE id = ?',
+      `SELECT
+        id,
+        slot_date AS slotDate,
+        start_time AS startTime,
+        end_time AS endTime,
+        is_active AS isActive
+      FROM meal_slots
+      WHERE id = ?`,
       [slotId]
     );
 
     if (!existingSlot) return null;
 
-    await assertNameAvailable(getAsync, 'meal_slots', name, slotId);
+    const dateChanged = existingSlot.slotDate !== slotDate;
+
+    if (dateChanged) {
+      const confirmedBooking = await getAsync(
+        `SELECT id
+        FROM bookings
+        WHERE slot_id = ?
+          AND status = 'confirmed'
+        LIMIT 1`,
+        [slotId]
+      );
+
+      if (confirmedBooking) {
+        throw new CapacityConflictError();
+      }
+    }
+
+  const timesChanged =
+    existingSlot.startTime !== startTime ||
+    existingSlot.endTime !== endTime;
+
+  const isBeingDeactivated =
+    Boolean(existingSlot.isActive) && !isActive;
+
+  if (timesChanged || isBeingDeactivated) {
+    const confirmedBooking = await getAsync(
+      `SELECT id
+      FROM bookings
+      WHERE slot_id = ?
+        AND status = 'confirmed'
+        AND booking_date >= ?
+      LIMIT 1`,
+      [slotId, getTodayInHutTimeZone()]
+    );
+
+    if (confirmedBooking) {
+      throw new CapacityConflictError();
+    }
+  }
+
+    await assertMealSlotAvailable(
+      getAsync,
+      slotDate,
+      name,
+      startTime,
+      endTime,
+      slotId,
+    );
+
+    if (isActive) {
+      /** @type {{ tableId: number }[]} */
+      const assignedTables = await allAsync(
+        `SELECT table_id AS tableId
+        FROM slot_tables
+        WHERE slot_id = ?`,
+        [slotId]
+      );
+
+      await assertNoTableSlotOverlap(
+        getAsync,
+        slotId,
+        slotDate,
+        startTime,
+        endTime,
+        assignedTables.map((table) => table.tableId),
+      );
+    }
 
     await runAsync(
       `UPDATE meal_slots
-       SET name = ?,
-           start_time = ?,
-           end_time = ?,
-           is_active = ?
-       WHERE id = ?`,
-      [name, startTime, endTime, isActive ? 1 : 0, slotId]
+      SET slot_date = ?,
+          name = ?,
+          start_time = ?,
+          end_time = ?,
+          is_active = ?
+      WHERE id = ?`,
+      [slotDate, name, startTime, endTime, isActive ? 1 : 0, slotId]
     );
 
     /** @type {MealSlotRow | undefined} */
@@ -364,6 +591,7 @@ export async function updateMealSlot(
       `SELECT
          id,
          name,
+         slot_date AS slotDate,
          start_time AS startTime,
          end_time AS endTime,
          is_active AS isActive
@@ -399,6 +627,27 @@ export async function updateDiningTable(
     if (!existingTable) return null;
 
     await assertNameAvailable(getAsync, 'dining_tables', name, tableId);
+
+    const conflict = await getAsync(
+      `SELECT 1
+      FROM booking_table_allocations AS a
+      JOIN bookings AS b ON b.id = a.booking_id
+      WHERE a.table_id = ?
+        AND b.status = 'confirmed'
+        AND b.booking_date >= ?
+      GROUP BY b.booking_date, b.slot_id
+      HAVING SUM(a.seats_reserved) > ?
+      LIMIT 1`,
+      [
+        tableId,
+        getTodayInHutTimeZone(),
+        isActive ? seatCount : 0,
+      ]
+    );
+
+    if (conflict) {
+      throw new CapacityConflictError();
+    }
 
     await runAsync(
       `UPDATE dining_tables
@@ -452,7 +701,14 @@ export async function setMealSlotTables(slotId, tableIds) {
     const { runAsync, getAsync, allAsync } = queries;
 
     const slot = await getAsync(
-      'SELECT id FROM meal_slots WHERE id = ?',
+      `SELECT
+        id,
+        slot_date AS slotDate,
+        start_time AS startTime,
+        end_time AS endTime,
+        is_active AS isActive
+      FROM meal_slots
+      WHERE id = ?`,
       [slotId]
     );
 
@@ -481,6 +737,43 @@ export async function setMealSlotTables(slotId, tableIds) {
       if (missingTableIds.length > 0) {
         throw new DiningTablesNotFoundError(missingTableIds);
       }
+    }
+
+    if (slot.isActive) {
+      await assertNoTableSlotOverlap(
+        getAsync,
+        slotId,
+        slot.slotDate,
+        slot.startTime,
+        slot.endTime,
+        uniqueTableIds,
+      );
+    }
+
+    const retainedClause = uniqueTableIds.length > 0
+      ? `AND a.table_id NOT IN (${
+          uniqueTableIds.map(() => '?').join(', ')
+        })`
+      : '';
+
+    const conflict = await getAsync(
+      `SELECT 1
+      FROM booking_table_allocations AS a
+      JOIN bookings AS b ON b.id = a.booking_id
+      WHERE b.slot_id = ?
+        AND b.status = 'confirmed'
+        AND b.booking_date >= ?
+        ${retainedClause}
+      LIMIT 1`,
+      [
+        slotId,
+        getTodayInHutTimeZone(),
+        ...uniqueTableIds,
+      ]
+    );
+
+    if (conflict) {
+      throw new CapacityConflictError();
     }
 
     await runAsync(

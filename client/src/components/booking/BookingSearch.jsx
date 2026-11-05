@@ -5,11 +5,6 @@ import { Link } from 'react-router-dom';
  * @typedef {ReturnType<typeof import('../../hooks/useBookingLogic.js').default>} BookingState
  */
 
-const partySizeOptions = Array.from(
-  { length: 12 },
-  (_, index) => index + 1,
-);
-
 /**
  * @param {Object} props
  * @param {BookingState} props.booking
@@ -28,6 +23,9 @@ function BookingSearch({ booking }) {
     changeMealSlot,
     changePartySize,
     handleSearch,
+    bookingCountdownLabel,
+    isBookingWindowClosed,
+    isBookingDeadlineNear,
   } = booking;
 
   return (
@@ -61,12 +59,27 @@ function BookingSearch({ booking }) {
 
         <Col xs={12} md={5} xl={4}>
           <Form.Group controlId="booking-meal-slot">
-            <Form.Label className="d-flex align-items-center gap-2">
-              <i
-                className="bi bi-cup-hot mh-field-icon"
-                aria-hidden="true"
-              />
-              Meal service
+            <Form.Label className="mh-meal-service-label d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <span className="d-inline-flex align-items-center gap-2">
+                <i
+                  className="bi bi-cup-hot mh-field-icon"
+                  aria-hidden="true"
+                />
+                Meal service
+              </span>
+
+              <small
+                className={`mh-booking-countdown ${
+                  isBookingWindowClosed
+                    ? 'text-danger'
+                    : isBookingDeadlineNear
+                      ? 'mh-booking-countdown-warning'
+                      : 'text-secondary'
+                }`}
+              >
+                {bookingCountdownLabel ||
+                  'Bookings close 2 hours before service.'}
+              </small>
             </Form.Label>
 
             <Form.Select
@@ -84,14 +97,25 @@ function BookingSearch({ booking }) {
               <option value="" disabled>
                 {isLoadingSlots
                   ? 'Loading meal services…'
-                  : 'Select a meal service'}
+                  : !bookingDate
+                    ? 'Select a date first'
+                    : activeMealSlots.length === 0
+                      ? 'No services for this date'
+                      : 'Select a meal service'}
               </option>
 
-              {activeMealSlots.map((slot) => (
-                <option key={slot.id} value={slot.id}>
-                  {slot.name} ({slot.startTime}–{slot.endTime})
-                </option>
-              ))}
+              {activeMealSlots.map((slot) => {
+                const selectedAndClosed =
+                  String(slot.id) === selectedMealSlotId &&
+                  isBookingWindowClosed;
+
+                return (
+                  <option key={slot.id} value={slot.id}>
+                    {slot.name} ({slot.startTime}–{slot.endTime})
+                    {selectedAndClosed ? ' — Bookings closed' : ''}
+                  </option>
+                );
+              })}
             </Form.Select>
           </Form.Group>
         </Col>
@@ -106,20 +130,17 @@ function BookingSearch({ booking }) {
               Guests
             </Form.Label>
 
-            <Form.Select
+            <Form.Control
+              type="number"
+              min="1"
+              step="1"
               value={partySize}
               onChange={(event) =>
                 changePartySize(event.target.value)
               }
               disabled={isBooking}
               required
-            >
-              {partySizeOptions.map((size) => (
-                <option key={size} value={size}>
-                  {size} {size === 1 ? 'guest' : 'guests'}
-                </option>
-              ))}
-            </Form.Select>
+            />
           </Form.Group>
         </Col>
 
@@ -135,7 +156,8 @@ function BookingSearch({ booking }) {
               isLoadingSlots ||
               isSearching ||
               isBooking ||
-              activeMealSlots.length === 0
+              activeMealSlots.length === 0 ||
+              isBookingWindowClosed
             }
           >
             {isSearching ? (
@@ -167,14 +189,15 @@ function BookingSearch({ booking }) {
       </div>
 
       {!isLoadingSlots &&
+        bookingDate &&
         activeMealSlots.length === 0 &&
         !booking.errorMessage && (
           <p
             className="text-secondary fs-5 mt-3 mb-0"
             role="status"
           >
-            There are currently no meal services available to book.
-            Please check back later.
+            There are no meal services still open for booking on the selected date.
+            Please choose another date.
           </p>
         )}
     </Form>

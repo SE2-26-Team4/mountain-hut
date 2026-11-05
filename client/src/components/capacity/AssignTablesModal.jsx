@@ -12,7 +12,7 @@ import Alert from '../common/AutoDismissAlert.jsx';
  * @param {Object} props
  * @param {boolean} props.show
  * @param {() => void} props.onHide
- * @param {MealSlotDTO | null | undefined} props.slot
+ * @param {(MealSlotDTO & { tableIds: number[] }) | null | undefined} props.slot
  * @param {DiningTableDTO[]} props.tables
  * @param {number[]} props.selectedIds
  * @param {(tableId: number) => void} props.onToggle
@@ -20,6 +20,7 @@ import Alert from '../common/AutoDismissAlert.jsx';
  * @param {boolean} props.saving
  * @param {string} props.error
  * @param {number} props.capacity
+ * @param {(table: DiningTableDTO) => string} props.getUnavailableReason
  */
 export default function AssignTablesModal({
   show,
@@ -32,16 +33,34 @@ export default function AssignTablesModal({
   saving,
   error,
   capacity,
+  getUnavailableReason,
 }) {
   const [query, setQuery] = useState('');
+
+  const [showUnavailable, setShowUnavailable] = useState(false);
 
   const selected = tables.filter((table) =>
     selectedIds.some((id) => String(id) === String(table.id)),
   );
 
-  const visible = tables.filter((table) =>
-    table.name.toLowerCase().includes(query.toLowerCase()),
-  );
+  const visible = tables.filter((table) => {
+    const matchesSearch = table.name
+      .toLowerCase()
+      .includes(query.trim().toLowerCase());
+
+    const alreadyAssigned =
+      selectedIds.includes(table.id) ||
+      (slot?.tableIds.includes(table.id) ?? false);
+
+    return (
+      matchesSearch &&
+      (
+        showUnavailable ||
+        alreadyAssigned ||
+        !getUnavailableReason(table)
+      )
+    );
+  });
 
   return (
     <Modal
@@ -84,6 +103,18 @@ export default function AssignTablesModal({
               />
             </div>
 
+            <label className="d-flex align-items-center gap-2 my-3">
+              <input
+                type="checkbox"
+                checked={showUnavailable}
+                onChange={(event) =>
+                  setShowUnavailable(event.target.checked)
+                }
+              />
+
+              <span>Show unavailable tables</span>
+            </label>
+
             <div className="cap-assign-list">
               {visible.map((table) => (
                 <label
@@ -96,7 +127,13 @@ export default function AssignTablesModal({
                     checked={selectedIds.some(
                       (id) => String(id) === String(table.id),
                     )}
-                    disabled={!table.isActive || saving}
+                    disabled={
+                      saving ||
+                      (
+                        Boolean(getUnavailableReason(table)) &&
+                        !selectedIds.includes(table.id)
+                      )
+                    }
                     onChange={() => onToggle(table.id)}
                     aria-label={`Select ${table.name}`}
                   />
@@ -110,7 +147,15 @@ export default function AssignTablesModal({
 
                   <strong>{table.name}</strong>
 
-                  <small>{table.seatCount} seats</small>
+                  <small>
+                    {table.seatCount} seats
+
+                    {getUnavailableReason(table) && (
+                      <span className="d-block text-muted">
+                        {getUnavailableReason(table)}
+                      </span>
+                    )}
+                  </small>
                 </label>
               ))}
 
@@ -120,7 +165,7 @@ export default function AssignTablesModal({
             </div>
 
             <small className="cap-list-count">
-              {tables.length} tables
+              {visible.length} of {tables.length} tables
             </small>
           </Col>
 

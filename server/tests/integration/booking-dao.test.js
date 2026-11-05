@@ -68,17 +68,21 @@ beforeAll(async () => {
   secondHikerId = secondHiker.lastID;
 
   const slot = await runAsync(
-    `INSERT INTO meal_slots (name, start_time, end_time)
-     VALUES (?, '18:00', '20:00')`,
-    [`Booking DAO slot ${uniqueSuffix}`]
+    `INSERT INTO meal_slots (
+      slot_date, name, start_time, end_time
+    )
+    VALUES (?, ?, '18:00', '20:00')`,
+    [bookingDate, `Booking DAO slot ${uniqueSuffix}`]
   );
 
   slotId = slot.lastID;
 
   const secondSlot = await runAsync(
-    `INSERT INTO meal_slots (name, start_time, end_time)
-     VALUES (?, '20:00', '22:00')`,
-    [`Booking DAO second slot ${uniqueSuffix}`]
+    `INSERT INTO meal_slots (
+      slot_date, name, start_time, end_time
+    )
+    VALUES (?, ?, '20:00', '22:00')`,
+    [bookingDate, `Booking DAO second slot ${uniqueSuffix}`]
   );
 
   secondSlotId = secondSlot.lastID;
@@ -380,25 +384,78 @@ describe('booking data access', () => {
   });
 
   it('allows the same table on another date or another slot', async () => {
-    await createBooking(input(4));
+    let nextDaySlotId;
 
-    const anotherDate = await createBooking({
-      ...input(4),
-      bookingDate: '2099-12-31',
-    });
+    try {
+      await createBooking(input(4));
 
-    await runAsync(
-      'INSERT INTO slot_tables (slot_id, table_id) VALUES (?, ?)',
-      [secondSlotId, tableIds[0]]
-    );
+      const nextDaySlot = await runAsync(
+        `INSERT INTO meal_slots (
+          slot_date, name, start_time, end_time
+        )
+        VALUES (?, ?, '18:00', '20:00')`,
+        [
+          '2099-12-31',
+          `Booking DAO next-day slot ${uniqueSuffix}`,
+        ]
+      );
 
-    const anotherSlot = await createBooking({
-      ...input(4),
-      slotId: secondSlotId,
-    });
+      nextDaySlotId = nextDaySlot.lastID;
 
-    expect(anotherDate.allocations[0].tableId).toBe(tableIds[0]);
-    expect(anotherSlot.allocations[0].tableId).toBe(tableIds[0]);
+      await runAsync(
+        'INSERT INTO slot_tables (slot_id, table_id) VALUES (?, ?)',
+        [nextDaySlotId, tableIds[0]]
+      );
+
+      const anotherDate = await createBooking({
+        ...input(4),
+        bookingDate: '2099-12-31',
+        slotId: nextDaySlotId,
+      });
+
+      await runAsync(
+        'INSERT INTO slot_tables (slot_id, table_id) VALUES (?, ?)',
+        [secondSlotId, tableIds[0]]
+      );
+
+      const anotherSlot = await createBooking({
+        ...input(4),
+        slotId: secondSlotId,
+      });
+
+      expect(anotherDate.allocations).toEqual([
+        { tableId: tableIds[0], seatsReserved: 4 },
+      ]);
+
+      expect(anotherSlot.allocations).toEqual([
+        { tableId: tableIds[0], seatsReserved: 4 },
+      ]);
+    } finally {
+      if (nextDaySlotId) {
+        await runAsync(
+          `DELETE FROM booking_table_allocations
+          WHERE booking_id IN (
+            SELECT id FROM bookings WHERE slot_id = ?
+          )`,
+          [nextDaySlotId]
+        );
+
+        await runAsync(
+          'DELETE FROM bookings WHERE slot_id = ?',
+          [nextDaySlotId]
+        );
+
+        await runAsync(
+          'DELETE FROM slot_tables WHERE slot_id = ?',
+          [nextDaySlotId]
+        );
+
+        await runAsync(
+          'DELETE FROM meal_slots WHERE id = ?',
+          [nextDaySlotId]
+        );
+      }
+    }
   });
 
   it('prevents concurrent parties from exceeding table capacity', async () => {
@@ -463,4 +520,35 @@ describe('booking data access', () => {
     const saved = await createBooking(input());
     expect(saved.status).toBe('confirmed');
   });
+
+  it('rejects a booking date different from the slot date without saving it', async () => {
+    await expect(
+      createBooking({
+        ...input(2),
+        bookingDate: '2099-12-31',
+      }),
+    ).rejects.toMatchObject({
+      code: 'INVALID_BOOKING',
+      message:
+        'The selected meal slot does not belong to the booking date.',
+    });
+
+    const savedBookings = await allAsync(
+      'SELECT id FROM bookings WHERE slot_id = ?',
+      [slotId]
+    );
+
+    expect(savedBookings).toHaveLength(0);
+
+    const allocations = await allAsync(
+      `SELECT a.booking_id
+      FROM booking_table_allocations AS a
+      JOIN bookings AS b ON b.id = a.booking_id
+      WHERE b.slot_id = ?`,
+      [slotId]
+    );
+
+    expect(allocations).toHaveLength(0);
+  });
 });
+

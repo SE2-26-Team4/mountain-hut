@@ -70,7 +70,11 @@ function StaffCapacityContent({ user, onLogout }) {
         />
 
         <div className="cap-content">
-          <StaffDateSelector />
+          <StaffDateSelector
+              date={staff.selectedDate}
+              onChange={staff.changeSelectedDate}
+              disabled={staff.isLoading || staff.isSaving}
+            />
 
           {staff.errorMessage &&
             !staff.isAssignmentModalOpen &&
@@ -108,7 +112,7 @@ function StaffCapacityContent({ user, onLogout }) {
 
               <Col xs={12} className="cap-slots-column">
                 <StaffTimeSlotsPanel
-                  slots={staff.mealSlots}
+                  slots={staff.visibleMealSlots}
                   tables={staff.diningTables}
                   onAdd={staff.openNewSlotForm}
                   onEdit={staff.startEditingSlot}
@@ -129,6 +133,7 @@ function StaffCapacityContent({ user, onLogout }) {
             saving={staff.isSaving}
             error={staff.errorMessage}
             capacity={staff.assignedCapacity}
+            getUnavailableReason={staff.getTableUnavailableReason}
           />
 
           <CapacityFormModal
