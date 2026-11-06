@@ -7,7 +7,6 @@ import useStaffCapacity from '../hooks/useStaffCapacity.js';
 import AssignTablesModal from '../components/capacity/AssignTablesModal.jsx';
 import CapacityFormModal from '../components/capacity/CapacityFormModal.jsx';
 import StaffDateSelector from '../components/capacity/StaffDateSelector.jsx';
-import StaffHeader from '../components/capacity/StaffHeader.jsx';
 import StaffSidebar from '../components/capacity/StaffSidebar.jsx';
 import StaffTablesPanel from '../components/capacity/StaffTablesPanel.jsx';
 import StaffTimeSlotsPanel from '../components/capacity/StaffTimeSlotsPanel.jsx';
