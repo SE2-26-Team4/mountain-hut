@@ -67,7 +67,6 @@ async function initializeHikerAccounts() {
       role: 'hiker',
     });
 
-    // Update the names of these five demo accounts if already present.
     const isUniversityDemoAccount = universityHikers.some(
       ({ studentId }) =>
         account.email === `${studentId}@studenti.polito.it`,

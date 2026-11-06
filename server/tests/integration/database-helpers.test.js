@@ -14,8 +14,8 @@ import {
   withTransaction,
 } from '../../db.js';
 
+// Create a connection-local temporary table without altering the application schema.
 beforeAll(async () => {
-  // Temporary tables belong to this connection and do not alter the application schema.
   await runAsync(`
     CREATE TEMP TABLE database_helpers_test (
       id INTEGER PRIMARY KEY,
@@ -24,15 +24,18 @@ beforeAll(async () => {
   `);
 });
 
+// Clear saved rows before each test.
 beforeEach(async () => {
   await runAsync('DELETE FROM database_helpers_test');
 });
 
+// Remove the temporary table after all tests.
 afterAll(async () => {
   await runAsync('DROP TABLE IF EXISTS database_helpers_test');
 });
 
 describe('database query errors', () => {
+  // The write helper must propagate invalid SQL errors.
   it('rejects invalid SQL passed to runAsync', async () => {
     await expect(
       runAsync('THIS IS NOT VALID SQL'),
@@ -41,6 +44,7 @@ describe('database query errors', () => {
     });
   });
 
+  // The multiple-row query helper must propagate invalid SQL errors.
   it('rejects invalid SQL passed to allAsync', async () => {
     await expect(
       allAsync('THIS IS NOT VALID SQL'),
@@ -49,6 +53,7 @@ describe('database query errors', () => {
     });
   });
 
+  // The single-row query helper must propagate invalid SQL errors.
   it('rejects invalid SQL passed to getAsync', async () => {
     await expect(
       getAsync('THIS IS NOT VALID SQL'),
@@ -59,6 +64,7 @@ describe('database query errors', () => {
 });
 
 describe('database transactions', () => {
+  // Successful transactions must persist changes and return the callback result.
   it('commits changes and returns the callback result', async () => {
     const result = await withTransaction(async (queries) => {
       await queries.runAsync(
@@ -66,6 +72,7 @@ describe('database transactions', () => {
         [1, 'saved'],
       );
 
+      // Read the inserted value within the same transaction.
       const row = await queries.getAsync(
         'SELECT value FROM database_helpers_test WHERE id = ?',
         [1],
@@ -76,6 +83,7 @@ describe('database transactions', () => {
 
     expect(result).toBe('saved');
 
+    // Verify that the inserted row remains available after the commit.
     const rows = await allAsync(
       'SELECT id, value FROM database_helpers_test',
     );
@@ -85,6 +93,7 @@ describe('database transactions', () => {
     ]);
   });
 
+  // A failed statement must roll back every earlier write in the transaction.
   it('rolls back all changes when a statement fails', async () => {
     const operation = withTransaction(async (queries) => {
       await queries.runAsync(
@@ -92,6 +101,7 @@ describe('database transactions', () => {
         [1, 'must be rolled back'],
       );
 
+      // Reusing the primary key forces a constraint failure.
       await queries.runAsync(
         'INSERT INTO database_helpers_test (id, value) VALUES (?, ?)',
         [1, 'duplicate ID'],
@@ -102,6 +112,7 @@ describe('database transactions', () => {
       code: 'SQLITE_CONSTRAINT',
     });
 
+    // The first insert must also be removed by the rollback.
     const rows = await allAsync(
       'SELECT * FROM database_helpers_test',
     );
@@ -109,6 +120,7 @@ describe('database transactions', () => {
     expect(rows).toEqual([]);
   });
 
+  // A rejected transaction must not prevent later transactions from succeeding.
   it('allows another transaction after a previous failure', async () => {
     const failure = new Error('Simulated operation failure');
 
@@ -125,6 +137,7 @@ describe('database transactions', () => {
       );
     });
 
+    // Verify that the subsequent transaction committed its write.
     const row = await getAsync(
       'SELECT value FROM database_helpers_test WHERE id = ?',
       [2],
@@ -133,6 +146,7 @@ describe('database transactions', () => {
     expect(row.value).toBe('saved after failure');
   });
 
+  // Queued transactions must finish in order without interleaving callbacks.
   it('runs queued transactions sequentially', async () => {
     const events = [];
 
@@ -150,6 +164,7 @@ describe('database transactions', () => {
     const second = withTransaction(async (queries) => {
       events.push('second started');
 
+      // The second transaction must see the first transaction's saved row.
       const rows = await queries.allAsync(
         'SELECT id FROM database_helpers_test',
       );
@@ -169,6 +184,7 @@ describe('database transactions', () => {
     ]);
   });
 
+  // A rollback failure must not replace the original callback error.
   it('preserves the original error if rollback also fails', async () => {
     const failure = new Error('Original operation failure');
 
@@ -181,6 +197,7 @@ describe('database transactions', () => {
 
     await expect(operation).rejects.toBe(failure);
 
+    // The connection must remain usable after both failures.
     await expect(
       withTransaction(async () => 'connection still usable'),
     ).resolves.toBe('connection still usable');

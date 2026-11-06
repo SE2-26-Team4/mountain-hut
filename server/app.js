@@ -64,6 +64,9 @@ app.get('/api/health', (_req, res) => {
 /* AUTHENTICATION ROUTES */
 
 app.use('/api', authRoutes);
+
+/* BOOKING ROUTES */
+
 app.use('/api', bookingRoutes);
 
 /* MEAL-SLOT AND CAPACITY ROUTES */

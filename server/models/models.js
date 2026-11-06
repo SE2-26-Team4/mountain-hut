@@ -3,6 +3,7 @@
  * @property {string} bookingDate - Booking date in YYYY-MM-DD format.
  * @property {number} slotId
  * @property {number} partySize - Positive integer.
+ * @property {string} [specialRequests] - Optional requests, max 1000 characters.
  */
 
 /**
@@ -18,7 +19,8 @@
  * @property {string} bookingDate - Booking date in YYYY-MM-DD format.
  * @property {number} slotId
  * @property {number} partySize
- * @property {'confirmed'|'cancelled'} status
+ * @property {string} [specialRequests] - Optional requests, max 1000 characters.
+ * @property {'confirmed' | 'cancelled'} status
  * @property {BookingTableAllocationDTO[]} allocations
  */
 
