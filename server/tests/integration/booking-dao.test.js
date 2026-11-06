@@ -344,6 +344,78 @@ describe('booking data access', () => {
     ).rejects.toMatchObject({ code: 'NO_AVAILABILITY' });
   });
 
+    it('keeps the best combination when another has equal capacity', async () => {
+    const extraTableIds = [];
+
+    try {
+      // Add three 4-seat tables dedicated to this test.
+      for (let index = 0; index < 3; index += 1) {
+        const result = await runAsync(
+          `INSERT INTO dining_tables (name, seat_count)
+           VALUES (?, ?)`,
+          [`Equal capacity test table ${index} ${uniqueSuffix}`, 4]
+        );
+
+        extraTableIds.push(result.lastID);
+
+        await runAsync(
+          `INSERT INTO slot_tables (slot_id, table_id)
+           VALUES (?, ?)`,
+          [slotId, result.lastID]
+        );
+      }
+
+      const booking = await createBooking({
+        hikerId,
+        bookingDate,
+        slotId,
+        partySize: 7,
+      });
+
+      expect(
+        booking.allocations.reduce(
+          (total, allocation) => total + allocation.seatsReserved,
+          0
+        )
+      ).toBe(7);
+
+      expect(booking.allocations).toHaveLength(2);
+    } finally {
+      // Remove bookings and allocations before deleting their tables.
+      await clearBookings();
+
+      for (const tableId of extraTableIds) {
+        await runAsync(
+          'DELETE FROM slot_tables WHERE table_id = ?',
+          [tableId]
+        );
+
+        await runAsync(
+          'DELETE FROM dining_tables WHERE id = ?',
+          [tableId]
+        );
+      }
+    }
+  });
+
+  it.each([
+      [123],
+      [null],
+      ['a'.repeat(1001)],
+    ])('rejects invalid special requests: %s', async (specialRequests) => {
+      await expect(
+        createBooking({
+          hikerId: 1,
+          bookingDate: '2026-12-01',
+          slotId: 1,
+          partySize: 2,
+          specialRequests,
+        })
+      ).rejects.toMatchObject({
+        code: 'INVALID_BOOKING',
+      });
+    });
+
   // Reject a slot ID that does not exist.
   it('rejects a missing slot', async () => {
     await expect(

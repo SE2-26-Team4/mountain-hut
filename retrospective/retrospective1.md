@@ -1,16 +1,16 @@
 RETROSPECTIVE (Team 04)
 =====================================
 
-## PROCESS MEASURES 
+## PROCESS MEASURES
 
 ### Macro statistics
 
 - Number of stories committed vs done : 3 vs 3
 - Total points committed vs done : 21 vs 21
-- Nr of hours planned vs spent (as a team) : 80h 00m vs 77h 09m
+- Nr of hours planned vs spent (as a team) : 80h 00m vs 77h 29m
 
 **Remember**  a story is done ONLY if it fits the Definition of Done:
- 
+
 - Unit Tests passing
 - Code review completed
 - Code present on VCS
@@ -22,25 +22,23 @@ RETROSPECTIVE (Team 04)
 
 | Story  | # Tasks | Points | Hours est. | Hours actual |
 |--------|---------|--------|------------|--------------|
-| _#0_   | 20      |    -   | 32h 30m    | 31h 34m      |
+| _#0_   | 20      |    -   | 32h 30m    | 31h 54m      |
 | MH-01 Book a table | 20 | 8 | 18h 35m | 17h 45m |
 | MH-02 Define slot capacity | 20 | 8 | 18h 10m | 17h 10m |
 | MH-03 Receive confirmation | 12 | 5 | 10h 45m | 10h 40m |
-| **Total** | **72** | **21** | **80h 00m** | **77h 09m** |
-   
+| **Total** | **72** | **21** | **80h 00m** | **77h 29m** |
 
 > place technical tasks corresponding to story `#0` and leave out story points (not applicable in this case)
 
 - Hours per task  <span style="color:red">per person</span>  (average, standard deviation)
   - $n = 72$ tasks. Whole-team tasks (Sprint Planning, Daily Scrum, Technology selection, Retrospective: 20h est., 20.17h actual) are split among 5 members.
-  - $h_i = \frac{\text{hours}_i}{\text{members}_i}, \quad \mu = \frac{1}{n}\sum_i h_i, \quad \sigma = \sqrt{\frac{\sum_i (h_i - \mu)^2}{n-1}}$
-  - Estimated: $\mu = \frac{80 - 20 + 20/5}{72} = 0.89\text{h}, \quad \sigma = 0.70\text{h}$
-  - Actual: $\mu = \frac{77.15 - 20.17 + 20.17/5}{72} = 0.85\text{h}, \quad \sigma = 0.71\text{h}$
+  - $h_i = \frac{\text{hours}_i}{\text{members}_i}, \quad \mu = \frac{1}{n}\sum_i h_i, \quad s = \sqrt{\frac{\sum_i (h_i - \mu)^2}{n-1}}$
+  - Estimated: $\mu = \frac{80 - 20 + 20/5}{72} = 0.89\text{h}, \quad s = 0.70\text{h}$
+  - Actual: $\mu = \frac{77.4833 - 20.1667 + 20.1667/5}{72} = 0.85\text{h}, \quad s = 0.71\text{h}$
 - Total task estimation error ratio: sum of total hours estimation / sum of total hours spent -1
-  - $\frac{80}{77.15} - 1 = +0.037$ (slight overestimate)
+  - $\frac{80}{77.4833} - 1 = +0.0325$ (slight overestimate)
 
-  
-## QUALITY MEASURES 
+## QUALITY MEASURES
 
 > We had no tasks dedicated only to unit or integration tests. Tests were written inside the implementation tasks. The hours below are those of the tasks whose description required each kind of test, so they also include implementation time.
 
@@ -48,7 +46,7 @@ RETROSPECTIVE (Team 04)
   - Total hours estimated: 5h 30m
   - Total hours spent: 5h 40m
   - Nr of automated unit test cases: 84 (6 test files), all passing
-  - Coverage (if available): 98.7% lines on the services layer (unit tests only); 98.4% lines, 98.45% statements, 96.49% branches, 100% functions on the whole backend (unit + integration tests)
+  - Coverage (if available): 100% lines, 100% statements, 100% branches, 100% functions on the whole backend (unit + integration tests)
   - Tasks: *Booking availability and table allocation*, *Slot and table capacity validation*, *Booking confirmation email service*
 - Integration testing:
   - Total hours estimated: 15h 30m
@@ -61,18 +59,17 @@ RETROSPECTIVE (Team 04)
 - E2E testing:
   - Total hours estimated: 1h 30m
   - Total hours spent: 1h 25m
-- Code review: 
+- Code review:
   - Total hours estimated: 9h 20m
   - Total hours spent: 8h 44m
   - Of which per-task reviews (28 tasks): 6h 20m estimated, 6h 54m spent
   - Of which final code reviews (3 tasks): 3h 00m estimated, 1h 50m spent
 
-
 ## ASSESSMENT
 
 __- What caused your errors in estimation (if any)?__
 
-Overall, our estimate was accurate: we spent 77h 09m against 80h 00m planned, an error ratio of +3.7% (slight overestimate). The errors on single tasks were larger, and they came from different causes:
+Overall, our estimate was accurate: we spent 77h 29m against 80h 00m planned, an error ratio of +3.25% (slight overestimate). The errors on single tasks were larger, and they came from different causes:
 
 - **Frontend tasks (underestimated).** The two largest overruns of the sprint were frontend tasks: *Hiker login interface and sign-in integration* (1h 30m estimated, 2h 30m spent) and *Staff capacity management interface* (2h 00m estimated, 2h 30m spent). The frontend we built ended up quite different from the structure we assumed during planning.
 - **Setup tasks (overestimated).** *Backend project setup* (1h 30m -> 1h 00m), *Automated testing environment setup* (2h 00m -> 1h 30m) and *README completion* (1h 00m -> 30m) were simpler than we expected and quite similar to previous project configuration (except docker).
