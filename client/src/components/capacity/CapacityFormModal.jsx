@@ -95,6 +95,7 @@ export default function CapacityFormModal(props) {
               </span>
             </div>
           )}
+
           {error && (
             <Alert variant="danger">
               {error}
@@ -176,31 +177,31 @@ export default function CapacityFormModal(props) {
         </Modal.Body>
 
         {!isSlotPreview && (
-        <Modal.Footer>
-          <button
-            type="button"
-            className="cap-outline"
-            onClick={onHide}
-            disabled={saving || isSlotPreview}
-          >
-            Cancel
-          </button>
+          <Modal.Footer>
+            <button
+              type="button"
+              className="cap-outline"
+              onClick={onHide}
+              disabled={saving || isSlotPreview}
+            >
+              Cancel
+            </button>
 
-          <button
-            type="submit"
-            className="cap-primary"
-            disabled={saving}
-          >
-            {saving ? (
-              <Spinner
-                size="sm"
-                animation="border"
-              />
-            ) : (
-              `Save ${label}`
-            )}
-          </button>
-        </Modal.Footer>
+            <button
+              type="submit"
+              className="cap-primary"
+              disabled={saving}
+            >
+              {saving ? (
+                <Spinner
+                  size="sm"
+                  animation="border"
+                />
+              ) : (
+                `Save ${label}`
+              )}
+            </button>
+          </Modal.Footer>
         )}
       </Form>
     </Modal>

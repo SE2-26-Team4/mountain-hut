@@ -24,16 +24,21 @@ import {
 import { getBookingDeadline } from '../services/booking-time.js';
 
 /**
+ * Data types used to validate capacity configuration requests.
+ *
  * @typedef {import('../models/models.js').MealSlotInputDTO} MealSlotInputDTO
  * @typedef {import('../models/models.js').DiningTableInputDTO} DiningTableInputDTO
  * @typedef {import('../models/models.js').UpdateMealSlotCapacityRequestDTO} UpdateMealSlotCapacityRequestDTO
  */
 
+// Group capacity endpoints and their error handler in a dedicated router.
 const router = express.Router();
 
 /* HELPERS */
 
 /**
+ * Returns a consistent response for invalid request data.
+ *
  * @param {import('express').Response} res
  * @param {unknown} error
  */
@@ -48,6 +53,9 @@ function sendValidationError(res, error) {
 }
 
 /**
+ * Converts a route parameter to a positive integer.
+ * Returns null when the value cannot be accepted as an ID.
+ *
  * @param {unknown} value
  * @returns {number | null}
  */
@@ -79,14 +87,61 @@ function asyncRoute(handler) {
   };
 }
 
+/* CREATE */
+
+// Allow staff to create a meal slot with a date and time range.
+router.post(
+  '/capacity/meal-slots',
+  requireStaff,
+  asyncRoute(async (req, res) => {
+    /** @type {MealSlotInputDTO} */
+    let mealSlotData;
+
+    // Validate and normalize input before calling the DAO.
+    try {
+      mealSlotData = validateMealSlot(req.body);
+    } catch (error) {
+      return sendValidationError(res, error);
+    }
+
+    // Persist the slot and return the created record.
+    const mealSlot = await createMealSlot(mealSlotData);
+
+    return res.status(201).json({ mealSlot });
+  }),
+);
+
+// Allow staff to create a reusable dining table.
+router.post(
+  '/capacity/dining-tables',
+  requireStaff,
+  asyncRoute(async (req, res) => {
+    /** @type {DiningTableInputDTO} */
+    let diningTableData;
+
+    // Require valid table details, including a positive seat count.
+    try {
+      diningTableData = validateDiningTable(req.body);
+    } catch (error) {
+      return sendValidationError(res, error);
+    }
+
+    // Save the table independently of its meal-slot assignments.
+    const diningTable = await createDiningTable(diningTableData);
+
+    return res.status(201).json({ diningTable });
+  }),
+);
+
 /* READ */
 
-// Public listing excludes inactive meal slots.
+// Provide a public list of active meal slots and their booking deadlines.
 router.get(
   '/meal-slots',
   asyncRoute(async (_req, res) => {
     const mealSlots = await getMealSlots();
 
+    // Exclude inactive slots and expose deadlines as ISO timestamps.
     return res.json({
       mealSlots: mealSlots
         .filter((mealSlot) => mealSlot.isActive)
@@ -103,11 +158,12 @@ router.get(
   }),
 );
 
-// Staff configuration includes inactive meal slots and tables.
+// Return the full configuration to staff, including inactive records.
 router.get(
   '/capacity',
   requireStaff,
   asyncRoute(async (_req, res) => {
+    // Request slots and reusable table definitions together.
     const [mealSlots, diningTables] = await Promise.all([
       getMealSlots(),
       getDiningTables(),
@@ -120,10 +176,12 @@ router.get(
   }),
 );
 
+// Return the tables assigned to a slot and its configured capacity.
 router.get(
   '/capacity/meal-slots/:slotId',
   requireStaff,
   asyncRoute(async (req, res) => {
+    // Validate the route parameter before querying the database.
     const slotId = parsePositiveId(req.params.slotId);
 
     if (!slotId) {
@@ -137,6 +195,7 @@ router.get(
 
     const capacity = await getMealSlotCapacity(slotId);
 
+    // Distinguish a missing slot from one with no assigned tables.
     if (!capacity) {
       return res.status(404).json({
         error: {
@@ -150,53 +209,14 @@ router.get(
   }),
 );
 
-
-/* CREATE */
-
-router.post(
-  '/capacity/meal-slots',
-  requireStaff,
-  asyncRoute(async (req, res) => {
-    /** @type {MealSlotInputDTO} */
-    let mealSlotData;
-
-    try {
-      mealSlotData = validateMealSlot(req.body);
-    } catch (error) {
-      return sendValidationError(res, error);
-    }
-
-    const mealSlot = await createMealSlot(mealSlotData);
-
-    return res.status(201).json({ mealSlot });
-  }),
-);
-
-router.post(
-  '/capacity/dining-tables',
-  requireStaff,
-  asyncRoute(async (req, res) => {
-    /** @type {DiningTableInputDTO} */
-    let diningTableData;
-
-    try {
-      diningTableData = validateDiningTable(req.body);
-    } catch (error) {
-      return sendValidationError(res, error);
-    }
-
-    const diningTable = await createDiningTable(diningTableData);
-
-    return res.status(201).json({ diningTable });
-  }),
-);
-
 /* UPDATE */
 
+// Allow staff to update a meal slot's date, name, times, and active status.
 router.put(
   '/capacity/meal-slots/:slotId',
   requireStaff,
   asyncRoute(async (req, res) => {
+    // Reject an invalid slot ID before validating the request body.
     const slotId = parsePositiveId(req.params.slotId);
 
     if (!slotId) {
@@ -211,12 +231,14 @@ router.put(
     /** @type {MealSlotInputDTO} */
     let mealSlotData;
 
+    // Validate and normalize the proposed slot configuration.
     try {
       mealSlotData = validateMealSlot(req.body);
     } catch (error) {
       return sendValidationError(res, error);
     }
 
+    // Unlike creation, updates must explicitly specify active status.
     const { isActive } = mealSlotData;
 
     if (isActive === undefined) {
@@ -226,6 +248,7 @@ router.put(
       );
     }
 
+    // The DAO checks duplicates, overlaps, and existing booking conflicts.
     const mealSlot = await updateMealSlot(slotId, {
       ...mealSlotData,
       isActive,
@@ -244,10 +267,12 @@ router.put(
   }),
 );
 
+// Allow staff to update a reusable table's name, seats, and active status.
 router.put(
   '/capacity/dining-tables/:tableId',
   requireStaff,
   asyncRoute(async (req, res) => {
+    // Validate the table ID before processing the proposed changes.
     const tableId = parsePositiveId(req.params.tableId);
 
     if (!tableId) {
@@ -262,12 +287,14 @@ router.put(
     /** @type {DiningTableInputDTO} */
     let diningTableData;
 
+    // Validate and normalize the table name, seat count, and active flag.
     try {
       diningTableData = validateDiningTable(req.body);
     } catch (error) {
       return sendValidationError(res, error);
     }
 
+    // Require an explicit active status when replacing table details.
     const { isActive } = diningTableData;
 
     if (isActive === undefined) {
@@ -277,6 +304,7 @@ router.put(
       );
     }
 
+    // The DAO prevents changes that would invalidate confirmed bookings.
     const diningTable = await updateDiningTable(tableId, {
       ...diningTableData,
       isActive,
@@ -295,6 +323,7 @@ router.put(
   }),
 );
 
+// Replace the complete set of tables assigned to a meal slot.
 router.put(
   '/capacity/meal-slots/:slotId/tables',
   requireStaff,
@@ -304,6 +333,7 @@ router.put(
     /** @type {UpdateMealSlotCapacityRequestDTO & { slotId: number }} */
     let assignment;
 
+    // Validate the slot ID and requested table IDs before saving.
     try {
       assignment = validateSlotTableAssignment(
         slotId,
@@ -314,11 +344,13 @@ router.put(
     }
 
     try {
+      // Replace assignments atomically after checking database constraints.
       const capacity = await setMealSlotTables(
         assignment.slotId,
         assignment.tableIds,
       );
 
+      // A valid ID may still refer to a slot that does not exist.
       if (!capacity) {
         return res.status(404).json({
           error: {
@@ -328,9 +360,10 @@ router.put(
         });
       }
 
+      // Return the saved table assignments and recalculated capacity.
       return res.json({ capacity });
     } catch (error) {
-      // The slot exists, so unknown tables are invalid input rather than 404.
+      // Report unknown table IDs as invalid input rather than a missing slot.
       if (error instanceof DiningTablesNotFoundError) {
         return res.status(400).json({
           error: {
@@ -341,6 +374,7 @@ router.put(
         });
       }
 
+      // Forward other failures to the router's error handler.
       throw error;
     }
   }),
@@ -350,20 +384,22 @@ router.put(
 
 /** @type {import('express').ErrorRequestHandler} */
 const handleCapacityError = (error, _req, res, _next) => {
-    if (
-      error instanceof DuplicateNameError ||
-      error instanceof CapacityConflictError ||
-      error instanceof TableSlotConflictError ||
-      error instanceof DuplicateMealSlotError
-    ) {
-      return res.status(409).json({
-        error: {
-          code: error.code,
-          message: error.message,
-        },
-      });
-    }
+  // Translate known configuration conflicts into HTTP 409 responses.
+  if (
+    error instanceof DuplicateNameError ||
+    error instanceof CapacityConflictError ||
+    error instanceof TableSlotConflictError ||
+    error instanceof DuplicateMealSlotError
+  ) {
+    return res.status(409).json({
+      error: {
+        code: error.code,
+        message: error.message,
+      },
+    });
+  }
 
+  // Log unexpected failures while returning a generic message to the client.
   console.error('Capacity API error:', error);
 
   return res.status(500).json({
@@ -374,6 +410,7 @@ const handleCapacityError = (error, _req, res, _next) => {
   });
 };
 
+// Register the error handler after all capacity routes.
 router.use(handleCapacityError);
 
 export default router;

@@ -1,6 +1,6 @@
+import { useState } from 'react';
 import { Col, Row, Spinner } from 'react-bootstrap';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
 
 import { useAuth } from '../contexts/auth-context.js';
 import useStaffCapacity from '../hooks/useStaffCapacity.js';
@@ -58,11 +58,15 @@ function StaffCapacityContent({ user, onLogout }) {
 
   return (
     <Row
-        className={`g-0 cap-app ${
-          sidebarCollapsed ? 'cap-sidebar-collapsed' : ''
-        }`}
+      className={`g-0 cap-app ${
+        sidebarCollapsed ? 'cap-sidebar-collapsed' : ''
+      }`}
+    >
+      <Col
+        id="staff-sidebar"
+        xs={12}
+        className="cap-sidebar-column"
       >
-      <Col id="staff-sidebar" xs={12} className="cap-sidebar-column">
         <StaffSidebar user={user} onLogout={onLogout} />
       </Col>
 
@@ -71,29 +75,36 @@ function StaffCapacityContent({ user, onLogout }) {
         className="cap-main"
         aria-label="Dining capacity"
       >
-        <button
-          type="button"
-          className="cap-sidebar-toggle"
-          onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
-          aria-label={
-            sidebarCollapsed ? 'Open navigation' : 'Close navigation'
-          }
-          aria-expanded={!sidebarCollapsed}
-          aria-controls="staff-sidebar"
-        >
-          <i
-            className={`bi ${
-              sidebarCollapsed ? 'bi-layout-sidebar' : 'bi-chevron-left'
-            }`}
-            aria-hidden="true"
-          />
-        </button>
+        <div className="cap-navigation-toolbar">
+          <button
+            type="button"
+            className="cap-sidebar-toggle"
+            onClick={() =>
+              setSidebarCollapsed((collapsed) => !collapsed)
+            }
+            aria-label={
+              sidebarCollapsed ? 'Open navigation' : 'Close navigation'
+            }
+            aria-expanded={!sidebarCollapsed}
+            aria-controls="staff-sidebar"
+          >
+            <i
+              className={`bi ${
+                sidebarCollapsed
+                  ? 'bi-layout-sidebar'
+                  : 'bi-chevron-left'
+              }`}
+              aria-hidden="true"
+            />
+          </button>
+        </div>
+
         <div className="cap-content">
           <StaffDateSelector
-              date={staff.selectedDate}
-              onChange={staff.changeSelectedDate}
-              disabled={staff.isLoading || staff.isSaving}
-            />
+            date={staff.selectedDate}
+            onChange={staff.changeSelectedDate}
+            disabled={staff.isLoading || staff.isSaving}
+          />
 
           {staff.errorMessage &&
             !staff.isAssignmentModalOpen &&

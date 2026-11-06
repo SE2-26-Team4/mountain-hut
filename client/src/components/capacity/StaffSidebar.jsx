@@ -52,6 +52,7 @@ export default function StaffSidebar({ user, onLogout }) {
             onClick={closeMenu}
           >
             <i className={`bi bi-${icon}`} aria-hidden="true" />
+
             <span>{label}</span>
           </button>
         );

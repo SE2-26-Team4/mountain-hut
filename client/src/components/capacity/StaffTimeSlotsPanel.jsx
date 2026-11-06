@@ -121,9 +121,9 @@ export default function StaffTimeSlotsPanel({
 
               <Col className="cap-slot-column-seats">
                 <strong className="cap-seat-count d-block text-center">
-                {seats}
-                <span className="cap-seat-label"> seats</span>
-              </strong>
+                  {seats}
+                  <span className="cap-seat-label"> seats</span>
+                </strong>
               </Col>
 
               <Col className="cap-slot-column-actions cap-slot-actions d-flex align-items-center">
@@ -155,6 +155,7 @@ export default function StaffTimeSlotsPanel({
           </p>
         )}
       </div>
+
       <div className="cap-panel-footer cap-slots-footer">
         <span>
           {slots.length} {slots.length === 1 ? 'time slot' : 'time slots'}

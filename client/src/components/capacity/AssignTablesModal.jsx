@@ -36,7 +36,6 @@ export default function AssignTablesModal({
   getUnavailableReason,
 }) {
   const [query, setQuery] = useState('');
-
   const [showUnavailable, setShowUnavailable] = useState(false);
 
   const selected = tables.filter((table) =>
