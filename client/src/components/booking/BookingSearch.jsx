@@ -5,16 +5,17 @@ import { Link } from 'react-router-dom';
  * @typedef {ReturnType<typeof import('../../hooks/useBookingLogic.js').default>} BookingState
  */
 
-const partySizeOptions = Array.from(
-  { length: 12 },
-  (_, index) => index + 1,
-);
-
 /**
  * @param {Object} props
  * @param {BookingState} props.booking
+ * @param {boolean} props.isAuthenticated
+ * @param {() => void} [props.onRequireLogin]
  */
-function BookingSearch({ booking }) {
+function BookingSearch({
+  booking,
+  isAuthenticated,
+  onRequireLogin,
+}) {
   const {
     bookingDate,
     selectedMealSlotId,
@@ -28,114 +29,204 @@ function BookingSearch({ booking }) {
     changeMealSlot,
     changePartySize,
     handleSearch,
+    bookingCountdownLabel,
+    isBookingWindowClosed,
+    isBookingDeadlineNear,
   } = booking;
 
   return (
     <Form
       className="mh-booking-search"
-      onSubmit={handleSearch}
+      noValidate={!isAuthenticated}
+      onSubmit={(event) => {
+        if (!isAuthenticated) {
+          event.preventDefault();
+          onRequireLogin?.();
+          return;
+        }
+
+        void handleSearch(event);
+      }}
     >
       <Row className="g-3 align-items-end">
         <Col xs={12} md={4} xl={3}>
-          <Form.Group controlId="booking-date">
-            <Form.Label className="d-flex align-items-center gap-2">
-              <i
-                className="bi bi-calendar3 mh-field-icon"
-                aria-hidden="true"
-              />
-              Date
-            </Form.Label>
+          <div className="mh-booking-field">
+            <fieldset
+              disabled={!isAuthenticated}
+              className="mh-booking-fieldset"
+            >
+              <Form.Group controlId="booking-date">
+                <Form.Label className="d-flex align-items-center gap-2">
+                  <i
+                    className="bi bi-calendar3 mh-field-icon"
+                    aria-hidden="true"
+                  />
+                  Date
+                </Form.Label>
 
-            <Form.Control
-              type="date"
-              value={bookingDate}
-              min={minimumBookingDate}
-              onChange={(event) =>
-                changeBookingDate(event.target.value)
-              }
-              disabled={isBooking}
-              required
-            />
-          </Form.Group>
+                <Form.Control
+                  type="date"
+                  value={bookingDate}
+                  min={minimumBookingDate}
+                  onChange={(event) =>
+                    changeBookingDate(event.target.value)
+                  }
+                  disabled={isBooking}
+                  required
+                />
+              </Form.Group>
+            </fieldset>
+
+            {!isAuthenticated && (
+              <button
+                type="button"
+                className="mh-booking-login-trigger"
+                onClick={() => onRequireLogin?.()}
+                aria-label="Sign in to select a date"
+              />
+            )}
+          </div>
         </Col>
 
         <Col xs={12} md={5} xl={4}>
-          <Form.Group controlId="booking-meal-slot">
-            <Form.Label className="d-flex align-items-center gap-2">
-              <i
-                className="bi bi-cup-hot mh-field-icon"
-                aria-hidden="true"
-              />
-              Meal service
-            </Form.Label>
-
-            <Form.Select
-              value={selectedMealSlotId}
-              onChange={(event) =>
-                changeMealSlot(event.target.value)
-              }
-              disabled={
-                isLoadingSlots ||
-                isBooking ||
-                activeMealSlots.length === 0
-              }
-              required
+          <div className="mh-booking-field">
+            <fieldset
+              disabled={!isAuthenticated}
+              className="mh-booking-fieldset"
             >
-              <option value="" disabled>
-                {isLoadingSlots
-                  ? 'Loading meal services…'
-                  : 'Select a meal service'}
-              </option>
+              <Form.Group controlId="booking-meal-slot">
+                <Form.Label className="mh-meal-service-label d-flex flex-wrap align-items-center justify-content-between gap-2">
+                  <span className="d-inline-flex align-items-center gap-2">
+                    <i
+                      className="bi bi-cup-hot mh-field-icon"
+                      aria-hidden="true"
+                    />
+                    Meal service
+                  </span>
 
-              {activeMealSlots.map((slot) => (
-                <option key={slot.id} value={slot.id}>
-                  {slot.name} ({slot.startTime}–{slot.endTime})
-                </option>
-              ))}
-            </Form.Select>
-          </Form.Group>
+                  <small
+                    className={`mh-booking-countdown ${
+                      isBookingWindowClosed
+                        ? 'text-danger'
+                        : isBookingDeadlineNear
+                          ? 'mh-booking-countdown-warning'
+                          : 'text-secondary'
+                    }`}
+                  >
+                    {bookingCountdownLabel ||
+                      'Bookings close 2 hours before service.'}
+                  </small>
+                </Form.Label>
+
+                <Form.Select
+                  value={selectedMealSlotId}
+                  onChange={(event) =>
+                    changeMealSlot(event.target.value)
+                  }
+                  disabled={
+                    isLoadingSlots ||
+                    isBooking ||
+                    activeMealSlots.length === 0
+                  }
+                  required
+                >
+                  <option value="" disabled>
+                    {isLoadingSlots
+                      ? 'Loading meal services…'
+                      : !bookingDate
+                        ? 'Select a date first'
+                        : activeMealSlots.length === 0
+                          ? 'No services for this date'
+                          : 'Select a meal service'}
+                  </option>
+
+                  {activeMealSlots.map((slot) => {
+                    const selectedAndClosed =
+                      String(slot.id) === selectedMealSlotId &&
+                      isBookingWindowClosed;
+
+                    return (
+                      <option key={slot.id} value={slot.id}>
+                        {slot.name} ({slot.startTime}–{slot.endTime})
+                        {selectedAndClosed
+                          ? ' — Bookings closed'
+                          : ''}
+                      </option>
+                    );
+                  })}
+                </Form.Select>
+              </Form.Group>
+            </fieldset>
+
+            {!isAuthenticated && (
+              <button
+                type="button"
+                className="mh-booking-login-trigger"
+                onClick={() => onRequireLogin?.()}
+                aria-label="Sign in to select a meal service"
+              />
+            )}
+          </div>
         </Col>
 
         <Col xs={12} md={3} xl={2}>
-          <Form.Group controlId="booking-party-size">
-            <Form.Label className="d-flex align-items-center gap-2">
-              <i
-                className="bi bi-people mh-field-icon"
-                aria-hidden="true"
-              />
-              Guests
-            </Form.Label>
-
-            <Form.Select
-              value={partySize}
-              onChange={(event) =>
-                changePartySize(event.target.value)
-              }
-              disabled={isBooking}
-              required
+          <div className="mh-booking-field">
+            <fieldset
+              disabled={!isAuthenticated}
+              className="mh-booking-fieldset"
             >
-              {partySizeOptions.map((size) => (
-                <option key={size} value={size}>
-                  {size} {size === 1 ? 'guest' : 'guests'}
-                </option>
-              ))}
-            </Form.Select>
-          </Form.Group>
+              <Form.Group controlId="booking-party-size">
+                <Form.Label className="d-flex align-items-center gap-2">
+                  <i
+                    className="bi bi-people mh-field-icon"
+                    aria-hidden="true"
+                  />
+                  Guests
+                </Form.Label>
+
+                <Form.Control
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={partySize}
+                  onChange={(event) =>
+                    changePartySize(event.target.value)
+                  }
+                  disabled={isBooking}
+                  required
+                />
+              </Form.Group>
+            </fieldset>
+
+            {!isAuthenticated && (
+              <button
+                type="button"
+                className="mh-booking-login-trigger"
+                onClick={() => onRequireLogin?.()}
+                aria-label="Sign in to choose the number of guests"
+              />
+            )}
+          </div>
         </Col>
 
         <Col
           xs={12}
           md={{ span: 6, offset: 3 }}
           xl={{ span: 3, offset: 0 }}
+          className="mh-booking-action d-flex justify-content-center"
         >
           <Button
             className="mh-booking-search-button d-inline-flex align-items-center justify-content-between gap-3 w-100"
             type="submit"
             disabled={
-              isLoadingSlots ||
-              isSearching ||
-              isBooking ||
-              activeMealSlots.length === 0
+              isAuthenticated &&
+              (
+                isLoadingSlots ||
+                isSearching ||
+                isBooking ||
+                activeMealSlots.length === 0 ||
+                isBookingWindowClosed
+              )
             }
           >
             {isSearching ? (
@@ -166,15 +257,17 @@ function BookingSearch({ booking }) {
         <span>Coming soon</span>
       </div>
 
-      {!isLoadingSlots &&
+      {isAuthenticated &&
+        !isLoadingSlots &&
+        bookingDate &&
         activeMealSlots.length === 0 &&
         !booking.errorMessage && (
           <p
             className="text-secondary fs-5 mt-3 mb-0"
             role="status"
           >
-            There are currently no meal services available to book.
-            Please check back later.
+            There are no meal services still open for booking on
+            the selected date. Please choose another date.
           </p>
         )}
     </Form>

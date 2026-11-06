@@ -17,8 +17,8 @@ services:
       TEST_HIKER_PASSWORD: ${TEST_HIKER_PASSWORD:-HikerTest123!}
       EMAIL_TEST_HIKER_EMAIL: ${EMAIL_TEST_HIKER_EMAIL:-delivered@resend.dev}
       EMAIL_TEST_HIKER_PASSWORD: ${EMAIL_TEST_HIKER_PASSWORD:-EmailTest123!}
-      RESEND_API_KEY: ${RESEND_API_KEY:-}
-      EMAIL_FROM: ${EMAIL_FROM:-}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      EMAIL_FROM: "Mountain Hut <mountain-hut@azeca.it>"
     volumes:
       - mountain_hut_sqlite_data:/app/data
     restart: unless-stopped

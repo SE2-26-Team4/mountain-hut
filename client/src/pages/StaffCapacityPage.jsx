@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Col, Row, Spinner } from 'react-bootstrap';
 import { Navigate, useNavigate } from 'react-router-dom';
 
@@ -6,7 +7,6 @@ import useStaffCapacity from '../hooks/useStaffCapacity.js';
 import AssignTablesModal from '../components/capacity/AssignTablesModal.jsx';
 import CapacityFormModal from '../components/capacity/CapacityFormModal.jsx';
 import StaffDateSelector from '../components/capacity/StaffDateSelector.jsx';
-import StaffHeader from '../components/capacity/StaffHeader.jsx';
 import StaffSidebar from '../components/capacity/StaffSidebar.jsx';
 import StaffTablesPanel from '../components/capacity/StaffTablesPanel.jsx';
 import StaffTimeSlotsPanel from '../components/capacity/StaffTimeSlotsPanel.jsx';
@@ -53,10 +53,20 @@ function StaffCapacityPage() {
 function StaffCapacityContent({ user, onLogout }) {
   const staff = useStaffCapacity();
 
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
   return (
-    <Row className="g-0 cap-app">
-      <Col xs={12} className="cap-sidebar-column">
-        <StaffSidebar onLogout={onLogout} />
+    <Row
+      className={`g-0 cap-app ${
+        sidebarCollapsed ? 'cap-sidebar-collapsed' : ''
+      }`}
+    >
+      <Col
+        id="staff-sidebar"
+        xs={12}
+        className="cap-sidebar-column"
+      >
+        <StaffSidebar user={user} onLogout={onLogout} />
       </Col>
 
       <Col
@@ -64,13 +74,36 @@ function StaffCapacityContent({ user, onLogout }) {
         className="cap-main"
         aria-label="Dining capacity"
       >
-        <StaffHeader
-          user={user}
-          onLogout={onLogout}
-        />
+        <div className="cap-navigation-toolbar">
+          <button
+            type="button"
+            className="cap-sidebar-toggle"
+            onClick={() =>
+              setSidebarCollapsed((collapsed) => !collapsed)
+            }
+            aria-label={
+              sidebarCollapsed ? 'Open navigation' : 'Close navigation'
+            }
+            aria-expanded={!sidebarCollapsed}
+            aria-controls="staff-sidebar"
+          >
+            <i
+              className={`bi ${
+                sidebarCollapsed
+                  ? 'bi-layout-sidebar'
+                  : 'bi-chevron-left'
+              }`}
+              aria-hidden="true"
+            />
+          </button>
+        </div>
 
         <div className="cap-content">
-          <StaffDateSelector />
+          <StaffDateSelector
+            date={staff.selectedDate}
+            onChange={staff.changeSelectedDate}
+            disabled={staff.isLoading || staff.isSaving}
+          />
 
           {staff.errorMessage &&
             !staff.isAssignmentModalOpen &&
@@ -108,7 +141,7 @@ function StaffCapacityContent({ user, onLogout }) {
 
               <Col xs={12} className="cap-slots-column">
                 <StaffTimeSlotsPanel
-                  slots={staff.mealSlots}
+                  slots={staff.visibleMealSlots}
                   tables={staff.diningTables}
                   onAdd={staff.openNewSlotForm}
                   onEdit={staff.startEditingSlot}
@@ -129,6 +162,7 @@ function StaffCapacityContent({ user, onLogout }) {
             saving={staff.isSaving}
             error={staff.errorMessage}
             capacity={staff.assignedCapacity}
+            getUnavailableReason={staff.getTableUnavailableReason}
           />
 
           <CapacityFormModal

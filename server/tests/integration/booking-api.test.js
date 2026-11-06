@@ -5,64 +5,115 @@ import {
   afterAll,
   afterEach,
   beforeAll,
+  beforeEach,
   describe,
   expect,
   it,
   vi,
 } from 'vitest';
 
+// Simulate email sending so these tests exercise booking APIs
+// without contacting the real email provider.
+vi.mock('../../services/booking-confirmation-service.js', () => ({
+  sendBookingConfirmationEmail: vi.fn().mockResolvedValue({
+    id: 'test-email-id',
+  }),
+}));
+
 import app from '../../app.js';
 import { BookingError } from '../../dao/booking-dao.js';
-import { getAsync, initializeDatabase, runAsync } from '../../db.js';
+import {
+  getAsync,
+  initializeDatabase,
+  runAsync,
+} from '../../db.js';
 import { initializeAccounts } from '../../init/init-accounts.js';
 import * as BookingService from '../../services/booking-service.js';
 import { hashPassword } from '../../services/password.js';
 
+// Use unique account and configuration names to avoid test-data conflicts.
 const password = 'BookingApiTest123!';
 const email = `booking-api-${randomUUID()}@example.com`;
 const bookingDate = '2099-12-31';
 const uniqueSuffix = randomUUID();
 
+// Keep fixture IDs and the authenticated hiker agent for requests and cleanup.
 let hikerId;
 let slotId;
 let inactiveSlotId;
 let tableId;
 let hikerAgent;
 
-/** @type {Record<string, { id: number, agent: import('supertest').Agent }>} */
+// Store authenticated staff agents for role-based access tests.
+/** @type {Record<string, {
+ *   id: number,
+ *   agent: import('supertest').Agent
+ * }>} */
 const staffAccounts = {};
 
+// Remove allocations before bookings to respect foreign-key dependencies.
+async function clearTestBookings() {
+  await runAsync(
+    `DELETE FROM booking_table_allocations
+     WHERE booking_id IN (
+       SELECT id FROM bookings WHERE slot_id = ?
+     )`,
+    [slotId],
+  );
+
+  await runAsync(
+    'DELETE FROM bookings WHERE slot_id = ?',
+    [slotId],
+  );
+}
+
+// Create reusable fixtures and authenticated sessions before the suite.
 beforeAll(async () => {
   await initializeDatabase();
   await initializeAccounts();
 
   const passwordHash = await hashPassword(password);
+
+  // Create the hiker who will submit and manage bookings.
   const user = await runAsync(
-    `INSERT INTO users (full_name, email, password_hash, role)
+    `INSERT INTO users (
+       full_name, email, password_hash, role
+     )
      VALUES (?, ?, ?, 'hiker')`,
     ['Booking API Hiker', email, passwordHash],
   );
+
   hikerId = user.lastID;
 
+  // Create an active slot for successful bookings and availability checks.
   const slot = await runAsync(
-    `INSERT INTO meal_slots (name, start_time, end_time)
-     VALUES (?, '18:00', '20:00')`,
-    [`Booking API slot ${uniqueSuffix}`],
+    `INSERT INTO meal_slots (
+       slot_date, name, start_time, end_time
+     )
+     VALUES (?, ?, '18:00', '20:00')`,
+    [bookingDate, `Booking API slot ${uniqueSuffix}`],
   );
+
   slotId = slot.lastID;
 
+  // Create an inactive slot to verify that booking creation rejects it.
   const inactiveSlot = await runAsync(
-    `INSERT INTO meal_slots (name, start_time, end_time, is_active)
-     VALUES (?, '12:00', '14:00', 0)`,
-    [`Booking API inactive slot ${uniqueSuffix}`],
+    `INSERT INTO meal_slots (
+       slot_date, name, start_time, end_time, is_active
+     )
+     VALUES (?, ?, '12:00', '14:00', 0)`,
+    [bookingDate, `Booking API inactive slot ${uniqueSuffix}`],
   );
+
   inactiveSlotId = inactiveSlot.lastID;
 
+  // Assign one four-seat table to the active slot.
   const table = await runAsync(
     `INSERT INTO dining_tables (name, seat_count)
      VALUES (?, 4)`,
     [`Booking API table ${uniqueSuffix}`],
   );
+
   tableId = table.lastID;
 
   await runAsync(
@@ -70,63 +121,120 @@ beforeAll(async () => {
     [slotId, tableId],
   );
 
+  // Preserve the hiker's session cookie across booking requests.
   hikerAgent = request.agent(app);
+
   const loginResponse = await hikerAgent
     .post('/api/sessions')
     .send({ email, password });
 
   expect(loginResponse.status).toBe(201);
 
+  // Create and authenticate both staff roles for authorization checks.
   for (const role of ['employee', 'warden']) {
-    const staffEmail = `booking-api-${role}-${uniqueSuffix}@example.com`;
+    const staffEmail =
+      `booking-api-${role}-${uniqueSuffix}@example.com`;
+
     const staffUser = await runAsync(
-      `INSERT INTO users (full_name, email, password_hash, role)
+      `INSERT INTO users (
+         full_name, email, password_hash, role
+       )
        VALUES (?, ?, ?, ?)`,
-      [`Booking API ${role}`, staffEmail, passwordHash, role],
+      [
+        `Booking API ${role}`,
+        staffEmail,
+        passwordHash,
+        role,
+      ],
     );
 
     const agent = request.agent(app);
+
     const staffLoginResponse = await agent
-    .post('/api/staff/sessions')
-    .send({ email: staffEmail, password });
+      .post('/api/staff/sessions')
+      .send({ email: staffEmail, password });
 
     expect(staffLoginResponse.status).toBe(201);
-    staffAccounts[role] = { id: staffUser.lastID, agent };
+
+    staffAccounts[role] = {
+      id: staffUser.lastID,
+      agent,
+    };
   }
 });
 
+// Start each test with all four seats available in the active slot.
+beforeEach(async () => {
+  await clearTestBookings();
+});
+
+// Restore methods replaced by spies after each test.
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+// Delete test records in dependency order after the suite finishes.
 afterAll(async () => {
-  await runAsync(
-    `DELETE FROM booking_table_allocations
-     WHERE booking_id IN (SELECT id FROM bookings WHERE slot_id = ?)`,
-    [slotId],
-  );
-  await runAsync('DELETE FROM bookings WHERE slot_id = ?', [slotId]);
-  await runAsync('DELETE FROM slot_tables WHERE slot_id = ?', [slotId]);
-  await runAsync('DELETE FROM dining_tables WHERE id = ?', [tableId]);
-  await runAsync('DELETE FROM meal_slots WHERE id IN (?, ?)', [
-    slotId,
-    inactiveSlotId,
-  ]);
-  await runAsync('DELETE FROM users WHERE id = ?', [hikerId]);
+  // Remove bookings and table assignments before deleting the slot.
+  if (slotId) {
+    await clearTestBookings();
+
+    await runAsync(
+      'DELETE FROM slot_tables WHERE slot_id = ?',
+      [slotId],
+    );
+  }
+
+  // Remove the reusable test table.
+  if (tableId) {
+    await runAsync(
+      'DELETE FROM dining_tables WHERE id = ?',
+      [tableId],
+    );
+  }
+
+  // Remove both active and inactive test slots.
+  for (const id of [slotId, inactiveSlotId]) {
+    if (id) {
+      await runAsync(
+        'DELETE FROM meal_slots WHERE id = ?',
+        [id],
+      );
+    }
+  }
+
+  // Remove the test hiker and staff accounts.
+  if (hikerId) {
+    await runAsync(
+      'DELETE FROM users WHERE id = ?',
+      [hikerId],
+    );
+  }
 
   for (const { id } of Object.values(staffAccounts)) {
-    await runAsync('DELETE FROM users WHERE id = ?', [id]);
+    await runAsync(
+      'DELETE FROM users WHERE id = ?',
+      [id],
+    );
   }
 });
 
 describe('booking availability API', () => {
+  // Verify public availability for an active slot with an empty table.
   it('returns availability for an active meal slot', async () => {
     const response = await request(app)
       .get('/api/bookings/availability')
       .query({ bookingDate, slotId });
 
     expect(response.status).toBe(200);
+
     expect(response.body.availability).toMatchObject({
       bookingDate,
       slotId,
       totalAvailableSeats: 4,
     });
+
+    // Check both the slot total and the individual table's seat counts.
     expect(response.body.availability.tables).toEqual([
       expect.objectContaining({
         id: tableId,
@@ -137,53 +245,84 @@ describe('booking availability API', () => {
     ]);
   });
 
+  // Verify validation of malformed dates and invalid or missing slot IDs.
   it.each([
-    [{ bookingDate: 'not-a-date', slotId }, 'INVALID_BOOKING'],
-    [{ bookingDate, slotId: 'invalid' }, 'INVALID_BOOKING'],
-    [{ bookingDate }, 'INVALID_BOOKING'],
-  ])('rejects invalid availability parameters', async (query, code) => {
+    'invalid date',
+    'invalid slot ID',
+    'missing slot ID',
+  ])('rejects availability parameters: %s', async (scenario) => {
+    const query =
+      scenario === 'invalid date'
+        ? { bookingDate: 'not-a-date', slotId }
+        : scenario === 'invalid slot ID'
+          ? { bookingDate, slotId: 'invalid' }
+          : { bookingDate };
+
     const response = await request(app)
       .get('/api/bookings/availability')
       .query(query);
 
     expect(response.status).toBe(400);
-    expect(response.body.error.code).toBe(code);
+    expect(response.body.error.code).toBe('INVALID_BOOKING');
   });
 
+  // Verify that an unknown slot has no availability response.
   it('returns 404 for an unknown meal slot', async () => {
     const response = await request(app)
       .get('/api/bookings/availability')
       .query({ bookingDate, slotId: 999999 });
 
     expect(response.status).toBe(404);
-    expect(response.body.error.code).toBe('MEAL_SLOT_NOT_FOUND');
+    expect(response.body.error.code).toBe(
+      'MEAL_SLOT_NOT_FOUND',
+    );
+  });
+
+  // Verify that a valid slot ID cannot be queried using another date.
+  it('returns no availability when the slot belongs to another date', async () => {
+    const response = await request(app)
+      .get('/api/bookings/availability')
+      .query({
+        bookingDate: '2100-01-01',
+        slotId,
+      });
+
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe(
+      'MEAL_SLOT_NOT_FOUND',
+    );
   });
 });
 
 describe('booking management API', () => {
+  // Require an authenticated session before creating a booking.
   it('requires authentication to create a booking', async () => {
-    const createResponse = await request(app)
+    const response = await request(app)
       .post('/api/bookings')
       .send({ bookingDate, slotId, partySize: 1 });
 
-    expect(createResponse.status).toBe(401);
-    expect(createResponse.body.error.code).toBe('UNAUTHENTICATED');
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('UNAUTHENTICATED');
   });
 
+  // Staff accounts must not create bookings through hiker-only endpoints.
   it.each(['employee', 'warden'])(
     'rejects booking creation by %s accounts',
     async (role) => {
       const { id, agent } = staffAccounts[role];
 
-      const response = await agent.post('/api/bookings').send({
-        bookingDate,
-        slotId,
-        partySize: 1,
-      });
+      const response = await agent
+        .post('/api/bookings')
+        .send({
+          bookingDate,
+          slotId,
+          partySize: 1,
+        });
 
       expect(response.status).toBe(403);
       expect(response.body.error.code).toBe('FORBIDDEN');
 
+      // Confirm that authorization failure did not persist a booking.
       const saved = await getAsync(
         'SELECT COUNT(*) AS count FROM bookings WHERE hiker_id = ?',
         [id],
@@ -193,70 +332,107 @@ describe('booking management API', () => {
     },
   );
 
+  // Reject booking creation when the selected slot does not exist.
   it('returns 404 when booking an unknown meal slot', async () => {
-    const response = await hikerAgent.post('/api/bookings').send({
-      bookingDate,
-      slotId: 999999,
-      partySize: 1,
-    });
+    const response = await hikerAgent
+      .post('/api/bookings')
+      .send({
+        bookingDate,
+        slotId: 999999,
+        partySize: 1,
+      });
 
     expect(response.status).toBe(404);
     expect(response.body.error.code).toBe('SLOT_NOT_FOUND');
   });
 
+  // Reject slots that staff have marked inactive.
   it('rejects a booking for an inactive meal slot', async () => {
-    const response = await hikerAgent.post('/api/bookings').send({
-      bookingDate,
-      slotId: inactiveSlotId,
-      partySize: 1,
-    });
+    const response = await hikerAgent
+      .post('/api/bookings')
+      .send({
+        bookingDate,
+        slotId: inactiveSlotId,
+        partySize: 1,
+      });
 
     expect(response.status).toBe(409);
     expect(response.body.error.code).toBe('SLOT_INACTIVE');
   });
 
+  // Check date and party-size validation through the booking endpoint.
   it.each([
-    [{ bookingDate: 'invalid', slotId: 1, partySize: 1 }, 'INVALID_BOOKING'],
-    [{ bookingDate, slotId: 1, partySize: 0 }, 'INVALID_PARTY_SIZE'],
-    [{ bookingDate, slotId: 1, partySize: 1.5 }, 'INVALID_PARTY_SIZE'],
-  ])('rejects invalid booking data', async (body, code) => {
-    const response = await hikerAgent.post('/api/bookings').send(body);
+    'invalid date',
+    'zero party size',
+    'fractional party size',
+  ])('rejects booking data: %s', async (scenario) => {
+    const body = {
+      bookingDate,
+      slotId,
+      partySize: 1,
+    };
+
+    // Change only the field relevant to the current validation scenario.
+    if (scenario === 'invalid date') {
+      body.bookingDate = 'invalid';
+    } else if (scenario === 'zero party size') {
+      body.partySize = 0;
+    } else {
+      body.partySize = 1.5;
+    }
+
+    const response = await hikerAgent
+      .post('/api/bookings')
+      .send(body);
 
     expect(response.status).toBe(400);
-    expect(response.body.error.code).toBe(code);
+    expect(response.body.error.code).toBe(
+      scenario === 'invalid date'
+        ? 'INVALID_BOOKING'
+        : 'INVALID_PARTY_SIZE',
+    );
   });
 
-    it('rejects a past booking date without saving a booking', async () => {
-      const pastDate = '2000-01-01';
+  // Reject past dates and verify that no corresponding booking is stored.
+  it('rejects a past booking date without saving a booking', async () => {
+    const pastDate = '2000-01-01';
 
-      const response = await hikerAgent.post('/api/bookings').send({
+    const response = await hikerAgent
+      .post('/api/bookings')
+      .send({
         bookingDate: pastDate,
         slotId,
         partySize: 2,
       });
 
-      expect(response.status).toBe(400);
-      expect(response.body.error.code).toBe('INVALID_BOOKING');
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('INVALID_BOOKING');
 
-      const saved = await getAsync(
-        `SELECT COUNT(*) AS count
-        FROM bookings
-        WHERE hiker_id = ? AND slot_id = ? AND booking_date = ?`,
-        [hikerId, slotId, pastDate],
-      );
+    const saved = await getAsync(
+      `SELECT COUNT(*) AS count
+       FROM bookings
+       WHERE hiker_id = ?
+         AND slot_id = ?
+         AND booking_date = ?`,
+      [hikerId, slotId, pastDate],
+    );
 
-      expect(saved.count).toBe(0);
-    });
+    expect(saved.count).toBe(0);
+  });
 
+  // Verify successful persistence, table allocation, and reduced availability.
   it('creates a booking', async () => {
-    const createResponse = await hikerAgent.post('/api/bookings').send({
-      bookingDate,
-      slotId,
-      partySize: 2,
-    });
+    const response = await hikerAgent
+      .post('/api/bookings')
+      .send({
+        bookingDate,
+        slotId,
+        partySize: 2,
+      });
 
-    expect(createResponse.status).toBe(201);
-    expect(createResponse.body.booking).toMatchObject({
+    expect(response.status).toBe(201);
+
+    expect(response.body.booking).toMatchObject({
       hikerId,
       bookingDate,
       slotId,
@@ -265,36 +441,66 @@ describe('booking management API', () => {
       allocations: [{ tableId, seatsReserved: 2 }],
     });
 
-    const unavailableResponse = await request(app)
+    // Two reserved seats must leave two seats available at the table.
+    const availability = await request(app)
       .get('/api/bookings/availability')
       .query({ bookingDate, slotId });
 
-    expect(unavailableResponse.body.availability.totalAvailableSeats).toBe(
-      2,
-    );
+    expect(availability.status).toBe(200);
+
+    expect(
+      availability.body.availability.totalAvailableSeats,
+    ).toBe(2);
   });
 
+  // Reject a party larger than the slot's available capacity.
   it('rejects a booking when there is not enough availability', async () => {
-    const response = await hikerAgent.post('/api/bookings').send({
-      bookingDate: '2100-01-01',
-      slotId,
-      partySize: 5,
-    });
+    const response = await hikerAgent
+      .post('/api/bookings')
+      .send({
+        bookingDate,
+        slotId,
+        partySize: 5,
+      });
 
     expect(response.status).toBe(409);
     expect(response.body.error.code).toBe('NO_AVAILABILITY');
   });
+
+  // A slot must be booked using its configured date.
+  it('rejects booking a slot on another date without saving it', async () => {
+    const wrongDate = '2100-01-01';
+
+    const response = await hikerAgent
+      .post('/api/bookings')
+      .send({
+        bookingDate: wrongDate,
+        slotId,
+        partySize: 1,
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('INVALID_BOOKING');
+
+    // Confirm that the rejected date/slot combination was not persisted.
+    const stored = await getAsync(
+      `SELECT COUNT(*) AS count
+       FROM bookings
+       WHERE slot_id = ? AND booking_date = ?`,
+      [slotId, wrongDate],
+    );
+
+    expect(stored.count).toBe(0);
+  });
 });
 
 describe('booking API error handling', () => {
-  const validBooking = { bookingDate, slotId: 1, partySize: 1 };
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
+  // Translate a temporary SQLite lock into a service-unavailable response.
   it('returns 503 when the database is busy', async () => {
-    vi.spyOn(BookingService, 'createBookingForHiker').mockRejectedValueOnce(
+    vi.spyOn(
+      BookingService,
+      'createBookingForHiker',
+    ).mockRejectedValueOnce(
       Object.assign(new Error('SQLITE_BUSY: database is locked'), {
         code: 'SQLITE_BUSY',
       }),
@@ -302,74 +508,101 @@ describe('booking API error handling', () => {
 
     const response = await hikerAgent
       .post('/api/bookings')
-      .send(validBooking);
+      .send({ bookingDate, slotId, partySize: 1 });
 
     expect(response.status).toBe(503);
     expect(response.body.error.code).toBe('DATABASE_BUSY');
   });
 
+  // Unexpected failures must not expose private error details to clients.
   it.each([
     [
       'an unknown booking error code',
       new BookingError('UNKNOWN_CODE', 'Private booking detail'),
     ],
-    ['an unexpected error', new Error('Private database detail')],
+    [
+      'an unexpected error',
+      new Error('Private database detail'),
+    ],
   ])('returns a generic 500 response for %s', async (_label, error) => {
+    // Suppress expected error logging and simulate the service failure.
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(BookingService, 'createBookingForHiker').mockRejectedValueOnce(
-      error,
-    );
+
+    vi.spyOn(
+      BookingService,
+      'createBookingForHiker',
+    ).mockRejectedValueOnce(error);
 
     const response = await hikerAgent
       .post('/api/bookings')
-      .send(validBooking);
+      .send({ bookingDate, slotId, partySize: 1 });
 
     expect(response.status).toBe(500);
+
     expect(response.body.error).toEqual({
       code: 'INTERNAL_SERVER_ERROR',
       message: 'An unexpected error occurred.',
     });
+
     expect(response.text).not.toContain('Private');
   });
 });
 
 describe('booking retrieval and cancellation API', () => {
+  // Keep the booking ID created specifically for each test in this group.
   let createdBookingId;
 
-  it('allows an authenticated hiker to retrieve their bookings', async () => {
-    const createRes = await hikerAgent.post('/api/bookings').send({
-      bookingDate: '2099-11-15',
-      slotId,
-      partySize: 1,
-    });
-    createdBookingId = createRes.body.booking.id;
+  // Create a fresh confirmed booking after the shared cleanup has run.
+  beforeEach(async () => {
+    const created = await hikerAgent
+      .post('/api/bookings')
+      .send({
+        bookingDate,
+        slotId,
+        partySize: 1,
+      });
 
+    expect(created.status).toBe(201);
+    createdBookingId = created.body.booking.id;
+  });
+
+  // Verify that the hiker can find their newly created booking.
+  it('allows an authenticated hiker to retrieve their bookings', async () => {
     const response = await hikerAgent.get('/api/bookings');
 
     expect(response.status).toBe(200);
+
     expect(response.body.bookings).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           id: createdBookingId,
           hikerId,
+          bookingDate,
+          slotId,
           status: 'confirmed',
         }),
       ]),
     );
   });
 
+  // Verify that cancellation updates the status and releases reserved seats.
   it('allows an authenticated hiker to cancel their booking', async () => {
-
-    const response = await hikerAgent.delete(`/api/bookings/${createdBookingId}`);
+    const response = await hikerAgent.delete(
+      `/api/bookings/${createdBookingId}`,
+    );
 
     expect(response.status).toBe(200);
+    expect(response.body.booking.status).toBe('cancelled');
 
-
-
-    const availabilityRes = await request(app)
+    // The table must regain its full four-seat availability.
+    const availability = await request(app)
       .get('/api/bookings/availability')
-      .query({ bookingDate: '2099-11-15', slotId });
+      .query({ bookingDate, slotId });
 
-    expect(availabilityRes.body.availability.totalAvailableSeats).toBe(4);
+    expect(availability.status).toBe(200);
+
+    expect(
+      availability.body.availability.totalAvailableSeats,
+    ).toBe(4);
   });
 });

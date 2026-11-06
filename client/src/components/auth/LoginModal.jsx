@@ -1,5 +1,4 @@
 import { Col, Row } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
 
 import LoginForm from './LoginForm.jsx';
 
@@ -43,7 +42,7 @@ function LoginModal({
           aria-label="Close sign-in"
           onClick={onClose}
         >
-          ×
+          <i className="bi bi-x-lg" aria-hidden="true" />
         </button>
 
         <Row className="g-0 mh-login-dialog-row">
@@ -90,15 +89,6 @@ function LoginModal({
                 feedbackMessage={feedbackMessage}
                 onLogin={onLogin}
               />
-
-              {errorMessage && (
-                <Link
-                  to="/staff/login"
-                  className="mh-primary-button mt-3"
-                >
-                  Go to staff login
-                </Link>
-              )}
             </div>
           </Col>
         </Row>

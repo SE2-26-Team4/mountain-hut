@@ -44,7 +44,8 @@ function HomePage() {
 
   const [isLoginOpen, setIsLoginOpen] = useState(false);
 
-  const isStaff = user?.role === 'employee' || user?.role === 'warden';
+  const isStaff =
+    user?.role === 'employee' || user?.role === 'warden';
 
   const handleSignIn = () => setIsLoginOpen(true);
 
@@ -99,10 +100,17 @@ function HomePage() {
           className="mh-reserve-hero"
           aria-labelledby="reserve-title"
         >
-          <img
-            src="/images/reserve-hero.png"
-            alt="Alpine mountain hut with panoramic views"
-          />
+          <picture className="mh-reserve-picture">
+            <source
+              media="(max-width: 767px)"
+              srcSet="/images/reserve-hero-mobile.png"
+            />
+
+            <img
+              src="/images/reserve-hero.png"
+              alt="Alpine mountain hut with panoramic views"
+            />
+          </picture>
 
           <div className="mh-hero-content">
             <span
@@ -135,7 +143,10 @@ function HomePage() {
                 Table reservations are available to hiker accounts only.
               </p>
 
-              <Link className="mh-primary-button" to="/staff/capacity">
+              <Link
+                className="mh-primary-button"
+                to="/staff/capacity"
+              >
                 <span>Manage dining capacity</span>
                 <span aria-hidden="true">→</span>
               </Link>

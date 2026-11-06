@@ -3,7 +3,6 @@ import { Button, Modal } from 'react-bootstrap';
 
 import useBookingLogic from '../../hooks/useBookingLogic.js';
 import Alert from '../common/AutoDismissAlert.jsx';
-import MountainLogo from '../common/MountainLogo.jsx';
 import BookingAvailability from './BookingAvailability.jsx';
 import BookingSearch from './BookingSearch.jsx';
 
@@ -72,7 +71,11 @@ export default function BookingForm({ user, onRequireLogin }) {
         </Alert>
       )}
 
-      <BookingSearch booking={booking} />
+      <BookingSearch
+        booking={booking}
+        isAuthenticated={Boolean(user)}
+        onRequireLogin={onRequireLogin}
+      />
 
       <div
         ref={availabilityRef}
@@ -83,7 +86,7 @@ export default function BookingForm({ user, onRequireLogin }) {
           isAuthenticated={Boolean(user)}
         />
       </div>
-    
+
       <Modal
         show={Boolean(reservation)}
         onHide={booking.closeReservationConfirmation}
@@ -91,77 +94,78 @@ export default function BookingForm({ user, onRequireLogin }) {
         aria-labelledby="reservation-confirmed-title"
         contentClassName="mh-reservation-modal"
       >
-        <Modal.Header closeButton className="border-0 pb-0">
-          <div className="d-flex align-items-center gap-2">
-            <MountainLogo />
-
-            <span className="fw-semibold small">
-              MOUNTAIN HUT
-            </span>
-          </div>
+        <Modal.Header
+          closeButton
+          className="mh-reservation-header"
+        >
+          <Modal.Title
+            as="h2"
+            id="reservation-confirmed-title"
+            className="mh-reservation-title"
+          >
+            Your booking is confirmed
+          </Modal.Title>
         </Modal.Header>
 
-        <Modal.Body className="px-4 pt-4 pb-3">
+        <Modal.Body className="mh-reservation-body">
           {reservation && (
             <>
-              <div className="text-center mb-4">
-                <h2
-                  id="reservation-confirmed-title"
-                  className="h4 mt-3 mb-2"
-                >
-                  You're all booked!
-                </h2>
+              <div className="mh-reservation-intro">
+                <p className="mh-reservation-description">
+                  We look forward to welcoming you to Mountain Hut.
+                </p>
 
-                <p className="text-secondary mb-0">
-                  Your reservation is confirmed. We look forward to welcoming
-                  you!{' '}
+                <p
+                  className={`mh-reservation-email${
+                    reservation.emailSent
+                      ? ''
+                      : ' mh-reservation-email-warning'
+                  }`}
+                  role="status"
+                >
                   {reservation.emailSent
-                    ? 'A confirmation email has been sent to your email address.'
-                    : 'However, the confirmation email could not be sent.'}
+                    ? 'A confirmation email has been sent to your email address. Please check your inbox or spam folder.'
+                    : 'Your booking is confirmed, but the confirmation email could not be sent. Please keep your reservation number.'}
                 </p>
               </div>
 
               <div className="mh-reservation-summary">
                 <dl className="mb-0">
-                  <div className="mh-reservation-detail d-flex align-items-baseline justify-content-between gap-3">
-                    <dt className="m-0 flex-shrink-0">
-                      Reservation number
-                    </dt>
-                    <dd className="m-0 text-end">#{reservation.id}</dd>
-                  </div>
+                  {[
+                    ['Reservation number', `#${reservation.id}`],
+                    ['Date', confirmedDate],
+                    ['Meal service', reservation.mealName],
+                    [
+                      'Time',
+                      `${reservation.startTime} – ${reservation.endTime}`,
+                    ],
+                    ['Guests', reservation.partySize],
+                  ].map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="mh-reservation-detail"
+                    >
+                      <dt>{label}</dt>
+                      <dd>{value}</dd>
+                    </div>
+                  ))}
 
-                  <div className="mh-reservation-detail d-flex align-items-baseline justify-content-between gap-3">
-                    <dt className="m-0 flex-shrink-0">Date</dt>
-                    <dd className="m-0 text-end">{confirmedDate}</dd>
-                  </div>
+                  {reservation.specialRequests && (
+                    <div className="mh-reservation-detail mh-reservation-requests">
+                      <dt>Special requests or allergies:</dt>
 
-                  <div className="mh-reservation-detail d-flex align-items-baseline justify-content-between gap-3">
-                    <dt className="m-0 flex-shrink-0">Meal service</dt>
-                    <dd className="m-0 text-end">{reservation.mealName}</dd>
-                  </div>
-
-                  <div className="mh-reservation-detail d-flex align-items-baseline justify-content-between gap-3">
-                    <dt className="m-0 flex-shrink-0">Time</dt>
-                    <dd className="m-0 text-end">
-                      {reservation.startTime}
-                      {' – '}
-                      {reservation.endTime}
-                    </dd>
-                  </div>
-
-                  <div className="mh-reservation-detail d-flex align-items-baseline justify-content-between gap-3">
-                    <dt className="m-0 flex-shrink-0">Guests</dt>
-                    <dd className="m-0 text-end">{reservation.partySize}</dd>
-                  </div>
+                      <dd>{reservation.specialRequests}</dd>
+                    </div>
+                  )}
                 </dl>
               </div>
             </>
           )}
         </Modal.Body>
 
-        <Modal.Footer className="border-0 px-4 pb-4 pt-2">
+        <Modal.Footer className="mh-reservation-footer">
           <Button
-            className="mh-primary-button w-100"
+            className="mh-primary-button mh-reservation-done"
             onClick={booking.closeReservationConfirmation}
           >
             Done

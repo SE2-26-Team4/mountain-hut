@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 
 import sqlite3 from 'sqlite3';
 
+/* DATABASE TYPES */
+
 /**
  * @typedef {string | number | null | Buffer} SqlValue
  */
@@ -16,6 +18,8 @@ import sqlite3 from 'sqlite3';
  * @property {typeof getAsync} getAsync
  * @property {typeof allAsync} allAsync
  */
+
+/* DATABASE CONFIGURATION */
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 
@@ -32,6 +36,8 @@ fs.mkdirSync(path.dirname(databasePath), { recursive: true });
 
 const schemaPath = path.join(currentDirectory, 'mountain-hut-schema.sql');
 const database = new sqlite3.Database(databasePath);
+
+/* DATABASE QUERY HELPERS */
 
 /**
  * Executes a statement and returns its insertion/update metadata.
@@ -114,6 +120,8 @@ function execAsync(sql) {
   });
 }
 
+/* TRANSACTION MANAGEMENT */
+
 let transactionQueue = Promise.resolve();
 
 /**
@@ -129,7 +137,11 @@ export function withTransaction(callback) {
     await execAsync('BEGIN IMMEDIATE');
 
     try {
-      const result = await callback({ runAsync, getAsync, allAsync });
+      const result = await callback({
+        runAsync,
+        getAsync,
+        allAsync,
+      });
 
       await execAsync('COMMIT');
 
@@ -152,6 +164,8 @@ export function withTransaction(callback) {
 
   return operation;
 }
+
+/* DATABASE INITIALIZATION */
 
 /**
  * Creates the schema for an empty database.
@@ -191,6 +205,7 @@ export async function initializeDatabase() {
     await execAsync(schema);
 
     console.log('Mountain Hut database schema initialized.');
+
     return;
   }
 
@@ -198,6 +213,22 @@ export async function initializeDatabase() {
     throw new Error(
       `Database schema is incomplete. Found ${existingTables.length} of ${expectedTables.length} expected tables.`,
     );
+  }
+
+  const bookingColumns = await allAsync(
+    'PRAGMA table_info(bookings)',
+  );
+
+  if (
+    !bookingColumns.some(
+      (column) => column.name === 'special_requests',
+    )
+  ) {
+    await runAsync(`
+      ALTER TABLE bookings
+      ADD COLUMN special_requests TEXT NOT NULL DEFAULT ''
+      CHECK (length(special_requests) <= 1000)
+    `);
   }
 
   console.log('Mountain Hut database schema is ready.');

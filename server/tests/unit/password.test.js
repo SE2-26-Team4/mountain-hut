@@ -1,4 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import {
+  describe,
+  expect,
+  it,
+} from 'vitest';
 
 import {
   hashPassword,
@@ -6,6 +10,7 @@ import {
 } from '../../services/password.js';
 
 describe('password hashing and verification', () => {
+  // Stored hashes must include the algorithm, salt, and derived key.
   it('generates a hash in the expected format', async () => {
     const password = 'MountainTest123!';
     const storedHash = await hashPassword(password);
@@ -13,9 +18,11 @@ describe('password hashing and verification', () => {
     expect(storedHash).toMatch(
       /^scrypt\$[a-f0-9]{32}\$[a-f0-9]{128}$/,
     );
+
     expect(storedHash).not.toContain(password);
   });
 
+  // Verification must accept the password used to generate the hash.
   it('accepts the correct password', async () => {
     const password = 'MountainTest123!';
     const storedHash = await hashPassword(password);
@@ -25,6 +32,7 @@ describe('password hashing and verification', () => {
     ).resolves.toBe(true);
   });
 
+  // Verification must reject passwords that do not match the stored hash.
   it('rejects an incorrect password', async () => {
     const storedHash = await hashPassword('MountainTest123!');
 
@@ -33,6 +41,7 @@ describe('password hashing and verification', () => {
     ).resolves.toBe(false);
   });
 
+  // Hashing the same password twice must generate distinct salts and hashes.
   it('generates different salts for the same password', async () => {
     const password = 'MountainTest123!';
 
@@ -45,6 +54,7 @@ describe('password hashing and verification', () => {
     expect(firstSalt).not.toBe(secondSalt);
     expect(firstHash).not.toBe(secondHash);
 
+    // Both independently salted hashes must still verify the original password.
     await expect(
       verifyPassword(password, firstHash),
     ).resolves.toBe(true);
@@ -54,6 +64,7 @@ describe('password hashing and verification', () => {
     ).resolves.toBe(true);
   });
 
+  // Malformed hashes and unsupported algorithms must return false.
   it.each([
     ['empty hash', ''],
     ['missing salt and key', 'scrypt'],
@@ -83,11 +94,12 @@ describe('password hashing and verification', () => {
     ).resolves.toBe(false);
   });
 
+  // A correctly formatted salt is insufficient when the derived key is missing.
   it('rejects a stored hash with a valid salt but no key', async () => {
     const incompleteHash = `scrypt$${'a'.repeat(32)}`;
 
     await expect(
-        verifyPassword('MountainTest123!', incompleteHash),
+      verifyPassword('MountainTest123!', incompleteHash),
     ).resolves.toBe(false);
-    });
+  });
 });

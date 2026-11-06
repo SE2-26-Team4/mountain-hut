@@ -36,6 +36,7 @@ import {
 
 const testMealSlot = {
   id: 1,
+  slotDate: '2099-12-30',
   name: 'Dinner',
   startTime: '18:00',
   endTime: '20:00',
@@ -94,6 +95,7 @@ describe('booking availability', () => {
 
     expect(availability).toMatchObject({
       bookingDate: '2099-12-30',
+      bookingClosesAt: '2099-12-30T15:00:00.000Z',
       slotId: 1,
       slotName: 'Dinner',
       startTime: '18:00',
@@ -279,6 +281,23 @@ describe('booking availability', () => {
     expect(mocks.getMealSlots).not.toHaveBeenCalled();
     expect(mocks.getBookingsByDateAndSlot).not.toHaveBeenCalled();
   });
+
+  it('does not return availability for a slot on another date', async () => {
+    const availability = await getMealSlotAvailability(
+      '2099-12-31',
+      testMealSlot.id,
+    );
+
+    expect(availability).toBeNull();
+
+    expect(
+      mocks.getBookingsByDateAndSlot,
+    ).not.toHaveBeenCalled();
+
+    expect(
+      mocks.getMealSlotCapacity,
+    ).not.toHaveBeenCalled();
+  });
 });
 
 describe('booking creation', () => {
@@ -322,7 +341,10 @@ describe('booking creation', () => {
       createBookingForHiker(request)
     ).resolves.toEqual(savedBooking);
 
-    expect(mocks.createBooking).toHaveBeenCalledWith(request);
+    expect(mocks.createBooking).toHaveBeenCalledWith({
+  ...request,
+  specialRequests: '',
+});
   });
 
   it.each([
@@ -352,7 +374,10 @@ describe('booking creation', () => {
       ).resolves.toEqual(savedBooking);
 
       expect(mocks.createBooking).toHaveBeenCalledTimes(1);
-      expect(mocks.createBooking).toHaveBeenCalledWith(request);
+      expect(mocks.createBooking).toHaveBeenCalledWith({
+  ...request,
+  specialRequests: '',
+});
     }
   );
 
@@ -369,7 +394,10 @@ describe('booking creation', () => {
     ).resolves.toEqual(savedBooking);
 
     expect(mocks.createBooking).toHaveBeenCalledTimes(1);
-    expect(mocks.createBooking).toHaveBeenCalledWith(input);
+    expect(mocks.createBooking).toHaveBeenCalledWith({
+  ...input,
+  specialRequests: '',
+});
 
     // Creation must use the DAO's atomic availability check.
     expect(mocks.getMealSlots).not.toHaveBeenCalled();
@@ -416,3 +444,33 @@ describe('booking creation', () => {
     ).rejects.toBe(error);
   });
 });
+
+it.each(['year', 'month', 'day'])(
+  'does not persist a booking if the current %s cannot be determined',
+  async (missingPart) => {
+    const original = Intl.DateTimeFormat.prototype.formatToParts;
+
+    const spy = vi
+      .spyOn(Intl.DateTimeFormat.prototype, 'formatToParts')
+      .mockImplementation(function (date) {
+        return original
+          .call(this, date)
+          .filter((part) => part.type !== missingPart);
+      });
+
+    try {
+      await expect(
+        createBookingForHiker({
+          hikerId: 7,
+          bookingDate: '2099-12-30',
+          slotId: 1,
+          partySize: 2,
+        })
+      ).rejects.toThrow('Unable to determine the current date.');
+
+      expect(mocks.createBooking).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+  }
+);

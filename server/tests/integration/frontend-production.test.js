@@ -1,9 +1,15 @@
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+
+import {
+  mkdtemp,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 
 import request from 'supertest';
+
 import {
   afterEach,
   beforeEach,
@@ -12,15 +18,18 @@ import {
   vi,
 } from 'vitest';
 
+// Locate the server directory using the application module's path.
 const serverDirectory = fileURLToPath(
   new URL('../../app.js', import.meta.url),
 );
 
 const serverPath = path.dirname(serverDirectory);
 
+// Keep the database module and temporary frontend directory available for cleanup.
 let db;
 let temporaryDirectory;
 
+// Reload modules with production settings and an isolated in-memory database.
 beforeEach(() => {
   vi.resetModules();
 
@@ -30,6 +39,7 @@ beforeEach(() => {
   vi.stubEnv('SEED_DEMO_ACCOUNTS', 'false');
 });
 
+// Restore mocked paths, close the database, and remove temporary frontend files.
 afterEach(async () => {
   vi.restoreAllMocks();
 
@@ -47,7 +57,9 @@ afterEach(async () => {
       });
     }
   } finally {
+    // Restore environment variables even if closing the database fails.
     db = undefined;
+
     vi.unstubAllEnvs();
 
     if (temporaryDirectory) {
@@ -61,11 +73,13 @@ afterEach(async () => {
   }
 });
 
+// Production routing must serve frontend pages while preserving genuine 404 responses.
 it('serves production pages and assets without masking missing APIs or files', async () => {
   temporaryDirectory = await mkdtemp(
     path.join(os.tmpdir(), 'mountain-hut-frontend-test-'),
   );
 
+  // Create a minimal frontend page and stylesheet as static-file fixtures.
   const html =
     '<!doctype html><html><body>Frontend test page</body></html>';
 
@@ -96,9 +110,12 @@ it('serves production pages and assets without masking missing APIs or files', a
     return originalResolve(...parts);
   });
 
+  // Import the application after configuring its environment and frontend path.
   db = await import('../../db.js');
+
   const { default: app } = await import('../../app.js');
 
+  // Both the root URL and frontend routes must return the HTML entry point.
   for (const url of ['/', '/frontend-test-route']) {
     const response = await request(app).get(url);
 
@@ -107,11 +124,13 @@ it('serves production pages and assets without masking missing APIs or files', a
     expect(response.text).toBe(html);
   }
 
+  // Existing static assets must return their actual contents.
   const assetResponse = await request(app).get('/style.css');
 
   expect(assetResponse.status).toBe(200);
   expect(assetResponse.text).toBe(stylesheet);
 
+  // Missing API endpoints and files must not fall back to the frontend page.
   for (const url of [
     '/api',
     '/api/nonexistent-test-endpoint',
@@ -123,6 +142,7 @@ it('serves production pages and assets without masking missing APIs or files', a
     expect(response.text).not.toBe(html);
   }
 
+  // The frontend fallback must not handle POST requests.
   const postResponse = await request(app)
     .post('/frontend-test-route')
     .send({});

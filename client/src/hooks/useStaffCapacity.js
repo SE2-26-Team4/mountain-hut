@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 
 import CapacityAPI from '../API/capacity-api.js';
 
-
 /**
+ * API data types used by the capacity configuration.
+ *
  * @typedef {import('../models/models.js').MealSlotDTO} MealSlotDTO
  * @typedef {import('../models/models.js').DiningTableDTO} DiningTableDTO
  * @typedef {import('../models/models.js').MealSlotInputDTO} MealSlotInputDTO
@@ -11,14 +12,17 @@ import CapacityAPI from '../API/capacity-api.js';
  * @typedef {import('../API/capacity-api.js').ConfiguredMealSlot} ConfiguredMealSlot
  */
 
+// Default values for creating or resetting a meal-slot form.
 /** @type {MealSlotInputDTO & { isActive: boolean }} */
 const emptySlotForm = {
+  slotDate: '',
   name: '',
   startTime: '',
   endTime: '',
   isActive: true,
 };
 
+// Keep the seat count as text while the user edits the table form.
 const emptyTableForm = {
   name: '',
   seatCount: '',
@@ -26,6 +30,8 @@ const emptyTableForm = {
 };
 
 /**
+ * Extracts an error message or provides a fallback.
+ *
  * @param {unknown} error
  * @returns {string}
  */
@@ -35,7 +41,32 @@ function getErrorMessage(error) {
     : 'An unexpected error occurred.';
 }
 
+/**
+ * Returns today's calendar date in the hut's time zone.
+ */
+function getTodayInHutTimeZone() {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Rome',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+
+  /** @param {Intl.DateTimeFormatPartTypes} type */
+  const value = (type) =>
+    parts.find((part) => part.type === type)?.value;
+
+  return `${value('year')}-${value('month')}-${value('day')}`;
+}
+
+// Manage staff capacity data, forms, modal visibility, and table assignments.
 export default function useStaffCapacity() {
+  // Start with today's date in the hut's time zone.
+  const [selectedDate, setSelectedDate] = useState(
+    getTodayInHutTimeZone
+  );
+
+  // Store configured meal slots and reusable dining tables.
   const [mealSlots, setMealSlots] = useState(
     /** @type {ConfiguredMealSlot[]} */ ([]),
   );
@@ -44,15 +75,18 @@ export default function useStaffCapacity() {
     /** @type {DiningTableDTO[]} */ ([]),
   );
 
+  // Track the slot and table selection used by the assignment modal.
   const [selectedSlotId, setSelectedSlotId] = useState('');
 
   const [selectedTableIds, setSelectedTableIds] = useState(
     /** @type {number[]} */ ([]),
   );
 
+  // Store the values currently displayed in the configuration forms.
   const [slotForm, setSlotForm] = useState(emptySlotForm);
   const [tableForm, setTableForm] = useState(emptyTableForm);
 
+  // A null editing ID indicates that the form creates a new record.
   const [editingSlotId, setEditingSlotId] = useState(
     /** @type {number | null} */ (null),
   );
@@ -61,21 +95,73 @@ export default function useStaffCapacity() {
     /** @type {number | null} */ (null),
   );
 
+  // Control the visibility of the slot, table, and assignment modals.
   const [isSlotModalOpen, setIsSlotModalOpen] = useState(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
   const [isAssignmentModalOpen, setIsAssignmentModalOpen] =
     useState(false);
 
+  // Track messages and pending load or save operations.
   const [errorMessage, setErrorMessage] = useState('');
   const [feedbackMessage, setFeedbackMessage] = useState('');
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Show only slots for the selected date, ordered by start time and ID.
+  const visibleMealSlots = mealSlots
+    .filter((slot) => slot.slotDate === selectedDate)
+    .sort(
+      (first, second) =>
+        first.startTime.localeCompare(second.startTime) ||
+        first.id - second.id
+    );
+
+  // Resolve the slot currently selected for table assignment.
   const selectedSlot = mealSlots.find(
     (slot) => String(slot.id) === selectedSlotId,
   );
 
+  /**
+   * Returns an empty string when the table can be assigned,
+   * otherwise the reason why it is unavailable.
+   *
+   * @param {DiningTableDTO} table
+   * @returns {string}
+   */
+  function getTableUnavailableReason(table) {
+    // Inactive tables cannot contribute bookable seats.
+    if (!table.isActive) {
+      return 'Inactive table';
+    }
+
+    // Overlap checks apply only when the selected slot is active.
+    if (!selectedSlot || !selectedSlot.isActive) {
+      return '';
+    }
+
+    // Find another active slot using the same table at overlapping times.
+    const conflictingSlot = mealSlots.find((slot) =>
+      slot.id !== selectedSlot.id &&
+      slot.slotDate === selectedSlot.slotDate &&
+      slot.isActive &&
+      slot.startTime < selectedSlot.endTime &&
+      slot.endTime > selectedSlot.startTime &&
+      slot.tableIds.includes(table.id)
+    );
+
+    if (!conflictingSlot) {
+      return '';
+    }
+
+    // Include the conflicting service and time range in the explanation.
+    return (
+      `Already assigned to ${conflictingSlot.name}, ` +
+      `${conflictingSlot.startTime}–${conflictingSlot.endTime}`
+    );
+  }
+
+  // Synchronize the table selection when the selected slot object changes.
   const [previousSelectedSlot, setPreviousSelectedSlot] =
     useState(selectedSlot);
 
@@ -84,6 +170,7 @@ export default function useStaffCapacity() {
     setSelectedTableIds(selectedSlot?.tableIds ?? []);
   }
 
+  // Derive active records and the total capacity of all active tables.
   const activeSlots = mealSlots.filter((slot) => slot.isActive);
   const activeTables = diningTables.filter((table) => table.isActive);
 
@@ -92,10 +179,15 @@ export default function useStaffCapacity() {
     0,
   );
 
-  /** @param {number} tableId */
+  /**
+   * Checks whether a table is included in the current selection.
+   *
+   * @param {number} tableId
+   */
   const isTableSelected = (tableId) =>
     selectedTableIds.some((id) => String(id) === String(tableId));
 
+  // Count seats only from selected tables that are active.
   const assignedCapacity = diningTables.reduce(
     (total, table) =>
       isTableSelected(table.id) && table.isActive
@@ -104,10 +196,18 @@ export default function useStaffCapacity() {
     0,
   );
 
-  /** @param {ConfiguredMealSlot} slot */
+  /**
+   * Returns the number of table IDs assigned to a slot.
+   *
+   * @param {ConfiguredMealSlot} slot
+   */
   const getSlotTableCount = (slot) => slot.tableIds.length;
 
-  /** @param {ConfiguredMealSlot} slot */
+  /**
+   * Calculates a slot's capacity using its assigned active tables.
+   *
+   * @param {ConfiguredMealSlot} slot
+   */
   const getSlotCapacity = (slot) =>
     diningTables.reduce(
       (total, table) =>
@@ -119,6 +219,7 @@ export default function useStaffCapacity() {
       0,
     );
 
+  // Load configuration on mount and ignore results after unmounting.
   useEffect(() => {
     let isMounted = true;
 
@@ -133,6 +234,7 @@ export default function useStaffCapacity() {
           setMealSlots(loadedMealSlots);
           setDiningTables(loadedDiningTables);
 
+          // Select the first loaded slot when configuration is available.
           setSelectedSlotId(
             loadedMealSlots.length > 0
               ? String(loadedMealSlots[0].id)
@@ -156,7 +258,11 @@ export default function useStaffCapacity() {
     };
   }, []);
 
-  /** @param {import('react').ChangeEvent<HTMLInputElement>} event */
+  /**
+   * Updates a slot field, preserving boolean values for checkboxes.
+   *
+   * @param {import('react').ChangeEvent<HTMLInputElement>} event
+   */
   function updateSlotField(event) {
     const { name, value, type, checked } = event.target;
 
@@ -166,7 +272,11 @@ export default function useStaffCapacity() {
     }));
   }
 
-  /** @param {import('react').ChangeEvent<HTMLInputElement>} event */
+  /**
+   * Updates a table field, preserving boolean values for checkboxes.
+   *
+   * @param {import('react').ChangeEvent<HTMLInputElement>} event
+   */
   function updateTableField(event) {
     const { name, value, type, checked } = event.target;
 
@@ -176,13 +286,20 @@ export default function useStaffCapacity() {
     }));
   }
 
+  // Open a new slot form using the currently selected date.
   function openNewSlotForm() {
     setEditingSlotId(null);
-    setSlotForm(emptySlotForm);
+
+    setSlotForm({
+      ...emptySlotForm,
+      slotDate: selectedDate,
+    });
+
     setErrorMessage('');
     setIsSlotModalOpen(true);
   }
 
+  // Open an empty form for creating a reusable dining table.
   function openNewTableForm() {
     setEditingTableId(null);
     setTableForm(emptyTableForm);
@@ -190,11 +307,16 @@ export default function useStaffCapacity() {
     setIsTableModalOpen(true);
   }
 
-  /** @param {MealSlotDTO} slot */
+  /**
+   * Populate the slot form with an existing slot's values.
+   *
+   * @param {MealSlotDTO} slot
+   */
   function startEditingSlot(slot) {
     setEditingSlotId(slot.id);
 
     setSlotForm({
+      slotDate: slot.slotDate,
       name: slot.name,
       startTime: slot.startTime,
       endTime: slot.endTime,
@@ -205,7 +327,11 @@ export default function useStaffCapacity() {
     setIsSlotModalOpen(true);
   }
 
-  /** @param {DiningTableDTO} table */
+  /**
+   * Populate the table form with an existing table's values.
+   *
+   * @param {DiningTableDTO} table
+   */
   function startEditingTable(table) {
     setEditingTableId(table.id);
 
@@ -219,7 +345,11 @@ export default function useStaffCapacity() {
     setIsTableModalOpen(true);
   }
 
-  /** @param {ConfiguredMealSlot} slot */
+  /**
+   * Open the assignment modal with the slot's existing table selection.
+   *
+   * @param {ConfiguredMealSlot} slot
+   */
   function openAssignmentModal(slot) {
     setSelectedSlotId(String(slot.id));
     setSelectedTableIds(slot.tableIds);
@@ -228,19 +358,25 @@ export default function useStaffCapacity() {
     setIsAssignmentModalOpen(true);
   }
 
-  /** @param {import('react').SubmitEvent<HTMLFormElement>} event */
+  /**
+   * Validate and save a new or existing meal slot.
+   *
+   * @param {import('react').SubmitEvent<HTMLFormElement>} event
+   */
   async function handleSlotSubmit(event) {
     event.preventDefault();
 
     setErrorMessage('');
     setFeedbackMessage('');
 
+    // Require a service name before contacting the server.
     if (!slotForm.name.trim()) {
       setErrorMessage('Enter a name for the meal slot.');
 
       return;
     }
 
+    // Require an end time later than the start time.
     if (
       !slotForm.startTime ||
       !slotForm.endTime ||
@@ -251,6 +387,7 @@ export default function useStaffCapacity() {
       return;
     }
 
+    // Remove surrounding whitespace from the service name.
     const mealSlotData = {
       ...slotForm,
       name: slotForm.name.trim(),
@@ -260,6 +397,7 @@ export default function useStaffCapacity() {
 
     try {
       if (editingSlotId !== null) {
+        // Update the slot while retaining its existing table assignments.
         const updatedMealSlot = await CapacityAPI.updateMealSlot(
           editingSlotId,
           mealSlotData,
@@ -278,6 +416,7 @@ export default function useStaffCapacity() {
 
         setFeedbackMessage('Meal slot updated successfully.');
       } else {
+        // Create a slot with no table assignments and select it.
         const createdMealSlot =
           await CapacityAPI.createMealSlot(mealSlotData);
 
@@ -292,23 +431,30 @@ export default function useStaffCapacity() {
         setFeedbackMessage('Meal slot added successfully.');
       }
 
+      // Close and reset the form only after a successful save.
       setIsSlotModalOpen(false);
       setEditingSlotId(null);
       setSlotForm(emptySlotForm);
     } catch (error) {
+      // Keep the form open so the user can correct or retry the request.
       setErrorMessage(getErrorMessage(error));
     } finally {
       setIsSaving(false);
     }
   }
 
-  /** @param {import('react').SubmitEvent<HTMLFormElement>} event */
+  /**
+   * Validate and save a new or existing dining table.
+   *
+   * @param {import('react').SubmitEvent<HTMLFormElement>} event
+   */
   async function handleTableSubmit(event) {
     event.preventDefault();
 
     setErrorMessage('');
     setFeedbackMessage('');
 
+    // Convert the input text to a number before validating the seat count.
     const seatCount = Number(tableForm.seatCount);
 
     if (!tableForm.name.trim()) {
@@ -323,6 +469,7 @@ export default function useStaffCapacity() {
       return;
     }
 
+    // Prepare the normalized table data expected by the API.
     /** @type {DiningTableInputDTO & { isActive: boolean }} */
     const diningTableData = {
       ...tableForm,
@@ -334,6 +481,7 @@ export default function useStaffCapacity() {
 
     try {
       if (editingTableId !== null) {
+        // Replace the edited table with the record returned by the server.
         const updatedDiningTable = await CapacityAPI.updateDiningTable(
           editingTableId,
           diningTableData,
@@ -347,6 +495,7 @@ export default function useStaffCapacity() {
 
         setFeedbackMessage('Dining table updated successfully.');
       } else {
+        // Add the newly created table to the reusable table list.
         const createdDiningTable =
           await CapacityAPI.createDiningTable(diningTableData);
 
@@ -354,17 +503,23 @@ export default function useStaffCapacity() {
         setFeedbackMessage('Dining table added successfully.');
       }
 
+      // Close and reset the form only after a successful save.
       setIsTableModalOpen(false);
       setEditingTableId(null);
       setTableForm(emptyTableForm);
     } catch (error) {
+      // Preserve the entered values when the server rejects the save.
       setErrorMessage(getErrorMessage(error));
     } finally {
       setIsSaving(false);
     }
   }
 
-  /** @param {number} tableId */
+  /**
+   * Add or remove a table from the unsaved assignment selection.
+   *
+   * @param {number} tableId
+   */
   function toggleTableAssignment(tableId) {
     setSelectedTableIds((current) =>
       current.some((id) => String(id) === String(tableId))
@@ -373,7 +528,9 @@ export default function useStaffCapacity() {
     );
   }
 
+  // Save the selected tables as the complete assignment for the chosen slot.
   async function saveAssignments() {
+    // Require a selected slot before submitting table assignments.
     if (!selectedSlot) {
       setErrorMessage('Choose a meal service before assigning tables.');
 
@@ -390,6 +547,7 @@ export default function useStaffCapacity() {
         selectedTableIds,
       );
 
+      // Use the server response as the saved assignment.
       const savedTableIds = capacity.tables.map((table) => table.id);
 
       setMealSlots((current) =>
@@ -404,12 +562,34 @@ export default function useStaffCapacity() {
       setFeedbackMessage('Table assignments saved successfully.');
       setIsAssignmentModalOpen(false);
     } catch (error) {
+      // Keep the modal open when assignments cannot be saved.
       setErrorMessage(getErrorMessage(error));
     } finally {
       setIsSaving(false);
     }
   }
 
+  /**
+   * Change the displayed date and clear slot-related forms and selections.
+   *
+   * @param {string} value
+   */
+  function changeSelectedDate(value) {
+    // Avoid changing the date during a save or to an empty value.
+    if (isSaving || !value) return;
+
+    setSelectedDate(value);
+    setSelectedSlotId('');
+    setSelectedTableIds([]);
+    setEditingSlotId(null);
+    setSlotForm(emptySlotForm);
+    setIsSlotModalOpen(false);
+    setIsAssignmentModalOpen(false);
+    setErrorMessage('');
+    setFeedbackMessage('');
+  }
+
+  // Expose configuration data, derived values, forms, and actions to components.
   return {
     mealSlots,
     diningTables,
@@ -420,6 +600,10 @@ export default function useStaffCapacity() {
     selectedSlotId,
     selectedTableIds,
     isTableSelected,
+    getTableUnavailableReason,
+    selectedDate,
+    visibleMealSlots,
+    changeSelectedDate,
     assignedCapacity,
     slotForm,
     tableForm,

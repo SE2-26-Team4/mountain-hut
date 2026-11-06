@@ -15,17 +15,28 @@ CREATE TABLE users (
 
 CREATE TABLE meal_slots (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE CHECK (length(trim(name)) > 0),
+  slot_date TEXT NOT NULL,
+  name TEXT NOT NULL CHECK (length(trim(name)) > 0),
   start_time TEXT NOT NULL,
   end_time TEXT NOT NULL,
-  is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1))
+  is_active INTEGER NOT NULL DEFAULT 1
+    CHECK (is_active IN (0, 1))
 );
+
+CREATE UNIQUE INDEX idx_meal_slots_name_times
+  ON meal_slots (
+    slot_date,
+    trim(name) COLLATE NOCASE,
+    start_time,
+    end_time
+  );
 
 CREATE TABLE dining_tables (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE CHECK (length(trim(name)) > 0),
   seat_count INTEGER NOT NULL CHECK (seat_count > 0),
-  is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1))
+  is_active INTEGER NOT NULL DEFAULT 1
+    CHECK (is_active IN (0, 1))
 );
 
 CREATE TABLE slot_tables (
@@ -40,6 +51,8 @@ CREATE TABLE bookings (
   booking_date TEXT NOT NULL,
   slot_id INTEGER NOT NULL REFERENCES meal_slots(id),
   party_size INTEGER NOT NULL CHECK (party_size > 0),
+  special_requests TEXT NOT NULL DEFAULT ''
+    CHECK (length(special_requests) <= 1000),
   status TEXT NOT NULL DEFAULT 'confirmed'
     CHECK (status IN ('confirmed', 'cancelled')),
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
