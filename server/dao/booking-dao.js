@@ -286,19 +286,11 @@ export async function createBooking({
         }
       }
 
-      // Ensure a valid combination was found before allocating seats.
-      if (!bestCombination) {
-        throw new BookingError(
-          'NO_AVAILABILITY',
-          'There are not enough available seats.'
-        );
-      }
-
       // Reserve exactly the party size across the chosen tables.
       // Any unused seats remain available for other parties.
       let remainingSeats = partySize;
 
-      for (const table of bestCombination) {
+      for (const table of /** @type {Candidate[]} */ (bestCombination)) {
         const seatsReserved = Math.min(
           table.availableSeats,
           remainingSeats
