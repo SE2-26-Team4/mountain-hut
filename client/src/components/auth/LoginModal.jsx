@@ -1,5 +1,4 @@
 import { Col, Row } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
 
 import LoginForm from './LoginForm.jsx';
 
@@ -90,15 +89,6 @@ function LoginModal({
                 feedbackMessage={feedbackMessage}
                 onLogin={onLogin}
               />
-
-              {errorMessage && (
-                <Link
-                  to="/staff/login"
-                  className="mh-primary-button mt-3"
-                >
-                  Go to staff login
-                </Link>
-              )}
             </div>
           </Col>
         </Row>

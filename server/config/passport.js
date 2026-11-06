@@ -13,7 +13,10 @@ passport.use(
       try {
         const user = await getUserByEmail(email);
 
-        if (!user || !(await verifyPassword(password, user.password_hash))) {
+        if (
+          !user ||
+          !(await verifyPassword(password, user.password_hash))
+        ) {
           return callback(null, false, {
             message: 'Incorrect email or password.',
           });

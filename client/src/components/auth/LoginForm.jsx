@@ -8,15 +8,16 @@ import MountainLogo from '../common/MountainLogo.jsx';
  * @typedef {import('../../API/session-api.js').LoginCredentials} LoginCredentials
  */
 
-// Default welcome copy for each sign-in area.
 const AREA_COPY = {
   hiker: {
     title: 'Sign in',
-    description: 'Welcome back! Sign in to manage your reservations and enjoy your alpine experience.',
+    description:
+      'Welcome back! Sign in to manage your reservations and enjoy your alpine experience.',
   },
   staff: {
     title: 'Staff sign in',
-    description: 'Welcome back! Sign in with your staff account to manage hut services.',
+    description:
+      'Welcome back! Sign in with your staff account to manage hut services.',
   },
 };
 
@@ -175,7 +176,9 @@ function LoginForm({
             <button
               className="mh-auth-password-toggle"
               type="button"
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-label={
+                showPassword ? 'Hide password' : 'Show password'
+              }
               aria-pressed={showPassword}
               disabled={isSubmitting}
               onClick={() => setShowPassword((current) => !current)}

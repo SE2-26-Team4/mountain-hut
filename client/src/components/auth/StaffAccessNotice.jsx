@@ -19,58 +19,59 @@ export default function StaffAccessNotice() {
   }
 
   return (
-  <Row
-    as="main"
-    className="g-0 align-items-center justify-content-center mh-staff-login-page"
-  >
-    <Col
-      as="section"
-      xs={12}
-      className="mh-staff-login-card text-center"
-      aria-labelledby="staff-access-title"
+    <Row
+      as="main"
+      className="g-0 align-items-center justify-content-center mh-staff-login-page"
     >
-      <h1 id="staff-access-title" className="h3 mb-3">
-        Sign out to continue
-      </h1>
+      <Col
+        as="section"
+        xs={12}
+        className="mh-staff-login-card text-center"
+        aria-labelledby="staff-access-title"
+      >
+        <h1 id="staff-access-title" className="h3 mb-3">
+          Sign out to continue
+        </h1>
 
-      <p className="text-secondary mb-4">
-        To access this page, please sign out of your staff account.
-      </p>
+        <p className="text-secondary mb-4">
+          To access this page, please sign out of your staff account.
+        </p>
 
-      {errorMessage && (
-        <Alert variant="danger" role="alert">
-          {errorMessage}
-        </Alert>
-      )}
+        {errorMessage && (
+          <Alert variant="danger" role="alert">
+            {errorMessage}
+          </Alert>
+        )}
 
-      <div className="d-flex flex-column align-items-center gap-3">
-        <Button
-          className="mh-primary-button mh-signout-button d-flex align-items-center justify-content-center gap-2"
-          onClick={handleSignOut}
-          disabled={isSigningOut}
-        >
-          {isSigningOut ? (
-            <>
-              <Spinner
-                size="sm"
-                animation="border"
-                aria-hidden="true"
-              />
-              <span>Signing out…</span>
-            </>
-          ) : (
-            'Sign out and continue'
-          )}
-        </Button>
+        <div className="d-flex flex-column align-items-center gap-3">
+          <Button
+            className="mh-primary-button mh-signout-button d-flex align-items-center justify-content-center gap-2"
+            onClick={handleSignOut}
+            disabled={isSigningOut}
+          >
+            {isSigningOut ? (
+              <>
+                <Spinner
+                  size="sm"
+                  animation="border"
+                  aria-hidden="true"
+                />
 
-        <Link
+                <span>Signing out…</span>
+              </>
+            ) : (
+              'Sign out and continue'
+            )}
+          </Button>
+
+          <Link
             className="d-inline-block mt-3 text-dark small"
             to="/staff/capacity"
-            >
+          >
             ← Back to staff account
-        </Link>
-      </div>
-    </Col>
-  </Row>
-);
+          </Link>
+        </div>
+      </Col>
+    </Row>
+  );
 }
