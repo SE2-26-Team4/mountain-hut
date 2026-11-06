@@ -12,6 +12,7 @@ import {
   vi,
 } from 'vitest';
 
+// Simulate email sending so booking-rule tests never contact the provider.
 vi.mock('../../services/booking-confirmation-service.js', () => ({
   sendBookingConfirmationEmail: vi.fn().mockResolvedValue({
     id: 'test-email-id',
@@ -27,13 +28,16 @@ import {
 import { initializeAccounts } from '../../init/init-accounts.js';
 import { hashPassword } from '../../services/password.js';
 
+// Use unique fixture names and a shared password for the test accounts.
 const password = 'BookingRulesTest123!';
 const uniqueSuffix = randomUUID();
 
+// Separate dates isolate sharing, duplicate-booking, and deadline scenarios.
 const sharedDate = '2099-10-01';
 const multiTableDate = '2099-10-03';
 const soonDate = '2030-01-04';
 
+// Keep authenticated hikers and created fixture IDs for requests and cleanup.
 /** @type {{ id: number, agent: import('supertest').Agent }[]} */
 const hikers = [];
 
@@ -49,6 +53,8 @@ let multiTableSlotId;
 let soonSlotId;
 
 /**
+ * Creates a slot and assigns newly created tables with the requested capacities.
+ *
  * @param {string} slotDate
  * @param {string} startTime
  * @param {string} endTime
@@ -64,6 +70,7 @@ async function createSlotWithTables(
   endTime,
   seatCounts,
 ) {
+  // Create the slot and track it for later cleanup.
   const slot = await runAsync(
     `INSERT INTO meal_slots (
        slot_date, name, start_time, end_time
@@ -81,6 +88,7 @@ async function createSlotWithTables(
 
   const slotTableIds = [];
 
+  // Create a separate reusable table for each requested seat count.
   for (const seatCount of seatCounts) {
     const table = await runAsync(
       `INSERT INTO dining_tables (name, seat_count)
@@ -94,6 +102,7 @@ async function createSlotWithTables(
     tableIds.push(table.lastID);
     slotTableIds.push(table.lastID);
 
+    // Assign the new table to this slot.
     await runAsync(
       'INSERT INTO slot_tables (slot_id, table_id) VALUES (?, ?)',
       [slot.lastID, table.lastID],
@@ -107,6 +116,8 @@ async function createSlotWithTables(
 }
 
 /**
+ * Counts confirmed bookings for one hiker, date, and slot.
+ *
  * @param {number} hikerId
  * @param {string} bookingDate
  * @param {number} slotId
@@ -130,8 +141,10 @@ async function countConfirmedBookings(
   return row.count;
 }
 
+// Remove bookings and their allocations while preserving slot configuration.
 async function clearBookings() {
   for (const slotId of slotIds) {
+    // Delete child records before their parent bookings.
     await runAsync(
       `DELETE FROM booking_table_allocations
        WHERE booking_id IN (
@@ -147,12 +160,14 @@ async function clearBookings() {
   }
 }
 
+// Create authenticated hikers and the configurations used by the suite.
 beforeAll(async () => {
   await initializeDatabase();
   await initializeAccounts();
 
   const passwordHash = await hashPassword(password);
 
+  // Create two hikers so separate parties can share a table.
   for (const index of [1, 2]) {
     const email =
       `booking-rules-${index}-${uniqueSuffix}@example.com`;
@@ -179,6 +194,7 @@ beforeAll(async () => {
     });
   }
 
+  // Use one four-seat table for sharing tests.
   const shared = await createSlotWithTables(
     sharedDate,
     '12:00',
@@ -189,6 +205,7 @@ beforeAll(async () => {
   sharedSlotId = shared.slotId;
   [sharedTableId] = shared.slotTableIds;
 
+  // Provide sufficient capacity so duplicate rejection is not caused by fullness.
   const multiTable = await createSlotWithTables(
     multiTableDate,
     '19:00',
@@ -198,6 +215,7 @@ beforeAll(async () => {
 
   multiTableSlotId = multiTable.slotId;
 
+  // Use a fixed lunch slot for tests with a simulated clock.
   const soon = await createSlotWithTables(
     soonDate,
     '12:00',
@@ -208,17 +226,21 @@ beforeAll(async () => {
   soonSlotId = soon.slotId;
 });
 
+// Start each test without previously saved bookings.
 beforeEach(async () => {
   await clearBookings();
 });
 
+// Restore the real clock after tests that simulate a specific time.
 afterEach(() => {
   vi.useRealTimers();
 });
 
+// Remove all fixtures in dependency order after the suite finishes.
 afterAll(async () => {
   await clearBookings();
 
+  // Remove assignments before deleting their slots and tables.
   for (const slotId of slotIds) {
     await runAsync(
       'DELETE FROM slot_tables WHERE slot_id = ?',
@@ -238,6 +260,7 @@ afterAll(async () => {
     );
   }
 
+  // Remove the additional hiker accounts created by this suite.
   for (const { id } of hikers) {
     await runAsync(
       'DELETE FROM users WHERE id = ?',
@@ -247,6 +270,7 @@ afterAll(async () => {
 });
 
 describe('MH-01 table sharing', () => {
+  // A partially occupied table must expose its remaining seats.
   it('counts the free seats of a partially occupied table as available', async () => {
     const first = await hikers[0].agent
       .post('/api/bookings')
@@ -258,6 +282,7 @@ describe('MH-01 table sharing', () => {
 
     expect(first.status).toBe(201);
 
+    // Two seats out of four must remain available.
     const response = await request(app)
       .get('/api/bookings/availability')
       .query({
@@ -272,6 +297,7 @@ describe('MH-01 table sharing', () => {
     ).toBe(2);
   });
 
+  // Another hiker can reserve the remaining seats at the same table.
   it('seats another party at a partially occupied table', async () => {
     const first = await hikers[0].agent
       .post('/api/bookings')
@@ -293,6 +319,7 @@ describe('MH-01 table sharing', () => {
 
     expect(second.status).toBe(201);
 
+    // Both parties must use the same shared table.
     expect(second.body.booking.allocations).toEqual([
       {
         tableId: sharedTableId,
@@ -303,6 +330,7 @@ describe('MH-01 table sharing', () => {
 });
 
 describe('MH-01 booking constraints', () => {
+  // A hiker cannot hold two confirmed bookings for the same date and slot.
   it('rejects a second booking by the same hiker for the same date and slot', async () => {
     const [hiker] = hikers;
 
@@ -318,6 +346,7 @@ describe('MH-01 booking constraints', () => {
 
     expect(first.status).toBe(201);
 
+    // Submit the same booking again while seats are still available.
     const second = await hiker.agent
       .post('/api/bookings')
       .send(booking);
@@ -325,6 +354,7 @@ describe('MH-01 booking constraints', () => {
     expect(second.status).toBe(409);
     expect(second.body.error.code).toBe('DUPLICATE_BOOKING');
 
+    // Verify that only the first booking was persisted.
     expect(
       await countConfirmedBookings(
         hiker.id,
@@ -334,6 +364,7 @@ describe('MH-01 booking constraints', () => {
     ).toBe(1);
   });
 
+  // A past date must be rejected without creating a confirmed booking.
   it('rejects a booking for a past date', async () => {
     const [hiker] = hikers;
     const pastDate = '2000-01-01';
@@ -358,71 +389,12 @@ describe('MH-01 booking constraints', () => {
     ).toBe(0);
   });
 
+  // Booking must close two hours before the meal service starts.
   it('rejects a booking less than two hours before the meal slot starts', async () => {
-  // January 4, 11:00 in Rome: lunch starts in one hour.
-  vi.useFakeTimers({ toFake: ['Date'] });
-  vi.setSystemTime(new Date('2030-01-04T10:00:00Z'));
-
-  const [hiker] = hikers;
-
-  const account = await getAsync(
-    'SELECT email FROM users WHERE id = ?',
-    [hiker.id],
-  );
-
-  // Create the session after setting the simulated clock.
-  const agent = request.agent(app);
-
-  const login = await agent
-    .post('/api/sessions')
-    .send({
-      email: account.email,
-      password,
-    });
-
-  expect(login.status).toBe(201);
-
-  const response = await agent
-    .post('/api/bookings')
-    .send({
-      bookingDate: soonDate,
-      slotId: soonSlotId,
-      partySize: 1,
-    });
-
-  expect(response.status).toBe(409);
-  expect(response.body.error.code).toBe('BOOKING_TOO_LATE');
-
-  expect(
-    await countConfirmedBookings(
-      hiker.id,
-      soonDate,
-      soonSlotId,
-    ),
-  ).toBe(0);
-});
-
-it.each([
-  [
-    'just before the deadline',
-    '2030-01-04T08:59:59.999Z',
-    201,
-  ],
-  [
-    'exactly at the deadline',
-    '2030-01-04T09:00:00.000Z',
-    201,
-  ],
-  [
-    'just after the deadline',
-    '2030-01-04T09:00:00.001Z',
-    409,
-  ],
-])(
-  'handles booking %s',
-  async (_label, instant, expectedStatus) => {
+    // January 4 at 11:00 in Rome: lunch starts in one hour.
+    // Simulate Date only so network-related timers continue working normally.
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date(instant));
+    vi.setSystemTime(new Date('2030-01-04T10:00:00Z'));
 
     const [hiker] = hikers;
 
@@ -431,7 +403,7 @@ it.each([
       [hiker.id],
     );
 
-    // Authenticate after setting the simulated clock.
+    // Create the session after setting the simulated clock.
     const agent = request.agent(app);
 
     const login = await agent
@@ -451,24 +423,90 @@ it.each([
         partySize: 1,
       });
 
-    expect(
-      response.status,
-      JSON.stringify(response.body),
-    ).toBe(expectedStatus);
+    expect(response.status).toBe(409);
+    expect(response.body.error.code).toBe('BOOKING_TOO_LATE');
 
-    if (expectedStatus === 409) {
-      expect(response.body.error.code).toBe(
-        'BOOKING_TOO_LATE',
-      );
-    }
-
+    // Rejected late bookings must not occupy seats.
     expect(
       await countConfirmedBookings(
         hiker.id,
         soonDate,
         soonSlotId,
       ),
-    ).toBe(expectedStatus === 201 ? 1 : 0);
-  },
-);
+    ).toBe(0);
+  });
+
+  // Check the exact deadline boundary down to a single millisecond.
+  it.each([
+    [
+      'just before the deadline',
+      '2030-01-04T08:59:59.999Z',
+      201,
+    ],
+    [
+      'exactly at the deadline',
+      '2030-01-04T09:00:00.000Z',
+      201,
+    ],
+    [
+      'just after the deadline',
+      '2030-01-04T09:00:00.001Z',
+      409,
+    ],
+  ])(
+    'handles booking %s',
+    async (_label, instant, expectedStatus) => {
+      // Set the clock immediately before, at, or after the booking deadline.
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date(instant));
+
+      const [hiker] = hikers;
+
+      const account = await getAsync(
+        'SELECT email FROM users WHERE id = ?',
+        [hiker.id],
+      );
+
+      // Authenticate after setting the clock to keep the session valid.
+      const agent = request.agent(app);
+
+      const login = await agent
+        .post('/api/sessions')
+        .send({
+          email: account.email,
+          password,
+        });
+
+      expect(login.status).toBe(201);
+
+      const response = await agent
+        .post('/api/bookings')
+        .send({
+          bookingDate: soonDate,
+          slotId: soonSlotId,
+          partySize: 1,
+        });
+
+      // Include the response body in assertion failures for easier diagnosis.
+      expect(
+        response.status,
+        JSON.stringify(response.body),
+      ).toBe(expectedStatus);
+
+      if (expectedStatus === 409) {
+        expect(response.body.error.code).toBe(
+          'BOOKING_TOO_LATE',
+        );
+      }
+
+      // Only requests accepted before or exactly at the deadline are persisted.
+      expect(
+        await countConfirmedBookings(
+          hiker.id,
+          soonDate,
+          soonSlotId,
+        ),
+      ).toBe(expectedStatus === 201 ? 1 : 0);
+    },
+  );
 });
