@@ -1,4 +1,4 @@
-import { Button, Col, Row, Spinner } from 'react-bootstrap';
+import { Button, Col, Form, Row, Spinner } from 'react-bootstrap';
 
 /**
  * @typedef {ReturnType<typeof import('../../hooks/useBookingLogic.js').default>} BookingState
@@ -19,6 +19,8 @@ function BookingAvailability({ booking, isAuthenticated }) {
     isBooking,
     handleReserve,
     isBookingWindowClosed,
+    specialRequests,
+    changeSpecialRequests,
   } = booking;
 
   if (!availability) return null;
@@ -89,6 +91,37 @@ function BookingAvailability({ booking, isAuthenticated }) {
             </p>
           </div>
         </div>
+
+        {canBook && (
+          <Form.Group
+            controlId="booking-special-requests"
+            className="px-3 px-md-4 py-3"
+          >
+            <Form.Label>
+              Special requests or allergies (optional)
+            </Form.Label>
+
+            <Form.Control
+              as="textarea"
+              rows={3}
+              maxLength={1000}
+              value={specialRequests}
+              onChange={(event) =>
+                changeSpecialRequests(event.target.value)
+              }
+              disabled={isBooking}
+              placeholder="For example: food allergies, intolerances or dietary requirements for your group."
+              aria-describedby="booking-special-requests-help"
+            />
+
+            <Form.Text
+              id="booking-special-requests-help"
+              className="text-muted"
+            >
+              Maximum 1,000 characters.
+            </Form.Text>
+          </Form.Group>
+        )}
 
         {canAccommodateParty && (
           <Row className="g-0 align-items-center mh-availability-confirmation-bottom">

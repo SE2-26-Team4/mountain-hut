@@ -45,6 +45,7 @@ export default function ProfileMenu({
 
         <span className="mh-profile-details">
           <strong>{name}</strong>
+
           <small>{roleLabel}</small>
         </span>
 
@@ -59,6 +60,7 @@ export default function ProfileMenu({
       <Dropdown.Menu className="mh-profile-menu">
         <Dropdown.Header className="mh-profile-menu-heading d-flex flex-column">
           <span>{name}</span>
+
           <small>{user.email}</small>
         </Dropdown.Header>
 
@@ -71,7 +73,10 @@ export default function ProfileMenu({
               to="/my-bookings"
               className="d-flex align-items-center"
             >
-              <i className="bi bi-calendar-check" aria-hidden="true" />
+              <i
+                className="bi bi-calendar-check"
+                aria-hidden="true"
+              />
               My bookings
             </Dropdown.Item>
 

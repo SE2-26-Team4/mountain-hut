@@ -90,6 +90,7 @@ function SiteHeader({ user, onSignIn, onSignOut }) {
             aria-label="Mountain Hut home"
           >
             <MountainLogo />
+
             <span>MOUNTAIN HUT</span>
           </Link>
         </Col>

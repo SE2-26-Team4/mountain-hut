@@ -236,6 +236,7 @@ function BookingSearch({
                   animation="border"
                   aria-hidden="true"
                 />
+
                 <span>Checking…</span>
               </>
             ) : (

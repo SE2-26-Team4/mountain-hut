@@ -308,6 +308,24 @@
   /* Capacity layout — pages/StaffCapacityPage.jsx */
   --mh-cap-tables-ratio: 0.95;
   --mh-cap-columns-ratio-total: 2.6;
+
+  /* Booking confirmation */
+  --mh-reservation-text: #172c38;
+  --mh-reservation-muted: #596873;
+  --mh-reservation-accent: #cc551c;
+  --mh-reservation-email-background: #f4f1eb;
+  --mh-reservation-warning-background: #fff4e5;
+  --mh-reservation-border: #e4e5e3;
+  --mh-reservation-divider: #eceeeb;
+
+  /* Additional component colors */
+  --mh-account-muted: #7b8998;
+  --mh-account-background: #f4f6f8;
+  --mh-account-border: #e5eaf0;
+  --mh-signin-background: #c65019;
+  --mh-signin-hover-background: #a84b12;
+  --mh-mobile-menu-backdrop: #091521;
+  --mh-login-close-background: rgb(255 255 255 / 90%);
 }
 
 /* ==========================================================================
