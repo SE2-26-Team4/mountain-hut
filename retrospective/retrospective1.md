@@ -31,7 +31,7 @@ RETROSPECTIVE (Team 04)
 > place technical tasks corresponding to story `#0` and leave out story points (not applicable in this case)
 
 - Hours per task  <span style="color:red">per person</span>  (average, standard deviation)
-  - $n = 72$ tasks. Whole-team tasks (Sprint Planning, Daily Scrum, Technology selection, Retrospective: 20h est., 20.17h actual) are split among 5 members.
+  - $n = 72$ tasks. Whole-team tasks (Sprint Planning, Daily Scrum, Technology selection, Retrospective: 20h est., 20.50h actual) are split among 5 members.
   - $h_i = \frac{\text{hours}_i}{\text{members}_i}, \quad \mu = \frac{1}{n}\sum_i h_i, \quad s = \sqrt{\frac{\sum_i (h_i - \mu)^2}{n-1}}$
   - Estimated: $\mu = \frac{80 - 20 + 20/5}{72} = 0.89\text{h}, \quad s = 0.70\text{h}$
   - Actual: $\mu = \frac{77.4833 - 20.1667 + 20.1667/5}{72} = 0.85\text{h}, \quad s = 0.71\text{h}$
