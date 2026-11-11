@@ -53,13 +53,10 @@ function loginFor(area) {
             : user.role === 'employee' || user.role === 'warden';
 
         if (!allowed) {
-          return res.status(403).json({
+          return res.status(401).json({
             error: {
-              code: 'WRONG_LOGIN_AREA',
-              message:
-                area === 'hiker'
-                  ? 'This sign-in is reserved for hikers. Please use the staff login.'
-                  : 'This sign-in is reserved for staff. Please use the hiker login.',
+              code: 'INVALID_CREDENTIALS',
+              message: 'Email or password is incorrect.',
             },
           });
         }

@@ -275,12 +275,12 @@ describe('authentication errors', () => {
 
 // Check that each role uses the correct login area without opening a session.
 it.each([
-  ['/api/sessions', 'employee', 'Please use the staff login.'],
-  ['/api/sessions', 'warden', 'Please use the staff login.'],
-  ['/api/staff/sessions', 'hiker', 'Please use the hiker login.'],
+  ['/api/sessions', 'employee'],
+  ['/api/sessions', 'warden'],
+  ['/api/staff/sessions', 'hiker'],
 ])(
-  'rejects %s for role %s without opening a session',
-  async (path, role, hint) => {
+  'rejects %s for role %s without revealing the account role',
+  async (path, role) => {
     const user = {
       id: 789,
       full_name: 'Wrong Area',
@@ -304,10 +304,12 @@ it.each([
         password: 'AreaTest123!',
       });
 
-    // Reject the role with a useful hint before attempting session creation.
-    expect(response.status).toBe(403);
-    expect(response.body.error.code).toBe('WRONG_LOGIN_AREA');
-    expect(response.body.error.message).toContain(hint);
+    // Use the same response as invalid credentials to prevent enumeration.
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('INVALID_CREDENTIALS');
+    expect(response.body.error.message).toBe(
+      'Email or password is incorrect.',
+    );
     expect(logIn).not.toHaveBeenCalled();
   }
 );

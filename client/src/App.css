@@ -213,6 +213,18 @@
   text-align: center;
 }
 
+.mh-staff-login-prompt {
+  margin: var(--mh-space-4) 0 0;
+  color: var(--mh-glass-muted);
+  font-size: var(--mh-text-sm);
+  text-align: center;
+}
+
+.mh-staff-login-prompt a {
+  color: var(--mh-glass-text);
+  font-weight: var(--mh-weight-medium);
+}
+
 .mh-signout-button {
   width: 100%;
   max-width: 300px;
@@ -3616,4 +3628,3 @@
 .mh-staff-login-card > a:hover {
   color: var(--mh-copper);
 }
-
