@@ -117,7 +117,7 @@
   --mh-dine-feature-divider: #e7e9ed;
   --mh-dine-experience-gap: 3rem;
 
-  /* StaffLoginPage — pages/StaffLoginPage.jsx */
+  /* LoginPage — pages/LoginPage.jsx */
   --mh-staff-login-width: 28rem;
   --mh-staff-login-radius: 1rem;
 
@@ -193,7 +193,7 @@
   --mh-auth-toggle-layer: 2;
   --mh-auth-brand-mobile-width: 115px;
 
-  /* LoginModal — components/auth/LoginModal.jsx */
+  /* LoginPage — pages/LoginPage.jsx */
   --mh-login-photo-gradient: linear-gradient( 90deg, rgba(15, 32, 46, 0.65) 0%, rgba(15, 32, 46, 0.40) 55%, rgba(15, 32, 46, 0.08) 100% );
   --mh-login-caption-layer: 1;
   --mh-login-close-layer: 5;
@@ -302,7 +302,7 @@
   --mh-my-bookings-title-size: clamp(1.8rem, 3vw, 2.4rem);
   --mh-my-bookings-heading-tracking: -0.02em;
 
-  /* StaffLoginPage — pages/StaffLoginPage.jsx */
+  /* LoginPage — pages/LoginPage.jsx */
   --mh-viewport-dynamic-height: 100dvh;
 
   /* Capacity layout — pages/StaffCapacityPage.jsx */
@@ -419,7 +419,7 @@ a {
 }
 
 /* ==========================================================================
-   Staff login theme — pages/StaffLoginPage.jsx
+   Sign-in page theme — pages/LoginPage.jsx
    ========================================================================== */
 
 .mh-staff-login-card {

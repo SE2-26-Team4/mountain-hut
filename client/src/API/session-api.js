@@ -65,13 +65,12 @@ async function request(path, options = {}) {
 
 /**
  * @param {LoginCredentials} credentials
- * @param {'hiker' | 'staff'} [area]
  * @returns {Promise<SessionUser>}
  */
-async function login(credentials, area = 'hiker') {
+async function login(credentials) {
   /** @type {{ user: SessionUser }} */
   const data = await request(
-    area === 'staff' ? '/staff/sessions' : '/sessions',
+    '/sessions',
     {
       method: 'POST',
       body: JSON.stringify(credentials),
