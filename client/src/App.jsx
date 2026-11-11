@@ -6,7 +6,7 @@ import { AuthProvider } from './contexts/AuthContext.jsx';
 import { useAuthLogic } from './hooks/useAuthLogic.js';
 import HomePage from './pages/HomePage.jsx';
 import MenuPage from './pages/MenuPage.jsx';
-import StaffLoginPage from './pages/StaffLoginPage.jsx';
+import LoginPage from './pages/LoginPage.jsx';
 import StaffCapacityPage from './pages/StaffCapacityPage.jsx';
 import MyBookingsPage from './pages/MyBookingsPage.jsx';
 import StaffAccessNotice from './components/auth/StaffAccessNotice.jsx';
@@ -48,7 +48,7 @@ function App() {
 
   const isStaffPage =
     pathname === '/staff/capacity' ||
-    pathname === '/staff/login';
+    pathname === '/login';
 
   if (auth.isLoading) {
     return <main role="status">Loading Mountain Hut…</main>;
@@ -71,7 +71,7 @@ function App() {
 
         <Route path="/menu" element={<MenuPage />} />
 
-        <Route path="/staff/login" element={<StaffLoginPage />} />
+        <Route path="/login" element={<LoginPage />} />
 
         <Route path="/staff/capacity" element={<StaffCapacityPage />} />
 
