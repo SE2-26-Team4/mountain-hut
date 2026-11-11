@@ -158,6 +158,7 @@ function StaffCapacityContent({ user, onLogout }) {
             tables={staff.diningTables}
             selectedIds={staff.selectedTableIds}
             onToggle={staff.toggleTableAssignment}
+            onToggleAll={staff.toggleAllTableAssignments}
             onSave={staff.saveAssignments}
             saving={staff.isSaving}
             error={staff.errorMessage}
@@ -187,6 +188,15 @@ function StaffCapacityContent({ user, onLogout }) {
             editing={staff.editingSlotId !== null}
             saving={staff.isSaving}
             error={staff.errorMessage}
+            hasPreviousTableConfiguration={staff.mealSlots.some(
+              (slot) => slot.tableIds.length > 0,
+            )}
+            usePreviousTableConfiguration={
+              staff.usePreviousTableConfiguration
+            }
+            onUsePreviousTableConfigurationChange={
+              staff.togglePreviousTableConfiguration
+            }
           />
         </div>
       </Col>

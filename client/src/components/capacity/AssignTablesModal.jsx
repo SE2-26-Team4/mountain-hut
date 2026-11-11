@@ -16,6 +16,7 @@ import Alert from '../common/AutoDismissAlert.jsx';
  * @param {DiningTableDTO[]} props.tables
  * @param {number[]} props.selectedIds
  * @param {(tableId: number) => void} props.onToggle
+ * @param {(tableIds: number[], selectAll: boolean) => void} props.onToggleAll
  * @param {() => void | Promise<void>} props.onSave
  * @param {boolean} props.saving
  * @param {string} props.error
@@ -29,6 +30,7 @@ export default function AssignTablesModal({
   tables,
   selectedIds,
   onToggle,
+  onToggleAll,
   onSave,
   saving,
   error,
@@ -60,6 +62,15 @@ export default function AssignTablesModal({
       )
     );
   });
+
+  const selectableVisibleIds = visible
+    .filter((table) => !getUnavailableReason(table) || selectedIds.includes(table.id))
+    .map((table) => table.id);
+  const allVisibleSelected =
+    selectableVisibleIds.length > 0 &&
+    selectableVisibleIds.every((id) =>
+      selectedIds.some((selectedId) => String(selectedId) === String(id)),
+    );
 
   return (
     <Modal
@@ -103,6 +114,19 @@ export default function AssignTablesModal({
             </div>
 
             <label className="d-flex align-items-center gap-2 my-3">
+              <input
+                type="checkbox"
+                checked={allVisibleSelected}
+                disabled={saving || selectableVisibleIds.length === 0}
+                onChange={() =>
+                  onToggleAll(selectableVisibleIds, !allVisibleSelected)
+                }
+              />
+
+              <span>Select all available tables</span>
+            </label>
+
+            <label className="d-flex align-items-center gap-2 mb-3">
               <input
                 type="checkbox"
                 checked={showUnavailable}

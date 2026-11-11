@@ -27,6 +27,9 @@ import Alert from '../common/AutoDismissAlert.jsx';
  * @property {boolean} editing
  * @property {boolean} saving
  * @property {string} error
+ * @property {boolean} [usePreviousTableConfiguration]
+ * @property {() => void} [onUsePreviousTableConfigurationChange]
+ * @property {boolean} [hasPreviousTableConfiguration]
  */
 
 /**
@@ -165,6 +168,19 @@ export default function CapacityFormModal(props) {
               </Col>
             </Row>
           )}
+
+          {props.kind === 'slot' &&
+            !editing &&
+            props.hasPreviousTableConfiguration && (
+              <Form.Check
+                className="mt-3"
+                type="checkbox"
+                name="usePreviousTableConfiguration"
+                label="Use the last table configuration"
+                checked={props.usePreviousTableConfiguration}
+                onChange={props.onUsePreviousTableConfigurationChange}
+              />
+            )}
 
           <Form.Check
             className="mt-3"

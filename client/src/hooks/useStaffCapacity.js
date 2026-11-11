@@ -82,6 +82,9 @@ export default function useStaffCapacity() {
     /** @type {number[]} */ ([]),
   );
 
+  const [usePreviousTableConfiguration, setUsePreviousTableConfiguration] =
+    useState(false);
+
   // Store the values currently displayed in the configuration forms.
   const [slotForm, setSlotForm] = useState(emptySlotForm);
   const [tableForm, setTableForm] = useState(emptyTableForm);
@@ -289,6 +292,9 @@ export default function useStaffCapacity() {
   // Open a new slot form using the currently selected date.
   function openNewSlotForm() {
     setEditingSlotId(null);
+    setUsePreviousTableConfiguration(
+      mealSlots.some((slot) => slot.tableIds.length > 0),
+    );
 
     setSlotForm({
       ...emptySlotForm,
@@ -297,6 +303,10 @@ export default function useStaffCapacity() {
 
     setErrorMessage('');
     setIsSlotModalOpen(true);
+  }
+
+  function togglePreviousTableConfiguration() {
+    setUsePreviousTableConfiguration((current) => !current);
   }
 
   // Open an empty form for creating a reusable dining table.
@@ -416,18 +426,26 @@ export default function useStaffCapacity() {
 
         setFeedbackMessage('Meal slot updated successfully.');
       } else {
-        // Create a slot with no table assignments and select it.
+        // Create a slot first, then let the employee confirm its table assignment.
         const createdMealSlot =
           await CapacityAPI.createMealSlot(mealSlotData);
+
+        const previousSlot = [...mealSlots]
+          .reverse()
+          .find((slot) => slot.tableIds.length > 0);
+        const suggestedTableIds = usePreviousTableConfiguration
+          ? (previousSlot?.tableIds ?? [])
+          : [];
 
         /** @type {ConfiguredMealSlot} */
         const newMealSlot = {
           ...createdMealSlot,
-          tableIds: [],
+          tableIds: suggestedTableIds,
         };
 
         setMealSlots((current) => [...current, newMealSlot]);
         setSelectedSlotId(String(newMealSlot.id));
+        setSelectedTableIds(suggestedTableIds);
         setFeedbackMessage('Meal slot added successfully.');
       }
 
@@ -435,6 +453,10 @@ export default function useStaffCapacity() {
       setIsSlotModalOpen(false);
       setEditingSlotId(null);
       setSlotForm(emptySlotForm);
+      setUsePreviousTableConfiguration(false);
+      if (editingSlotId === null && usePreviousTableConfiguration) {
+        setIsAssignmentModalOpen(true);
+      }
     } catch (error) {
       // Keep the form open so the user can correct or retry the request.
       setErrorMessage(getErrorMessage(error));
@@ -526,6 +548,30 @@ export default function useStaffCapacity() {
         ? current.filter((id) => String(id) !== String(tableId))
         : [...current, tableId],
     );
+  }
+
+  /**
+   * Select or clear all tables currently shown in the assignment list.
+   *
+   * @param {number[]} tableIds
+   * @param {boolean} selectAll
+   */
+  function toggleAllTableAssignments(tableIds, selectAll) {
+    setSelectedTableIds((current) => {
+      if (!selectAll) {
+        return current.filter(
+          (id) => !tableIds.some((tableId) => String(tableId) === String(id)),
+        );
+      }
+
+      return [
+        ...current,
+        ...tableIds.filter(
+          (tableId) =>
+            !current.some((id) => String(id) === String(tableId)),
+        ),
+      ];
+    });
   }
 
   // Save the selected tables as the complete assignment for the chosen slot.
@@ -621,6 +667,8 @@ export default function useStaffCapacity() {
     updateSlotField,
     updateTableField,
     openNewSlotForm,
+    usePreviousTableConfiguration,
+    togglePreviousTableConfiguration,
     openNewTableForm,
     startEditingSlot,
     startEditingTable,
@@ -628,6 +676,7 @@ export default function useStaffCapacity() {
     handleSlotSubmit,
     handleTableSubmit,
     toggleTableAssignment,
+    toggleAllTableAssignments,
     saveAssignments,
     closeSlotModal: () => setIsSlotModalOpen(false),
     closeTableModal: () => setIsTableModalOpen(false),
