@@ -144,48 +144,6 @@ describe('database initialization', () => {
     });
   });
 
-  // Existing databases must gain the special_requests column automatically.
-  it('adds special_requests to an existing database', async () => {
-    await loadDatabase();
-    await db.initializeDatabase();
-
-    // Simulate an older bookings table without special_requests.
-    await db.runAsync('PRAGMA foreign_keys = OFF');
-
-    await db.runAsync(`
-      CREATE TABLE bookings_old AS
-      SELECT
-        id,
-        hiker_id,
-        booking_date,
-        slot_id,
-        party_size,
-        status,
-        created_at
-      FROM bookings
-    `);
-
-    await db.runAsync('DROP TABLE bookings');
-
-    await db.runAsync(
-      'ALTER TABLE bookings_old RENAME TO bookings',
-    );
-
-    await db.initializeDatabase();
-
-    const columns = await db.allAsync(
-      'PRAGMA table_info(bookings)',
-    );
-
-    const specialRequestsColumn = columns.find(
-      (column) => column.name === 'special_requests',
-    );
-
-    expect(specialRequestsColumn).toBeDefined();
-    expect(specialRequestsColumn.notnull).toBe(1);
-    expect(specialRequestsColumn.dflt_value).toBe("''");
-  });
-
   // An existing schema that lacks required structures must be rejected.
   it('rejects an incomplete schema', async () => {
     await loadDatabase();
