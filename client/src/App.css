@@ -240,7 +240,7 @@
 }
 
 /* ==========================================================================
-   LoginModal — components/auth/LoginModal.jsx
+   LoginPage — pages/LoginPage.jsx
    ========================================================================== */
 
 .mh-login-overlay {
@@ -3581,7 +3581,7 @@
 }
 
 /* ==========================================================================
-   StaffLoginPage — pages/StaffLoginPage.jsx
+   LoginPage — pages/LoginPage.jsx
    ========================================================================== */
 
 .mh-staff-login-page {
@@ -3616,4 +3616,3 @@
 .mh-staff-login-card > a:hover {
   color: var(--mh-copper);
 }
-

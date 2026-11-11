@@ -1,16 +1,10 @@
-import { useState } from 'react';
 import { Col, Row, Spinner } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../contexts/auth-context.js';
-import LoginModal from '../components/auth/LoginModal.jsx';
 import BookingForm from '../components/booking/BookingForm.jsx';
 import SiteFooter from '../components/layout/SiteFooter.jsx';
 import SiteHeader from '../components/layout/SiteHeader.jsx';
-
-/**
- * @typedef {import('../API/session-api.js').LoginCredentials} LoginCredentials
- */
 
 const diningFeatures = [
   {
@@ -34,47 +28,22 @@ function HomePage() {
   const {
     user,
     isLoading,
-    isSubmitting,
-    errorMessage,
-    feedbackMessage,
-    handleLogin,
     handleLogout,
     handleSessionExpired,
   } = useAuth();
-
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const navigate = useNavigate();
 
   const isStaff =
     user?.role === 'employee' || user?.role === 'warden';
 
-  const handleSignIn = () => setIsLoginOpen(true);
+  const handleSignIn = () => navigate('/login');
 
   const handleBookingLoginRequired = () => {
     if (user) {
       handleSessionExpired();
     }
 
-    setIsLoginOpen(true);
-  };
-
-  const handleCloseLogin = () => {
-    if (!isSubmitting) {
-      setIsLoginOpen(false);
-    }
-  };
-
-  /**
-   * @param {LoginCredentials} credentials
-   * @returns {Promise<boolean>}
-   */
-  const handleDialogLogin = async (credentials) => {
-    const signedIn = await handleLogin(credentials);
-
-    if (signedIn) {
-      setIsLoginOpen(false);
-    }
-
-    return signedIn;
+    navigate('/login');
   };
 
   if (isLoading) {
@@ -213,16 +182,6 @@ function HomePage() {
       </main>
 
       <SiteFooter />
-
-      {!user && isLoginOpen && (
-        <LoginModal
-          isSubmitting={isSubmitting}
-          errorMessage={errorMessage}
-          feedbackMessage={feedbackMessage}
-          onLogin={handleDialogLogin}
-          onClose={handleCloseLogin}
-        />
-      )}
     </div>
   );
 }

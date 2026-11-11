@@ -60,16 +60,15 @@ function useAuthLogic() {
 
   /**
    * @param {LoginCredentials} credentials
-   * @param {'hiker' | 'staff'} [area]
    * @returns {Promise<boolean>}
    */
-  const handleLogin = async (credentials, area = 'hiker') => {
+  const handleLogin = async (credentials) => {
     setErrorMessage('');
     setFeedbackMessage('');
     setIsSubmitting(true);
 
     try {
-      const authenticatedUser = await API.login(credentials, area);
+      const authenticatedUser = await API.login(credentials);
 
       setUser(authenticatedUser);
       setFeedbackMessage('You are signed in.');
