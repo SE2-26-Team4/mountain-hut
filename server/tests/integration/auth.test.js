@@ -15,11 +15,6 @@ const testEmail = (
 
 const testPassword =
   process.env.TEST_HIKER_PASSWORD ?? 'HikerTest123!';
-const employeeEmail = (
-  process.env.TEST_EMPLOYEE_EMAIL ?? 'employee@example.com'
-).trim().toLowerCase();
-const employeePassword =
-  process.env.TEST_EMPLOYEE_PASSWORD ?? 'EmployeeTest123!';
 
 // Initialize the database and demo accounts before running the tests.
 beforeAll(async () => {
@@ -162,23 +157,6 @@ describe('hiker session', () => {
 
     expect(response.status).toBe(204);
     expect(response.text).toBe('');
-  });
-});
-
-describe('role-aware session', () => {
-  it('uses the same login endpoint for a staff account', async () => {
-    const response = await request(app)
-      .post('/api/sessions')
-      .send({
-        email: employeeEmail,
-        password: employeePassword,
-      });
-
-    expect(response.status).toBe(201);
-    expect(response.body.user).toMatchObject({
-      email: employeeEmail,
-      role: 'employee',
-    });
   });
 });
 

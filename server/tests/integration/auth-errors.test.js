@@ -272,3 +272,42 @@ describe('authentication errors', () => {
     expect(response.body).not.toHaveProperty('user');
   });
 });
+
+// Check that each role uses the correct login area without opening a session.
+it.each([
+  ['/api/sessions', 'employee', 'Please use the staff login.'],
+  ['/api/sessions', 'warden', 'Please use the staff login.'],
+  ['/api/staff/sessions', 'hiker', 'Please use the hiker login.'],
+])(
+  'rejects %s for role %s without opening a session',
+  async (path, role, hint) => {
+    const user = {
+      id: 789,
+      full_name: 'Wrong Area',
+      email: 'area@example.com',
+      role,
+    };
+
+    // Accept credentials so the test isolates the login-area role check.
+    vi.spyOn(passport, 'authenticate').mockImplementation(
+      (_strategy, callback) =>
+        (_req, _res, _next) => callback(null, user)
+    );
+
+    const logIn = vi.fn();
+    const { testApp } = createRouteTestApp({ logIn });
+
+    const response = await request(testApp)
+      .post(path)
+      .send({
+        email: user.email,
+        password: 'AreaTest123!',
+      });
+
+    // Reject the role with a useful hint before attempting session creation.
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe('WRONG_LOGIN_AREA');
+    expect(response.body.error.message).toContain(hint);
+    expect(logIn).not.toHaveBeenCalled();
+  }
+);
