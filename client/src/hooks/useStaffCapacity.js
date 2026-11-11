@@ -84,6 +84,8 @@ export default function useStaffCapacity() {
 
   const [usePreviousTableConfiguration, setUsePreviousTableConfiguration] =
     useState(false);
+  const [isSuggestedConfiguration, setIsSuggestedConfiguration] =
+    useState(false);
 
   // Store the values currently displayed in the configuration forms.
   const [slotForm, setSlotForm] = useState(emptySlotForm);
@@ -363,6 +365,7 @@ export default function useStaffCapacity() {
   function openAssignmentModal(slot) {
     setSelectedSlotId(String(slot.id));
     setSelectedTableIds(slot.tableIds);
+    setIsSuggestedConfiguration(false);
     setErrorMessage('');
     setFeedbackMessage('');
     setIsAssignmentModalOpen(true);
@@ -446,6 +449,9 @@ export default function useStaffCapacity() {
         setMealSlots((current) => [...current, newMealSlot]);
         setSelectedSlotId(String(newMealSlot.id));
         setSelectedTableIds(suggestedTableIds);
+        setIsSuggestedConfiguration(
+          usePreviousTableConfiguration && suggestedTableIds.length > 0,
+        );
         setFeedbackMessage('Meal slot added successfully.');
       }
 
@@ -607,6 +613,7 @@ export default function useStaffCapacity() {
       setSelectedTableIds(savedTableIds);
       setFeedbackMessage('Table assignments saved successfully.');
       setIsAssignmentModalOpen(false);
+      setIsSuggestedConfiguration(false);
     } catch (error) {
       // Keep the modal open when assignments cannot be saved.
       setErrorMessage(getErrorMessage(error));
@@ -631,6 +638,7 @@ export default function useStaffCapacity() {
     setSlotForm(emptySlotForm);
     setIsSlotModalOpen(false);
     setIsAssignmentModalOpen(false);
+    setIsSuggestedConfiguration(false);
     setErrorMessage('');
     setFeedbackMessage('');
   }
@@ -668,6 +676,7 @@ export default function useStaffCapacity() {
     updateTableField,
     openNewSlotForm,
     usePreviousTableConfiguration,
+    isSuggestedConfiguration,
     togglePreviousTableConfiguration,
     openNewTableForm,
     startEditingSlot,
@@ -680,6 +689,9 @@ export default function useStaffCapacity() {
     saveAssignments,
     closeSlotModal: () => setIsSlotModalOpen(false),
     closeTableModal: () => setIsTableModalOpen(false),
-    closeAssignmentModal: () => setIsAssignmentModalOpen(false),
+    closeAssignmentModal: () => {
+      setIsAssignmentModalOpen(false);
+      setIsSuggestedConfiguration(false);
+    },
   };
 }

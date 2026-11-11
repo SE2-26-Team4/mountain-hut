@@ -159,6 +159,7 @@ function StaffCapacityContent({ user, onLogout }) {
             selectedIds={staff.selectedTableIds}
             onToggle={staff.toggleTableAssignment}
             onToggleAll={staff.toggleAllTableAssignments}
+            isSuggestedConfiguration={staff.isSuggestedConfiguration}
             onSave={staff.saveAssignments}
             saving={staff.isSaving}
             error={staff.errorMessage}

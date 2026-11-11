@@ -17,6 +17,7 @@ import Alert from '../common/AutoDismissAlert.jsx';
  * @param {number[]} props.selectedIds
  * @param {(tableId: number) => void} props.onToggle
  * @param {(tableIds: number[], selectAll: boolean) => void} props.onToggleAll
+ * @param {boolean} props.isSuggestedConfiguration
  * @param {() => void | Promise<void>} props.onSave
  * @param {boolean} props.saving
  * @param {string} props.error
@@ -31,6 +32,7 @@ export default function AssignTablesModal({
   selectedIds,
   onToggle,
   onToggleAll,
+  isSuggestedConfiguration,
   onSave,
   saving,
   error,
@@ -71,6 +73,9 @@ export default function AssignTablesModal({
     selectableVisibleIds.every((id) =>
       selectedIds.some((selectedId) => String(selectedId) === String(id)),
     );
+  const selectedLabel = allVisibleSelected
+    ? 'Deselect all visible tables'
+    : 'Select all visible available tables';
 
   return (
     <Modal
@@ -95,6 +100,13 @@ export default function AssignTablesModal({
           <Alert variant="danger">
             {error}
           </Alert>
+        )}
+
+        {isSuggestedConfiguration && (
+          <div className="bg-light rounded-3 px-3 py-2 mb-3 text-secondary">
+            Configuration copied from the last slot. You can adjust it before
+            saving.
+          </div>
         )}
 
         <Row className="g-0 cap-assign-grid">
@@ -123,7 +135,7 @@ export default function AssignTablesModal({
                 }
               />
 
-              <span>Select all available tables</span>
+              <span>{selectedLabel}</span>
             </label>
 
             <label className="d-flex align-items-center gap-2 mb-3">
@@ -188,7 +200,7 @@ export default function AssignTablesModal({
             </div>
 
             <small className="cap-list-count">
-              {visible.length} of {tables.length} tables
+              {selected.length} of {tables.length} tables selected
             </small>
           </Col>
 
