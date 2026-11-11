@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 
-import { getMyBookings } from '../API/my-bookings-api.js';
+import {
+  MyBookingsApiError,
+  cancelMyBooking,
+  getMyBookings,
+} from '../API/my-bookings-api.js';
 
 /**
  * Booking data returned by the server.
@@ -9,7 +13,8 @@ import { getMyBookings } from '../API/my-bookings-api.js';
  */
 
 /**
- * Loads the authenticated hiker's bookings and provides a retry action.
+ * Loads the authenticated hiker's bookings and provides retry and
+ * cancellation actions.
  *
  * @param {number | undefined} hikerId
  */
@@ -19,12 +24,12 @@ export default function useMyBookings(hikerId) {
     /** @type {BookingDTO[]} */ ([]),
   );
 
-  // Track loading, request errors, and retry attempts.
+  // Track loading, request errors, and reload requests.
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [attempt, setAttempt] = useState(0);
 
-  // Load bookings when the hiker changes or a retry is requested.
+  // Load bookings when the hiker changes or a reload is requested.
   useEffect(() => {
     // Wait until a hiker ID is available before sending a request.
     if (hikerId === undefined) return;
@@ -60,18 +65,58 @@ export default function useMyBookings(hikerId) {
     return () => controller.abort();
   }, [hikerId, attempt]);
 
+  // Reload in the background, keeping the current list on screen.
+  const refresh = () => {
+    setAttempt((current) => current + 1);
+  };
+
   // Clear the error and trigger another request through the effect.
   const retry = () => {
     setErrorMessage('');
     setIsLoading(true);
-    setAttempt((current) => current + 1);
+    refresh();
   };
 
-  // Expose bookings, request status, and the retry action to components.
+  /**
+   * Cancels a booking, then reloads the list from the server.
+   *
+   * @param {number} bookingId
+   * @returns {Promise<BookingDTO>}
+   */
+  const cancelBooking = async (bookingId) => {
+    try {
+      const cancelled = await cancelMyBooking(bookingId);
+
+      // Show the new status at once; the reload confirms it.
+      setBookings((current) =>
+        current.map((booking) =>
+          booking.id === cancelled.id ? cancelled : booking,
+        ),
+      );
+
+      refresh();
+
+      return cancelled;
+    } catch (error) {
+      // A 404 means the list is stale, for example after a cancellation
+      // made in another tab, so reload it to show the real status.
+      if (
+        error instanceof MyBookingsApiError &&
+        error.status === 404
+      ) {
+        refresh();
+      }
+
+      throw error;
+    }
+  };
+
+  // Expose bookings, request status, and actions to components.
   return {
     bookings,
     isLoading,
     errorMessage,
     retry,
+    cancelBooking,
   };
 }

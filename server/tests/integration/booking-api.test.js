@@ -605,4 +605,80 @@ describe('booking retrieval and cancellation API', () => {
       availability.body.availability.totalAvailableSeats,
     ).toBe(4);
   });
+
+  // A second cancellation must not report success or change the booking.
+  it('returns 404 when the booking is already cancelled', async () => {
+    const first = await hikerAgent.delete(
+      `/api/bookings/${createdBookingId}`,
+    );
+
+    expect(first.status).toBe(200);
+
+    const second = await hikerAgent.delete(
+      `/api/bookings/${createdBookingId}`,
+    );
+
+    expect(second.status).toBe(404);
+
+    expect(second.body.error).toEqual({
+      code: 'BOOKING_NOT_FOUND',
+      message: 'The requested booking was not found.',
+    });
+  });
+
+  // Hikers must not be able to cancel, or detect, bookings of other hikers.
+  it('does not allow a hiker to cancel another hiker\'s booking', async () => {
+    const otherEmail = `booking-api-other-${randomUUID()}@example.com`;
+
+    const otherUser = await runAsync(
+      `INSERT INTO users (
+         full_name, email, password_hash, role
+       )
+       VALUES (?, ?, ?, 'hiker')`,
+      [
+        'Booking API Other Hiker',
+        otherEmail,
+        await hashPassword(password),
+      ],
+    );
+
+    try {
+      const otherAgent = request.agent(app);
+
+      const login = await otherAgent
+        .post('/api/sessions')
+        .send({ email: otherEmail, password });
+
+      expect(login.status).toBe(201);
+
+      const response = await otherAgent.delete(
+        `/api/bookings/${createdBookingId}`,
+      );
+
+      // Use the same answer as a missing booking to avoid revealing it.
+      expect(response.status).toBe(404);
+      expect(response.body.error.code).toBe('BOOKING_NOT_FOUND');
+
+      // The owner's booking stays confirmed and keeps its seat.
+      const saved = await getAsync(
+        'SELECT status FROM bookings WHERE id = ?',
+        [createdBookingId],
+      );
+
+      expect(saved.status).toBe('confirmed');
+
+      const availability = await request(app)
+        .get('/api/bookings/availability')
+        .query({ bookingDate, slotId });
+
+      expect(
+        availability.body.availability.totalAvailableSeats,
+      ).toBe(3);
+    } finally {
+      await runAsync(
+        'DELETE FROM users WHERE id = ?',
+        [otherUser.lastID],
+      );
+    }
+  });
 });
