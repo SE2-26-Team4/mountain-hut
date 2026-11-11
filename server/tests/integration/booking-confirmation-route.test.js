@@ -284,7 +284,7 @@ describe('POST /api/bookings confirmation email integration', () => {
   // Verify that optional requests survive persistence and reach both email formats.
   it('saves special requests and includes them in the email', async () => {
     const specialRequests =
-      'One guest has a peanut allergy; two vegetarian meals.';
+      'Food allergy reported. One guest has a peanut allergy; two vegetarian meals.';
 
     const response = await agent
       .post('/api/bookings')

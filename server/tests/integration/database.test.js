@@ -186,6 +186,135 @@ describe('database initialization', () => {
     expect(specialRequestsColumn.dflt_value).toBe("''");
   });
 
+  it('migrates legacy meal slots to dates used by their bookings', async () => {
+    await loadDatabase();
+    await db.initializeDatabase();
+
+    await db.runAsync('PRAGMA foreign_keys = OFF');
+    await db.runAsync('DROP TABLE slot_tables');
+    await db.runAsync('DROP TABLE bookings');
+    await db.runAsync('DROP TABLE meal_slots');
+
+    await db.runAsync(`
+      CREATE TABLE meal_slots (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        start_time TEXT NOT NULL,
+        end_time TEXT NOT NULL,
+        is_active INTEGER NOT NULL DEFAULT 1
+      )
+    `);
+    await db.runAsync(`
+      CREATE TABLE bookings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        hiker_id INTEGER NOT NULL REFERENCES users(id),
+        booking_date TEXT NOT NULL,
+        slot_id INTEGER NOT NULL REFERENCES meal_slots(id),
+        party_size INTEGER NOT NULL,
+        special_requests TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'confirmed',
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await db.runAsync(`
+      CREATE TABLE slot_tables (
+        slot_id INTEGER NOT NULL REFERENCES meal_slots(id),
+        table_id INTEGER NOT NULL REFERENCES dining_tables(id),
+        PRIMARY KEY (slot_id, table_id)
+      )
+    `);
+
+    const user = await db.runAsync(
+      `INSERT INTO users (
+         full_name, email, password_hash, role
+       )
+       VALUES (?, ?, ?, ?)`,
+      ['Migration test', 'migration@example.com', 'hash', 'hiker'],
+    );
+    const table = await db.runAsync(
+      `INSERT INTO dining_tables (name, seat_count)
+       VALUES (?, ?)`,
+      ['Migration table', 4],
+    );
+
+    await db.runAsync(
+      `INSERT INTO meal_slots (
+         id, name, start_time, end_time, is_active
+       )
+       VALUES (?, ?, ?, ?, ?)`,
+      [7, 'Dinner', '18:00', '20:00', 1],
+    );
+    await db.runAsync(
+      'INSERT INTO slot_tables (slot_id, table_id) VALUES (?, ?)',
+      [7, table.lastID],
+    );
+
+    for (const [bookingDate, partySize] of [
+      ['2099-12-30', 2],
+      ['2099-12-31', 3],
+    ]) {
+      await db.runAsync(
+        `INSERT INTO bookings (
+           hiker_id, booking_date, slot_id, party_size
+         )
+         VALUES (?, ?, ?, ?)`,
+        [user.lastID, bookingDate, 7, partySize],
+      );
+    }
+
+    await db.initializeDatabase();
+
+    const migratedSlots = await db.allAsync(
+      `SELECT id, slot_date, name, start_time, end_time
+       FROM meal_slots
+       ORDER BY slot_date`,
+    );
+
+    expect(migratedSlots).toEqual([
+      {
+        id: 7,
+        slot_date: '2099-12-30',
+        name: 'Dinner',
+        start_time: '18:00',
+        end_time: '20:00',
+      },
+      {
+        id: 8,
+        slot_date: '2099-12-31',
+        name: 'Dinner',
+        start_time: '18:00',
+        end_time: '20:00',
+      },
+    ]);
+
+    expect(
+      await db.allAsync(
+        `SELECT bookings.booking_date, meal_slots.slot_date
+         FROM bookings
+         JOIN meal_slots ON meal_slots.id = bookings.slot_id
+         ORDER BY bookings.booking_date`,
+      ),
+    ).toEqual([
+      { booking_date: '2099-12-30', slot_date: '2099-12-30' },
+      { booking_date: '2099-12-31', slot_date: '2099-12-31' },
+    ]);
+
+    expect(
+      await db.allAsync(
+        'SELECT slot_id, table_id FROM slot_tables ORDER BY slot_id',
+      ),
+    ).toEqual([
+      { slot_id: 7, table_id: table.lastID },
+      { slot_id: 8, table_id: table.lastID },
+    ]);
+    expect(
+      await db.getAsync('PRAGMA foreign_keys'),
+    ).toEqual({ foreign_keys: 1 });
+    expect(
+      await db.allAsync('PRAGMA foreign_key_check'),
+    ).toEqual([]);
+  });
+
   // An existing schema that lacks required structures must be rejected.
   it('rejects an incomplete schema', async () => {
     await loadDatabase();

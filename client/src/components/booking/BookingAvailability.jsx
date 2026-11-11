@@ -1,5 +1,10 @@
 import { Button, Col, Form, Row, Spinner } from 'react-bootstrap';
 
+import {
+  FOOD_ALLERGY_REQUEST,
+  MAX_SPECIAL_REQUEST_LENGTH,
+} from '../../utils/booking-requirements.js';
+
 /**
  * @typedef {ReturnType<typeof import('../../hooks/useBookingLogic.js').default>} BookingState
  */
@@ -21,6 +26,8 @@ function BookingAvailability({ booking, isAuthenticated }) {
     isBookingWindowClosed,
     specialRequests,
     changeSpecialRequests,
+    hasFoodAllergies,
+    changeFoodAllergies,
   } = booking;
 
   if (!availability) return null;
@@ -94,31 +101,57 @@ function BookingAvailability({ booking, isAuthenticated }) {
 
         {canBook && (
           <Form.Group
-            controlId="booking-special-requests"
             className="px-3 px-md-4 py-3"
           >
-            <Form.Label>
-              Special requests or allergies (optional)
-            </Form.Label>
+            <Row className="g-3 align-items-start">
+              <Col xs={12} md={9}>
+                <Form.Group controlId="booking-special-requests">
+                  <Form.Label>
+                    Dietary requirements or other special requests
+                    (optional)
+                  </Form.Label>
 
-            <Form.Control
-              as="textarea"
-              rows={3}
-              maxLength={1000}
-              value={specialRequests}
-              onChange={(event) =>
-                changeSpecialRequests(event.target.value)
-              }
-              disabled={isBooking}
-              placeholder="For example: food allergies, intolerances or dietary requirements for your group."
-              aria-describedby="booking-special-requests-help"
-            />
+                  <Form.Control
+                    as="textarea"
+                    rows={3}
+                    maxLength={
+                      hasFoodAllergies
+                        ? MAX_SPECIAL_REQUEST_LENGTH -
+                          FOOD_ALLERGY_REQUEST.length -
+                          1
+                        : MAX_SPECIAL_REQUEST_LENGTH
+                    }
+                    value={specialRequests}
+                    onChange={(event) =>
+                      changeSpecialRequests(event.target.value)
+                    }
+                    disabled={isBooking}
+                    placeholder="For example: intolerances or dietary requirements for your group."
+                    aria-describedby="booking-special-requests-help"
+                  />
+                </Form.Group>
+              </Col>
+
+              <Col xs={12} md={3} className="pt-md-4">
+                <Form.Check
+                  id="booking-food-allergies"
+                  type="checkbox"
+                  label="I have a food allergy"
+                  checked={hasFoodAllergies}
+                  onChange={(event) =>
+                    changeFoodAllergies(event.target.checked)
+                  }
+                  disabled={isBooking}
+                />
+              </Col>
+            </Row>
 
             <Form.Text
               id="booking-special-requests-help"
               className="text-muted"
             >
-              Maximum 1,000 characters.
+              Maximum 1,000 characters total. Selecting the allergy
+              checkbox is included in your booking details.
             </Form.Text>
           </Form.Group>
         )}

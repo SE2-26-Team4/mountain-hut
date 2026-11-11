@@ -1,6 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import BookingAPI, { BookingApiError } from '../API/booking-api.js';
+import {
+  buildSpecialRequests,
+  FOOD_ALLERGY_REQUEST,
+  MAX_SPECIAL_REQUEST_LENGTH,
+} from '../utils/booking-requirements.js';
 
 /**
  * API data types used by the booking flow.
@@ -153,6 +158,7 @@ export default function useBookingLogic({ user, onRequireLogin }) {
   const [isBooking, setIsBooking] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [specialRequests, setSpecialRequests] = useState('');
+  const [hasFoodAllergies, setHasFoodAllergies] = useState(false);
 
   // Keep a clock value that triggers countdown updates.
   const [currentTime, setCurrentTime] = useState(
@@ -440,6 +446,29 @@ export default function useBookingLogic({ user, onRequireLogin }) {
     setSpecialRequests(value);
   }
 
+  /**
+   * Updates the allergy selection while keeping the combined request within
+   * the server's existing character limit.
+   *
+   * @param {boolean} value
+   */
+  function changeFoodAllergies(value) {
+    if (bookingInProgressRef.current) return;
+
+    setHasFoodAllergies(value);
+
+    if (value) {
+      const maxRequirementsLength =
+        MAX_SPECIAL_REQUEST_LENGTH -
+        FOOD_ALLERGY_REQUEST.length -
+        1;
+
+      setSpecialRequests((requests) =>
+        requests.slice(0, maxRequirementsLength),
+      );
+    }
+  }
+
   // Submit a booking after rechecking authentication, availability, and time.
   async function handleReserve() {
     // Block duplicate submissions immediately, before React updates state.
@@ -496,13 +525,16 @@ export default function useBookingLogic({ user, onRequireLogin }) {
     const startTime = availability.startTime;
     const endTime = availability.endTime;
 
-    // Include optional requirements, removing surrounding whitespace.
+    // Include optional requirements and allergy selection in the existing field.
     /** @type {CreateBookingRequestDTO} */
     const bookingData = {
       bookingDate: date,
       slotId,
       partySize: guests,
-      specialRequests: specialRequests.trim(),
+      specialRequests: buildSpecialRequests(
+        specialRequests,
+        hasFoodAllergies,
+      ),
     };
 
     // Lock booking controls and invalidate any pending availability search.
@@ -519,6 +551,7 @@ export default function useBookingLogic({ user, onRequireLogin }) {
 
       // Clear the input while preserving its submitted value in the popup.
       setSpecialRequests('');
+      setHasFoodAllergies(false);
 
       setConfirmedReservation({
         id: savedBooking.id,
@@ -623,6 +656,8 @@ export default function useBookingLogic({ user, onRequireLogin }) {
     partySize,
     specialRequests,
     changeSpecialRequests,
+    hasFoodAllergies,
+    changeFoodAllergies,
     availability,
     confirmedReservation,
     closeReservationConfirmation,
