@@ -186,6 +186,69 @@ describe('database initialization', () => {
     expect(specialRequestsColumn.dflt_value).toBe("''");
   });
 
+  // The users table must reject inconsistent accounts.
+  it.each([
+    [
+      'a temporary hiker with an email',
+      `INSERT INTO users (full_name, email, role, is_temporary)
+       VALUES ('Temp', 'temp@example.com', 'hiker', 1)`,
+    ],
+    [
+      'a temporary hiker with a password',
+      `INSERT INTO users (full_name, password_hash, role, is_temporary)
+       VALUES ('Temp', 'hash', 'hiker', 1)`,
+    ],
+    [
+      'a temporary staff account',
+      `INSERT INTO users (full_name, role, is_temporary)
+       VALUES ('Temp', 'employee', 1)`,
+    ],
+    [
+      'a registered account without email',
+      `INSERT INTO users (full_name, password_hash, role)
+       VALUES ('Registered', 'hash', 'hiker')`,
+    ],
+    [
+      'a registered account without password',
+      `INSERT INTO users (full_name, email, role)
+       VALUES ('Registered', 'registered@example.com', 'hiker')`,
+    ],
+    [
+      'an invalid must_change_password flag',
+      `INSERT INTO users (
+         full_name, email, password_hash, role, must_change_password
+       )
+       VALUES ('Registered', 'flag@example.com', 'hash', 'hiker', 2)`,
+    ],
+  ])('rejects %s', async (_label, sql) => {
+    await loadDatabase();
+    await db.initializeDatabase();
+
+    await expect(db.runAsync(sql)).rejects.toMatchObject({
+      code: 'SQLITE_CONSTRAINT',
+    });
+  });
+
+  // Unique emails must still allow several temporary hikers without email.
+  it('stores several temporary hikers without email', async () => {
+    await loadDatabase();
+    await db.initializeDatabase();
+
+    for (const name of ['First Walk-in', 'Second Walk-in']) {
+      await db.runAsync(
+        `INSERT INTO users (full_name, phone, role, is_temporary)
+         VALUES (?, NULL, 'hiker', 1)`,
+        [name],
+      );
+    }
+
+    expect(
+      await db.getAsync(
+        'SELECT COUNT(*) AS total FROM users WHERE is_temporary = 1',
+      ),
+    ).toEqual({ total: 2 });
+  });
+
   // An existing schema that lacks required structures must be rejected.
   it('rejects an incomplete schema', async () => {
     await loadDatabase();

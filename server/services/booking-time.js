@@ -5,7 +5,7 @@
  * @param {string} startTime
  * @returns {number}
  */
-function getMealStartTimestamp(bookingDate, startTime) {
+export function getMealStartTimestamp(bookingDate, startTime) {
   // Treat the requested local clock values as UTC to create a comparison target.
   // This is a starting reference, not yet the actual meal timestamp.
   const localTime = `${bookingDate}T${startTime}:00`;
