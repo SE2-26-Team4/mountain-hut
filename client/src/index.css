@@ -230,13 +230,6 @@
   --mh-booking-card-label-color: #737b86;
   --mh-booking-card-value-size: 0.95rem;
 
-  /* CancelBookingModal — components/booking/CancelBookingModal.jsx, BookingCard.jsx */
-  --mh-cancel-booking-color: #b5413c;
-  --mh-cancel-booking-hover-color: #a4332e;
-  --mh-cancel-booking-hover-background: #fbefee;
-  --mh-cancel-booking-border: rgba(181, 65, 60, 0.4);
-  --mh-cancel-booking-button-height: 2.5rem;
-
   /* HomePage and shared geometry — pages/HomePage.jsx, components/capacity/ */
   --mh-cap-assign-picker-flex: 1.5 1 0;
   --mh-cap-selected-panel-flex: 0.8 1 0;

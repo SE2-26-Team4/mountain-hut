@@ -757,18 +757,19 @@
    CancelBookingModal — components/booking/CancelBookingModal.jsx, BookingCard.jsx
    ========================================================================== */
 
-/* Destructive action: outlined so it stands out less than the safe one. */
+/* Destructive action: outlined so it stands out less than the safe one.
+   Colors are shared with the ProfileMenu sign-out action. */
 .mh-cancel-booking-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--mh-space-2);
-  min-height: var(--mh-cancel-booking-button-height);
+  min-height: var(--mh-space-10);
   padding: var(--mh-space-2) var(--mh-space-5);
-  border: var(--mh-border-width) solid var(--mh-cancel-booking-border);
+  border: var(--mh-border-width) solid var(--mh-profile-signout-color);
   border-radius: var(--mh-radius-pill);
   background: var(--mh-white);
-  color: var(--mh-cancel-booking-color);
+  color: var(--mh-profile-signout-color);
   font-size: var(--mh-text-sm);
   font-weight: var(--mh-weight-medium);
   transition:
@@ -778,9 +779,9 @@
 }
 
 .mh-cancel-booking-button:hover:not(:disabled) {
-  border-color: var(--mh-cancel-booking-hover-color);
-  background: var(--mh-cancel-booking-hover-background);
-  color: var(--mh-cancel-booking-hover-color);
+  border-color: var(--mh-profile-signout-hover-color);
+  background: var(--mh-profile-signout-hover-background);
+  color: var(--mh-profile-signout-hover-color);
 }
 
 .mh-cancel-booking-button:disabled {
