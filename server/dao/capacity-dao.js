@@ -101,6 +101,21 @@ export class DuplicateMealSlotError extends Error {
   }
 }
 
+/**
+ * Reports that a destination schedule cannot be replaced because it has
+ * bookings referencing its meal slots.
+ */
+export class WeeklyScheduleConflictError extends Error {
+  constructor() {
+    super(
+      'The destination week contains bookings and cannot be replaced.',
+    );
+
+    this.name = 'WeeklyScheduleConflictError';
+    this.code = 'WEEKLY_SCHEDULE_CONFLICT';
+  }
+}
+
 /* HELPERS */
 
 /**
@@ -352,6 +367,20 @@ async function assertMealSlotAvailable(
   }
 }
 
+/**
+ * Adds a number of calendar days without applying local-time conversions.
+ *
+ * @param {string} date
+ * @param {number} days
+ * @returns {string}
+ */
+function addCalendarDays(date, days) {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+
+  return value.toISOString().slice(0, 10);
+}
+
 /* CREATE */
 
 /**
@@ -508,6 +537,148 @@ export async function getMealSlotCapacity(slotId) {
   return withTransaction((queries) =>
     readMealSlotCapacity(slotId, queries)
   );
+}
+
+/**
+ * Replaces a destination week with a copy of a source week.
+ * The source records and reusable dining tables are never modified.
+ *
+ * @param {{ sourceWeekStart: string, destinationWeekStart: string }} input
+ * @returns {Promise<Array<MealSlotDTO & { tableIds: number[] }>>}
+ * @throws {WeeklyScheduleConflictError} If destination slots have bookings.
+ * @throws {DuplicateMealSlotError} If a copied slot conflicts with another slot.
+ */
+export async function copyWeeklySchedule({
+  sourceWeekStart,
+  destinationWeekStart,
+}) {
+  const sourceWeekEnd = addCalendarDays(sourceWeekStart, 7);
+  const destinationWeekEnd = addCalendarDays(destinationWeekStart, 7);
+
+  return withTransaction(async ({
+    runAsync,
+    getAsync,
+    allAsync,
+  }) => {
+    /** @type {MealSlotRow[]} */
+    const sourceSlots = await allAsync(
+      `SELECT
+         id,
+         name,
+         slot_date AS slotDate,
+         start_time AS startTime,
+         end_time AS endTime,
+         is_active AS isActive
+       FROM meal_slots
+       WHERE slot_date >= ?
+         AND slot_date < ?
+       ORDER BY slot_date, start_time, id`,
+      [sourceWeekStart, sourceWeekEnd],
+    );
+
+    const destinationSlots = await allAsync(
+      `SELECT id
+       FROM meal_slots
+       WHERE slot_date >= ?
+         AND slot_date < ?`,
+      [destinationWeekStart, destinationWeekEnd],
+    );
+
+    if (destinationSlots.length > 0) {
+      const destinationIds = destinationSlots.map((slot) => slot.id);
+      const placeholders = destinationIds.map(() => '?').join(', ');
+      const booking = await getAsync(
+        `SELECT 1
+         FROM bookings
+         WHERE slot_id IN (${placeholders})
+         LIMIT 1`,
+        destinationIds,
+      );
+
+      if (booking) {
+        throw new WeeklyScheduleConflictError();
+      }
+
+      await runAsync(
+        `DELETE FROM slot_tables
+         WHERE slot_id IN (${placeholders})`,
+        destinationIds,
+      );
+      await runAsync(
+        `DELETE FROM meal_slots
+         WHERE id IN (${placeholders})`,
+        destinationIds,
+      );
+    }
+
+    const copiedSlots = [];
+
+    for (const sourceSlot of sourceSlots) {
+      const sourceDate = new Date(
+        `${sourceSlot.slotDate}T00:00:00Z`,
+      );
+      const sourceStart = new Date(
+        `${sourceWeekStart}T00:00:00Z`,
+      );
+      const dayOffset = Math.round(
+        (sourceDate.getTime() - sourceStart.getTime()) /
+          (24 * 60 * 60 * 1000),
+      );
+      const destinationDate = addCalendarDays(
+        destinationWeekStart,
+        dayOffset,
+      );
+
+      await assertMealSlotAvailable(
+        getAsync,
+        destinationDate,
+        sourceSlot.name,
+        sourceSlot.startTime,
+        sourceSlot.endTime,
+      );
+
+      const result = await runAsync(
+        `INSERT INTO meal_slots (
+           slot_date, name, start_time, end_time, is_active
+         )
+         VALUES (?, ?, ?, ?, ?)`,
+        [
+          destinationDate,
+          sourceSlot.name,
+          sourceSlot.startTime,
+          sourceSlot.endTime,
+          sourceSlot.isActive,
+        ],
+      );
+
+      const assignedTables = await allAsync(
+        `SELECT table_id AS tableId
+         FROM slot_tables
+         WHERE slot_id = ?
+         ORDER BY table_id`,
+        [sourceSlot.id],
+      );
+
+      for (const { tableId } of assignedTables) {
+        await runAsync(
+          `INSERT INTO slot_tables (slot_id, table_id)
+           VALUES (?, ?)`,
+          [result.lastID, tableId],
+        );
+      }
+
+      copiedSlots.push({
+        ...normalizeMealSlot({
+          ...sourceSlot,
+          id: result.lastID,
+          slotDate: destinationDate,
+        }),
+        tableIds: assignedTables.map(({ tableId }) => tableId),
+      });
+    }
+
+    return copiedSlots;
+  });
 }
 
 /* UPDATE */

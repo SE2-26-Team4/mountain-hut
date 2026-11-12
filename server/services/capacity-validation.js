@@ -209,3 +209,35 @@ export function validateSlotTableAssignment(slotId, tableIds) {
   // Return the validated assignment for database existence and conflict checks.
   return { slotId, tableIds };
 }
+
+/**
+ * Validates the first dates of two weekly schedules.
+ *
+ * @param {unknown} input
+ * @returns {{ sourceWeekStart: string, destinationWeekStart: string }}
+ */
+export function validateWeeklyScheduleCopy(input) {
+  requireObject(input, 'Weekly schedule copy');
+
+  const { sourceWeekStart, destinationWeekStart } = input;
+
+  if (!isValidCalendarDate(sourceWeekStart)) {
+    throw new Error(
+      'A valid source week start date in YYYY-MM-DD format is required.',
+    );
+  }
+
+  if (!isValidCalendarDate(destinationWeekStart)) {
+    throw new Error(
+      'A valid destination week start date in YYYY-MM-DD format is required.',
+    );
+  }
+
+  if (sourceWeekStart === destinationWeekStart) {
+    throw new Error(
+      'The source and destination weeks must be different.',
+    );
+  }
+
+  return { sourceWeekStart, destinationWeekStart };
+}

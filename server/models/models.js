@@ -65,6 +65,16 @@
  */
 
 /**
+ * @typedef {Object} WeeklyScheduleCopyRequestDTO
+ * @property {string} sourceWeekStart - First date included in the source week.
+ * @property {string} destinationWeekStart - First date included in the destination week.
+ */
+
+/**
+ * @typedef {MealSlotDTO & { tableIds: number[] }} CopiedMealSlotDTO
+ */
+
+/**
  * @typedef {Object} MealSlotCapacityDTO
  * @property {number} slotId
  * @property {string} slotName
