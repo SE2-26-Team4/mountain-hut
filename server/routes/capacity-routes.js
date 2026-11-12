@@ -1,4 +1,4 @@
-import express from 'express';
+import express from "express";
 
 import {
   createDiningTable,
@@ -14,14 +14,17 @@ import {
   CapacityConflictError,
   TableSlotConflictError,
   DuplicateMealSlotError,
-} from '../dao/capacity-dao.js';
-import { requireStaff } from '../middleware/require-role.js';
+} from "../dao/capacity-dao.js";
+import { requireStaff } from "../middleware/require-role.js";
 import {
   validateDiningTable,
   validateMealSlot,
   validateSlotTableAssignment,
-} from '../services/capacity-validation.js';
-import { getBookingDeadline } from '../services/booking-time.js';
+} from "../services/capacity-validation.js";
+import {
+  getBookingDeadline,
+  getMealStartTimestamp,
+} from "../services/booking-time.js";
 
 /**
  * Data types used to validate capacity configuration requests.
@@ -45,9 +48,8 @@ const router = express.Router();
 function sendValidationError(res, error) {
   return res.status(400).json({
     error: {
-      code: 'INVALID_INPUT',
-      message:
-        error instanceof Error ? error.message : 'Invalid input.',
+      code: "INVALID_INPUT",
+      message: error instanceof Error ? error.message : "Invalid input.",
     },
   });
 }
@@ -60,7 +62,7 @@ function sendValidationError(res, error) {
  * @returns {number | null}
  */
 function parsePositiveId(value) {
-  if (typeof value !== 'string') {
+  if (typeof value !== "string") {
     return null;
   }
 
@@ -91,7 +93,7 @@ function asyncRoute(handler) {
 
 // Allow staff to create a meal slot with a date and time range.
 router.post(
-  '/capacity/meal-slots',
+  "/capacity/meal-slots",
   requireStaff,
   asyncRoute(async (req, res) => {
     /** @type {MealSlotInputDTO} */
@@ -100,6 +102,16 @@ router.post(
     // Validate and normalize input before calling the DAO.
     try {
       mealSlotData = validateMealSlot(req.body);
+
+      // Reject new meal slots that have already started in the hut's time zone.
+      const startsAt = getMealStartTimestamp(
+        mealSlotData.slotDate,
+        mealSlotData.startTime,
+      );
+
+      if (startsAt <= Date.now()) {
+        throw new Error("The meal slot must start in the future.");
+      }
     } catch (error) {
       return sendValidationError(res, error);
     }
@@ -113,7 +125,7 @@ router.post(
 
 // Allow staff to create a reusable dining table.
 router.post(
-  '/capacity/dining-tables',
+  "/capacity/dining-tables",
   requireStaff,
   asyncRoute(async (req, res) => {
     /** @type {DiningTableInputDTO} */
@@ -137,7 +149,7 @@ router.post(
 
 // Provide a public list of active meal slots and their booking deadlines.
 router.get(
-  '/meal-slots',
+  "/meal-slots",
   asyncRoute(async (_req, res) => {
     const mealSlots = await getMealSlots();
 
@@ -148,10 +160,7 @@ router.get(
         .map((mealSlot) => ({
           ...mealSlot,
           bookingClosesAt: new Date(
-            getBookingDeadline(
-              mealSlot.slotDate,
-              mealSlot.startTime,
-            )
+            getBookingDeadline(mealSlot.slotDate, mealSlot.startTime),
           ).toISOString(),
         })),
     });
@@ -160,7 +169,7 @@ router.get(
 
 // Return the full configuration to staff, including inactive records.
 router.get(
-  '/capacity',
+  "/capacity",
   requireStaff,
   asyncRoute(async (_req, res) => {
     // Request slots and reusable table definitions together.
@@ -178,7 +187,7 @@ router.get(
 
 // Return the tables assigned to a slot and its configured capacity.
 router.get(
-  '/capacity/meal-slots/:slotId',
+  "/capacity/meal-slots/:slotId",
   requireStaff,
   asyncRoute(async (req, res) => {
     // Validate the route parameter before querying the database.
@@ -187,8 +196,8 @@ router.get(
     if (!slotId) {
       return res.status(400).json({
         error: {
-          code: 'INVALID_INPUT',
-          message: 'Meal slot ID must be a positive integer.',
+          code: "INVALID_INPUT",
+          message: "Meal slot ID must be a positive integer.",
         },
       });
     }
@@ -199,8 +208,8 @@ router.get(
     if (!capacity) {
       return res.status(404).json({
         error: {
-          code: 'NOT_FOUND',
-          message: 'Meal slot was not found.',
+          code: "NOT_FOUND",
+          message: "Meal slot was not found.",
         },
       });
     }
@@ -213,7 +222,7 @@ router.get(
 
 // Allow staff to update a meal slot's date, name, times, and active status.
 router.put(
-  '/capacity/meal-slots/:slotId',
+  "/capacity/meal-slots/:slotId",
   requireStaff,
   asyncRoute(async (req, res) => {
     // Reject an invalid slot ID before validating the request body.
@@ -222,8 +231,8 @@ router.put(
     if (!slotId) {
       return res.status(400).json({
         error: {
-          code: 'INVALID_INPUT',
-          message: 'Meal slot ID must be a positive integer.',
+          code: "INVALID_INPUT",
+          message: "Meal slot ID must be a positive integer.",
         },
       });
     }
@@ -244,7 +253,7 @@ router.put(
     if (isActive === undefined) {
       return sendValidationError(
         res,
-        new Error('Meal slot active status is required for updates.'),
+        new Error("Meal slot active status is required for updates."),
       );
     }
 
@@ -257,8 +266,8 @@ router.put(
     if (!mealSlot) {
       return res.status(404).json({
         error: {
-          code: 'NOT_FOUND',
-          message: 'Meal slot was not found.',
+          code: "NOT_FOUND",
+          message: "Meal slot was not found.",
         },
       });
     }
@@ -269,7 +278,7 @@ router.put(
 
 // Allow staff to update a reusable table's name, seats, and active status.
 router.put(
-  '/capacity/dining-tables/:tableId',
+  "/capacity/dining-tables/:tableId",
   requireStaff,
   asyncRoute(async (req, res) => {
     // Validate the table ID before processing the proposed changes.
@@ -278,8 +287,8 @@ router.put(
     if (!tableId) {
       return res.status(400).json({
         error: {
-          code: 'INVALID_INPUT',
-          message: 'Dining table ID must be a positive integer.',
+          code: "INVALID_INPUT",
+          message: "Dining table ID must be a positive integer.",
         },
       });
     }
@@ -300,7 +309,7 @@ router.put(
     if (isActive === undefined) {
       return sendValidationError(
         res,
-        new Error('Dining table active status is required for updates.'),
+        new Error("Dining table active status is required for updates."),
       );
     }
 
@@ -313,8 +322,8 @@ router.put(
     if (!diningTable) {
       return res.status(404).json({
         error: {
-          code: 'NOT_FOUND',
-          message: 'Dining table was not found.',
+          code: "NOT_FOUND",
+          message: "Dining table was not found.",
         },
       });
     }
@@ -325,7 +334,7 @@ router.put(
 
 // Replace the complete set of tables assigned to a meal slot.
 router.put(
-  '/capacity/meal-slots/:slotId/tables',
+  "/capacity/meal-slots/:slotId/tables",
   requireStaff,
   asyncRoute(async (req, res) => {
     const slotId = parsePositiveId(req.params.slotId);
@@ -335,10 +344,7 @@ router.put(
 
     // Validate the slot ID and requested table IDs before saving.
     try {
-      assignment = validateSlotTableAssignment(
-        slotId,
-        req.body?.tableIds,
-      );
+      assignment = validateSlotTableAssignment(slotId, req.body?.tableIds);
     } catch (error) {
       return sendValidationError(res, error);
     }
@@ -354,8 +360,8 @@ router.put(
       if (!capacity) {
         return res.status(404).json({
           error: {
-            code: 'NOT_FOUND',
-            message: 'Meal slot was not found.',
+            code: "NOT_FOUND",
+            message: "Meal slot was not found.",
           },
         });
       }
@@ -367,7 +373,7 @@ router.put(
       if (error instanceof DiningTablesNotFoundError) {
         return res.status(400).json({
           error: {
-            code: 'INVALID_INPUT',
+            code: "INVALID_INPUT",
             message: error.message,
             missingTableIds: error.missingTableIds,
           },
@@ -400,12 +406,12 @@ const handleCapacityError = (error, _req, res, _next) => {
   }
 
   // Log unexpected failures while returning a generic message to the client.
-  console.error('Capacity API error:', error);
+  console.error("Capacity API error:", error);
 
   return res.status(500).json({
     error: {
-      code: 'INTERNAL_SERVER_ERROR',
-      message: 'An unexpected error occurred.',
+      code: "INTERNAL_SERVER_ERROR",
+      message: "An unexpected error occurred.",
     },
   });
 };
