@@ -5,7 +5,12 @@ import { requireAuth } from '../middleware/require-auth.js';
 
 const router = express.Router();
 
-function login(req, res, next) {
+/**
+ * @param {'hiker' | 'staff'} area
+ * @returns {import('express').RequestHandler}
+ */
+function loginFor(area) {
+  return (req, res, next) => {
     const { email, password } = req.body ?? {};
 
     if (
@@ -42,6 +47,20 @@ function login(req, res, next) {
           });
         }
 
+        const allowed =
+          area === 'hiker'
+            ? user.role === 'hiker'
+            : user.role === 'employee' || user.role === 'warden';
+
+        if (!allowed) {
+          return res.status(401).json({
+            error: {
+              code: 'INVALID_CREDENTIALS',
+              message: 'Email or password is incorrect.',
+            },
+          });
+        }
+
         req.logIn(user, (loginError) => {
           if (loginError) {
             return next(loginError);
@@ -51,10 +70,11 @@ function login(req, res, next) {
         });
       },
     )(req, res, next);
+  };
 }
 
-router.post('/sessions', login);
-router.post('/staff/sessions', login);
+router.post('/sessions', loginFor('hiker'));
+router.post('/staff/sessions', loginFor('staff'));
 
 router.get('/sessions/current', requireAuth, (req, res) => {
   return res.json({ user: req.user });

@@ -30,7 +30,7 @@ function StaffCapacityPage() {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/staff/login" replace />;
   }
 
   if (user.role !== 'employee' && user.role !== 'warden') {

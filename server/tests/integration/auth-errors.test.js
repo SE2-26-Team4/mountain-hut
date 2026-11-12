@@ -272,3 +272,44 @@ describe('authentication errors', () => {
     expect(response.body).not.toHaveProperty('user');
   });
 });
+
+// Check that each role uses the correct login area without opening a session.
+it.each([
+  ['/api/sessions', 'employee'],
+  ['/api/sessions', 'warden'],
+  ['/api/staff/sessions', 'hiker'],
+])(
+  'rejects %s for role %s without revealing the account role',
+  async (path, role) => {
+    const user = {
+      id: 789,
+      full_name: 'Wrong Area',
+      email: 'area@example.com',
+      role,
+    };
+
+    // Accept credentials so the test isolates the login-area role check.
+    vi.spyOn(passport, 'authenticate').mockImplementation(
+      (_strategy, callback) =>
+        (_req, _res, _next) => callback(null, user)
+    );
+
+    const logIn = vi.fn();
+    const { testApp } = createRouteTestApp({ logIn });
+
+    const response = await request(testApp)
+      .post(path)
+      .send({
+        email: user.email,
+        password: 'AreaTest123!',
+      });
+
+    // Use the same response as invalid credentials to prevent enumeration.
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('INVALID_CREDENTIALS');
+    expect(response.body.error.message).toBe(
+      'Email or password is incorrect.',
+    );
+    expect(logIn).not.toHaveBeenCalled();
+  }
+);

@@ -104,7 +104,7 @@ When `SEED_DEMO_ACCOUNTS=true`, the backend creates missing demo accounts:
 | Role | Email | Password | Sign-in |
 | --- | --- | --- | --- |
 | Hiker | `hiker@example.com` | `HikerTest123!` | Home page → Sign in |
-| Employee | `employee@example.com` | `EmployeeTest123!` | `/login` |
+| Employee | `employee@example.com` | `EmployeeTest123!` | `/staff/login` |
 
 These credentials can be overridden using `TEST_HIKER_EMAIL`, `TEST_HIKER_PASSWORD`, `TEST_EMPLOYEE_EMAIL`, and `TEST_EMPLOYEE_PASSWORD`. Registration is not provided. The database initially has no dining tables or meal slots; staff must configure them before bookings can be made.
 
@@ -124,7 +124,7 @@ The backend API base URL is **http://localhost:3000/api** in local development a
 | --- | --- | --- | --- |
 | GET | `/api/health` | Public | Health check |
 | POST | `/api/sessions` | Public | Hiker sign-in |
-| POST | `/api/sessions` | Public | Sign in for all account roles |
+| POST | `/api/staff/sessions` | Public | Staff sign-in |
 | GET | `/api/sessions/current` | Authenticated | Current session |
 | DELETE | `/api/sessions/current` | Authenticated | Sign out |
 | GET | `/api/meal-slots` | Public | Active meal slots |
