@@ -36,6 +36,14 @@
 }
 
 /* ==========================================================================
+   StatusBadge — components/common/StatusBadge.jsx
+   ========================================================================== */
+
+.mh-status-badge-danger {
+  background-color: var(--mh-status-badge-danger-background);
+}
+
+/* ==========================================================================
    LoginForm — components/auth/LoginForm.jsx
    ========================================================================== */
 
@@ -3286,6 +3294,47 @@
   font-size: var(--mh-text-lg);
   font-weight: var(--mh-weight-medium);
   letter-spacing: var(--mh-my-bookings-heading-tracking);
+}
+
+.mh-my-bookings .mh-booking-dietary {
+  min-width: 0;
+}
+
+.mh-my-bookings .mh-booking-dietary-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--mh-weight-normal);
+  font-size: var(--mh-text-sm);
+  line-height: var(--mh-my-bookings-dietary-line-height);
+}
+
+.mh-my-bookings .mh-booking-card-actions > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--mh-my-bookings-action-size);
+  height: var(--mh-my-bookings-action-size);
+  padding: 0;
+  border-radius: var(--mh-cap-size-11);
+}
+
+.mh-my-bookings .mh-booking-card-actions > button[aria-disabled="true"] {
+  opacity: var(--mh-disabled-opacity);
+  cursor: help;
+}
+
+@media (min-width: 576px) {
+  .mh-my-bookings {
+    padding-inline: var(--mh-space-8);
+  }
+}
+
+@media (min-width: 720px) and (max-width: 1199.98px) {
+  .mh-my-bookings .mh-booking-column {
+    width: 50%;
+  }
 }
 
 /* ==========================================================================

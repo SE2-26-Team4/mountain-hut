@@ -5,9 +5,10 @@
  * @typedef {import('../models/models.js').BookingDTO} BookingDTO
  */
 
-const API_URL = (
-  import.meta.env.VITE_API_BASE_URL ?? '/api'
-).replace(/\/$/, '');
+const API_URL = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(
+  /\/$/,
+  "",
+);
 
 class BookingApiError extends Error {
   /**
@@ -18,7 +19,7 @@ class BookingApiError extends Error {
   constructor(message, status, code) {
     super(message);
 
-    this.name = 'BookingApiError';
+    this.name = "BookingApiError";
     this.status = status;
     this.code = code;
   }
@@ -34,21 +35,19 @@ class BookingApiError extends Error {
 async function request(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
-    credentials: 'include',
+    credentials: "include",
     headers: {
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
       ...options.headers,
     },
   });
 
   const data =
-    response.status === 204
-      ? null
-      : await response.json().catch(() => null);
+    response.status === 204 ? null : await response.json().catch(() => null);
 
   if (!response.ok) {
     throw new BookingApiError(
-      data?.error?.message ?? 'The booking request could not be completed.',
+      data?.error?.message ?? "The booking request could not be completed.",
       response.status,
       data?.error?.code,
     );
@@ -62,7 +61,7 @@ async function request(path, options = {}) {
  */
 async function getMealSlots() {
   /** @type {{ mealSlots: MealSlotDTO[] }} */
-  const data = await request('/meal-slots');
+  const data = await request("/meal-slots");
 
   return data.mealSlots;
 }
@@ -90,18 +89,31 @@ async function getAvailability(bookingDate, slotId) {
  */
 async function createBooking(booking) {
   /** @type {{ booking: BookingDTO, emailSent: boolean }} */
-  const data = await request('/bookings', {
-    method: 'POST',
+  const data = await request("/bookings", {
+    method: "POST",
     body: JSON.stringify(booking),
   });
 
   return data;
 }
 
+/**
+ * @param {number} bookingId
+ * @param {CreateBookingRequestDTO} booking
+ * @returns {Promise<{ booking: BookingDTO, emailSent: boolean }>}
+ */
+function updateBooking(bookingId, booking) {
+  return request(`/bookings/${bookingId}`, {
+    method: "PUT",
+    body: JSON.stringify(booking),
+  });
+}
+
 const BookingAPI = {
   getMealSlots,
   getAvailability,
   createBooking,
+  updateBooking,
 };
 
 export { BookingApiError };
