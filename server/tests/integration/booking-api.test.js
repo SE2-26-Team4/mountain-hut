@@ -191,14 +191,15 @@ afterAll(async () => {
   }
 });
 
-describe("booking availability API", () => {
-  // Verify public availability for an active slot with an empty table.
-  it("returns availability for an active meal slot", async () => {
+describe('booking availability API', () => {
+  // Verify an unauthenticated visitor can check an active slot.
+  it('returns availability to an unauthenticated visitor', async () => {
     const response = await request(app)
       .get("/api/bookings/availability")
       .query({ bookingDate, slotId });
 
     expect(response.status).toBe(200);
+    expect(response.body.error).toBeUndefined();
 
     expect(response.body.availability).toMatchObject({
       bookingDate,

@@ -71,11 +71,7 @@ export default function BookingForm({ user, onRequireLogin }) {
         </Alert>
       )}
 
-      <BookingSearch
-        booking={booking}
-        isAuthenticated={Boolean(user)}
-        onRequireLogin={onRequireLogin}
-      />
+      <BookingSearch booking={booking} />
 
       <div
         ref={availabilityRef}
