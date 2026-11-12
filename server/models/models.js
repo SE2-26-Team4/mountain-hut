@@ -91,4 +91,59 @@
  * @property {number} totalAvailableSeats
  */
 
+/**
+ * Hiker profile as seen by staff. Temporary hikers have no email.
+ *
+ * @typedef {Object} HikerDTO
+ * @property {number} id
+ * @property {string} fullName
+ * @property {string | null} email
+ * @property {string | null} phone
+ * @property {string | null} notes
+ * @property {string | null} emergencyContact
+ * @property {boolean} isTemporary - True when the hiker cannot log in.
+ * @property {boolean} mustChangePassword - True until the first password change.
+ */
+
+/**
+ * Hiker selected or entered by staff for a booking.
+ * - existing: a registered or temporary hiker found by searching;
+ * - new: a full account that can log in with a generated password;
+ * - temporary: name and optional phone, without web access.
+ *
+ * @typedef {(
+ *   { type: 'existing', hikerId: number } |
+ *   {
+ *     type: 'new',
+ *     fullName: string,
+ *     email: string,
+ *     phone: string,
+ *     notes?: string | null,
+ *     emergencyContact?: string | null
+ *   } |
+ *   { type: 'temporary', fullName: string, phone?: string | null }
+ * )} StaffHikerInputDTO
+ */
+
+/**
+ * @typedef {CreateBookingRequestDTO & {
+ *   hiker: StaffHikerInputDTO
+ * }} CreateStaffBookingRequestDTO
+ */
+
+/**
+ * Hiker created by staff. The initial password is returned only once,
+ * for a new full account, so that staff can communicate it.
+ *
+ * @typedef {Object} StaffHikerRegistrationDTO
+ * @property {HikerDTO} hiker
+ * @property {string} [initialPassword]
+ */
+
+/**
+ * @typedef {StaffHikerRegistrationDTO & {
+ *   booking: BookingDTO
+ * }} StaffBookingDTO
+ */
+
 export {};

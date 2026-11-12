@@ -351,11 +351,7 @@ export default function useBookingLogic({ user, onRequireLogin }) {
   async function handleSearch(event) {
     event.preventDefault();
 
-    // Require authentication before searching.
-    if (!user) {
-      onRequireLogin?.();
-      return;
-    }
+    // Availability is public; login is required only when reserving.
 
     // Prevent a search while a booking submission is in progress.
     if (bookingInProgressRef.current) return;

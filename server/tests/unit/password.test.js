@@ -5,6 +5,7 @@ import {
 } from 'vitest';
 
 import {
+  generateInitialPassword,
   hashPassword,
   verifyPassword,
 } from '../../services/password.js';
@@ -101,5 +102,29 @@ describe('password hashing and verification', () => {
     await expect(
       verifyPassword('MountainTest123!', incompleteHash),
     ).resolves.toBe(false);
+  });
+});
+
+// Staff-created hikers receive a random password to change at first login.
+describe('initial password generation', () => {
+  it('generates 16 URL-safe characters', () => {
+    expect(generateInitialPassword()).toMatch(/^[A-Za-z0-9_-]{16}$/);
+  });
+
+  it('generates a different password each time', () => {
+    const passwords = new Set(
+      Array.from({ length: 20 }, () => generateInitialPassword()),
+    );
+
+    expect(passwords.size).toBe(20);
+  });
+
+  it('generates a password that can be hashed and verified', async () => {
+    const password = generateInitialPassword();
+    const storedHash = await hashPassword(password);
+
+    await expect(
+      verifyPassword(password, storedHash),
+    ).resolves.toBe(true);
   });
 });
