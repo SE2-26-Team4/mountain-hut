@@ -1,19 +1,19 @@
-import express from 'express';
+import express from "express";
 
 import {
   BookingError,
   cancelBooking,
   getBookingById,
   getBookingsByHiker,
-} from '../dao/booking-dao.js';
-import { requireRole } from '../middleware/require-role.js';
-import { getDiningTables, getMealSlots } from '../dao/capacity-dao.js';
-import { buildBookingConfirmationEmail } from '../services/booking-confirmation-content.js';
-import { sendBookingConfirmationEmail } from '../services/booking-confirmation-service.js';
+} from "../dao/booking-dao.js";
+import { requireRole } from "../middleware/require-role.js";
+import { getDiningTables, getMealSlots } from "../dao/capacity-dao.js";
+import { buildBookingConfirmationEmail } from "../services/booking-confirmation-content.js";
+import { sendBookingConfirmationEmail } from "../services/booking-confirmation-service.js";
 import {
   createBookingForHiker,
   getMealSlotAvailability,
-} from '../services/booking-service.js';
+} from "../services/booking-service.js";
 
 // Group booking endpoints and their error handler in a dedicated router.
 const router = express.Router();
@@ -34,110 +34,101 @@ function asyncRoute(handler) {
   };
 }
 
-/* CREATE */
+/* CREATE AND UPDATE */
 
-// Create a reservation for the authenticated hiker.
-router.post(
-  '/bookings',
-  requireRole('hiker'),
-  asyncRoute(async (req, res) => {
-    const user = req.user;
+// Use the same booking validation and persistence flow for creation and edits.
+const saveBooking = asyncRoute(async (req, res) => {
+  const user = req.user;
+  const isEdit = req.method === "PUT";
+  const rawBookingId = req.params.id;
+  const bookingId = Number(rawBookingId);
 
-    // Require a session user before accepting a booking.
-    if (!user) {
-      return res.status(401).json({
-        error: {
-          code: 'UNAUTHENTICATED',
-          message: 'Login is required.',
-        },
-      });
+  if (
+    isEdit &&
+    (typeof rawBookingId !== "string" ||
+      !/^[1-9]\d*$/.test(rawBookingId) ||
+      !Number.isSafeInteger(bookingId))
+  ) {
+    throw new BookingError(
+      "INVALID_BOOKING",
+      "A valid booking ID is required.",
+    );
+  }
+
+  if (!user) {
+    return res.status(401).json({
+      error: {
+        code: "UNAUTHENTICATED",
+        message: "Login is required.",
+      },
+    });
+  }
+
+  const { bookingDate, slotId, partySize, specialRequests } = req.body ?? {};
+
+  const bookingData = {
+    hikerId: user.id,
+    bookingDate,
+    slotId,
+    partySize,
+    specialRequests,
+  };
+
+  const booking = isEdit
+    ? await createBookingForHiker(bookingData, bookingId)
+    : await createBookingForHiker(bookingData);
+
+  // [REQUIREMENT] When a change has been done the change to the reservation should be notified by email.
+  let emailSent = false;
+
+  try {
+    const [mealSlots, tables] = await Promise.all([
+      getMealSlots(),
+      getDiningTables(),
+    ]);
+
+    const mealSlot = mealSlots.find((slot) => slot.id === booking.slotId);
+
+    if (!mealSlot) {
+      throw new Error(`Meal slot ${booking.slotId} not found.`);
     }
 
-    // Read the booking selection and optional requests from the request body.
-    const {
-      bookingDate,
-      slotId,
-      partySize,
-      specialRequests,
-    } = req.body ?? {};
+    const allocatedTableIds = new Set(
+      booking.allocations.map((allocation) => allocation.tableId),
+    );
 
-    // Validate and persist the booking for the session user.
-    // The DAO checks availability and allocates seats atomically.
-    const booking = await createBookingForHiker({
-      hikerId: user.id,
-      bookingDate,
-      slotId,
-      partySize,
-      specialRequests,
+    const email = buildBookingConfirmationEmail({
+      isEdit,
+      hiker: user,
+      booking,
+      mealSlot,
+      tables: tables.filter((table) => allocatedTableIds.has(table.id)),
+      requirements: booking.specialRequests
+        ? [{ hasAllergies: false, description: booking.specialRequests }]
+        : [],
     });
 
-    // Send the email after persistence so delivery failures do not undo
-    // a valid booking or encourage the client to submit it again.
-    let emailSent = false;
+    await sendBookingConfirmationEmail(email);
+    emailSent = true;
+  } catch (emailError) {
+    console.error(
+      "Booking saved, but confirmation email could not be sent:",
+      emailError,
+    );
+  }
 
-    try {
-      // Load slot details and table names for the confirmation message.
-      const [mealSlots, tables] = await Promise.all([
-        getMealSlots(),
-        getDiningTables(),
-      ]);
+  return res.status(isEdit ? 200 : 201).json({ booking, emailSent });
+});
 
-      const mealSlot = mealSlots.find(
-        (slot) => slot.id === booking.slotId
-      );
-
-      if (!mealSlot) {
-        throw new Error(`Meal slot ${booking.slotId} not found.`);
-      }
-
-      // Include only tables allocated to this booking.
-      const allocatedTableIds = new Set(
-        booking.allocations.map((allocation) => allocation.tableId)
-      );
-
-      // Build the confirmation using saved booking details.
-      // Include optional requests without automatically classifying them
-      // as allergies; their full description remains in the message.
-      const email = buildBookingConfirmationEmail({
-        hiker: user,
-        booking,
-        mealSlot,
-        tables: tables.filter((table) =>
-          allocatedTableIds.has(table.id)
-        ),
-        requirements: booking.specialRequests
-          ? [
-              {
-                hasAllergies: false,
-                description: booking.specialRequests,
-              },
-            ]
-          : [],
-      });
-
-      // Mark the email as sent when the sending service completes successfully.
-      // This does not confirm that it has reached the recipient's inbox.
-      await sendBookingConfirmationEmail(email);
-      emailSent = true;
-    } catch (emailError) {
-      // Log email failures while preserving the successfully saved booking.
-      console.error(
-        'Booking saved, but confirmation email could not be sent:',
-        emailError
-      );
-    }
-
-    // Return the booking and email status so the UI can display both outcomes.
-    return res.status(201).json({ booking, emailSent });
-  })
-);
+router.post("/bookings", requireRole("hiker"), saveBooking);
+router.put("/bookings/:id", requireRole("hiker"), saveBooking);
 
 /* READ */
 
 // Return bookings belonging to the authenticated hiker.
 router.get(
-  '/bookings',
-  requireRole('hiker'),
+  "/bookings",
+  requireRole("hiker"),
   asyncRoute(async (req, res) => {
     const user = req.user;
 
@@ -145,8 +136,8 @@ router.get(
     if (!user) {
       return res.status(401).json({
         error: {
-          code: 'UNAUTHENTICATED',
-          message: 'Login is required.',
+          code: "UNAUTHENTICATED",
+          message: "Login is required.",
         },
       });
     }
@@ -155,26 +146,26 @@ router.get(
     const bookings = await getBookingsByHiker(user.id);
 
     return res.status(200).json({ bookings });
-  })
+  }),
 );
 
 // Expose seat availability for a date and meal slot without requiring login.
 router.get(
-  '/bookings/availability',
+  "/bookings/availability",
   asyncRoute(async (req, res) => {
     const { bookingDate } = req.query;
     const rawSlotId = req.query.slotId;
 
     // Require a date string and a slot ID written as a positive integer.
     if (
-      typeof bookingDate !== 'string' ||
-      typeof rawSlotId !== 'string' ||
+      typeof bookingDate !== "string" ||
+      typeof rawSlotId !== "string" ||
       !/^[1-9]\d*$/.test(rawSlotId)
     ) {
       return res.status(400).json({
         error: {
-          code: 'INVALID_BOOKING',
-          message: 'A valid booking date and meal-slot ID are required.',
+          code: "INVALID_BOOKING",
+          message: "A valid booking date and meal-slot ID are required.",
         },
       });
     }
@@ -183,30 +174,30 @@ router.get(
     // then calculates the remaining seats.
     const availability = await getMealSlotAvailability(
       bookingDate,
-      Number(rawSlotId)
+      Number(rawSlotId),
     );
 
     // Report a slot that does not exist, is inactive, or does not match the date.
     if (!availability) {
       return res.status(404).json({
         error: {
-          code: 'MEAL_SLOT_NOT_FOUND',
-          message: 'The requested active meal slot was not found.',
+          code: "MEAL_SLOT_NOT_FOUND",
+          message: "The requested active meal slot was not found.",
         },
       });
     }
 
     // Availability is informative; this endpoint does not reserve seats.
     return res.status(200).json({ availability });
-  })
+  }),
 );
 
 /* DELETE */
 
 // Cancel a confirmed booking owned by the authenticated hiker.
 router.delete(
-  '/bookings/:id',
-  requireRole('hiker'),
+  "/bookings/:id",
+  requireRole("hiker"),
   asyncRoute(async (req, res) => {
     const user = req.user;
     const rawBookingId = req.params.id;
@@ -214,14 +205,14 @@ router.delete(
 
     // Reject malformed IDs and numbers outside the safe integer range.
     if (
-      typeof rawBookingId !== 'string' ||
+      typeof rawBookingId !== "string" ||
       !/^[1-9]\d*$/.test(rawBookingId) ||
       !Number.isSafeInteger(bookingId)
     ) {
       return res.status(400).json({
         error: {
-          code: 'INVALID_BOOKING',
-          message: 'A valid booking ID is required.',
+          code: "INVALID_BOOKING",
+          message: "A valid booking ID is required.",
         },
       });
     }
@@ -230,8 +221,8 @@ router.delete(
     if (!user) {
       return res.status(401).json({
         error: {
-          code: 'UNAUTHENTICATED',
-          message: 'Login is required.',
+          code: "UNAUTHENTICATED",
+          message: "Login is required.",
         },
       });
     }
@@ -243,8 +234,8 @@ router.delete(
     if (!cancelled) {
       return res.status(404).json({
         error: {
-          code: 'BOOKING_NOT_FOUND',
-          message: 'The requested booking was not found.',
+          code: "BOOKING_NOT_FOUND",
+          message: "The requested booking was not found.",
         },
       });
     }
@@ -253,7 +244,7 @@ router.delete(
     const booking = await getBookingById(bookingId);
 
     return res.status(200).json({ booking });
-  })
+  }),
 );
 
 /* ERROR HANDLING */
@@ -271,32 +262,34 @@ const handleBookingError = (error, _req, res, next) => {
 
     switch (error.code) {
       // Invalid request data is reported as a client input error.
-      case 'INVALID_BOOKING':
-      case 'INVALID_PARTY_SIZE':
+      case "INVALID_BOOKING":
+      case "INVALID_PARTY_SIZE":
         status = 400;
         break;
 
-      // A requested meal slot does not exist.
-      case 'SLOT_NOT_FOUND':
+      // Return 404 when the booking or meal slot is unavailable to the hiker.
+      case "BOOKING_NOT_FOUND":
+      case "SLOT_NOT_FOUND":
         status = 404;
         break;
 
-      // The request conflicts with availability or booking rules.
-      case 'SLOT_INACTIVE':
-      case 'NO_AVAILABILITY':
-      case 'DUPLICATE_BOOKING':
-      case 'BOOKING_TOO_LATE':
+      // Return 409 when availability or a booking rule prevents the request.
+      case "SLOT_INACTIVE":
+      case "NO_AVAILABILITY":
+      case "DUPLICATE_BOOKING":
+      case "BOOKING_EDIT_TOO_LATE":
+      case "BOOKING_TOO_LATE":
         status = 409;
         break;
 
       // Unrecognized booking error codes are treated as server failures.
       default:
-        console.error('Unexpected booking error:', error);
+        console.error("Unexpected booking error:", error);
 
         return res.status(500).json({
           error: {
-            code: 'INTERNAL_SERVER_ERROR',
-            message: 'An unexpected error occurred.',
+            code: "INTERNAL_SERVER_ERROR",
+            message: "An unexpected error occurred.",
           },
         });
     }
@@ -311,22 +304,22 @@ const handleBookingError = (error, _req, res, next) => {
   }
 
   // Report a temporary database lock as a retryable service failure.
-  if (error?.code === 'SQLITE_BUSY') {
+  if (error?.code === "SQLITE_BUSY") {
     return res.status(503).json({
       error: {
-        code: 'DATABASE_BUSY',
-        message: 'The service is temporarily busy. Please try again later.',
+        code: "DATABASE_BUSY",
+        message: "The service is temporarily busy. Please try again later.",
       },
     });
   }
 
   // Log unexpected failures and return a generic message to the client.
-  console.error('Booking API error:', error);
+  console.error("Booking API error:", error);
 
   return res.status(500).json({
     error: {
-      code: 'INTERNAL_SERVER_ERROR',
-      message: 'An unexpected error occurred.',
+      code: "INTERNAL_SERVER_ERROR",
+      message: "An unexpected error occurred.",
     },
   });
 };
