@@ -9,10 +9,12 @@ import {
 import {
   createDiningTable,
   createMealSlot,
+  copyWeeklySchedule,
   DiningTablesNotFoundError,
   DuplicateMealSlotError,
   DuplicateNameError,
   getDiningTables,
+  WeeklyScheduleConflictError,
   getMealSlotCapacity,
   getMealSlots,
   setMealSlotTables,
@@ -81,6 +83,166 @@ afterAll(async () => {
 });
 
 describe('meal-slot and dining-table data access', () => {
+  it('copies a weekly schedule with new slots and table assignments', async () => {
+    const suffix = `${Date.now()}-${Math.random()}`;
+    const table = await createDiningTable({
+      name: `Weekly copy table ${suffix}`,
+      seatCount: 4,
+      isActive: false,
+    });
+
+    const sourceSlots = [];
+    const destinationSlots = [];
+
+    try {
+      sourceSlots.push(
+        await createMealSlot({
+          slotDate: '2098-01-05',
+          name: `Weekly copy dinner ${suffix}`,
+          startTime: '18:00',
+          endTime: '20:00',
+          isActive: false,
+        }),
+        await createMealSlot({
+          slotDate: '2098-01-06',
+          name: `Weekly copy lunch ${suffix}`,
+          startTime: '12:00',
+          endTime: '14:00',
+        }),
+      );
+      await setMealSlotTables(sourceSlots[0].id, [table.id]);
+
+      destinationSlots.push(
+        await createMealSlot({
+          slotDate: '2098-02-05',
+          name: `Old destination slot ${suffix}`,
+          startTime: '10:00',
+          endTime: '11:00',
+        }),
+      );
+
+      const copied = await copyWeeklySchedule({
+        sourceWeekStart: '2098-01-05',
+        destinationWeekStart: '2098-02-02',
+      });
+
+      expect(copied).toHaveLength(2);
+      expect(copied).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            slotDate: '2098-02-02',
+            name: `Weekly copy dinner ${suffix}`,
+            startTime: '18:00',
+            endTime: '20:00',
+            isActive: false,
+            tableIds: [table.id],
+          }),
+          expect.objectContaining({
+            slotDate: '2098-02-03',
+            name: `Weekly copy lunch ${suffix}`,
+            isActive: true,
+            tableIds: [],
+          }),
+        ]),
+      );
+      expect(copied.every((slot) =>
+        !sourceSlots.some((source) => source.id === slot.id),
+      )).toBe(true);
+
+      const remainingDestination = await getMealSlots();
+      expect(
+        remainingDestination.some(
+          (slot) => slot.id === destinationSlots[0].id,
+        ),
+      ).toBe(false);
+    } finally {
+      const slotsToDelete = [
+        ...sourceSlots,
+        ...destinationSlots,
+      ];
+      const copiedSlots = await getMealSlots();
+      const testSlots = copiedSlots.filter((slot) =>
+        slot.name.endsWith(suffix),
+      );
+
+      for (const slot of [...slotsToDelete, ...testSlots]) {
+        await runAsync(
+          'DELETE FROM slot_tables WHERE slot_id = ?',
+          [slot.id],
+        );
+        await runAsync(
+          'DELETE FROM meal_slots WHERE id = ?',
+          [slot.id],
+        );
+      }
+      await runAsync(
+        'DELETE FROM dining_tables WHERE id = ?',
+        [table.id],
+      );
+    }
+  });
+
+  it('does not replace a destination week that contains bookings', async () => {
+    const suffix = `${Date.now()}-${Math.random()}`;
+    const destinationSlot = await createMealSlot({
+      slotDate: '2098-04-07',
+      name: `Booked destination slot ${suffix}`,
+      startTime: '18:00',
+      endTime: '20:00',
+    });
+    const hiker = await runAsync(
+      `INSERT INTO users (full_name, email, password_hash, role)
+       VALUES (?, ?, ?, 'hiker')`,
+      [
+        `Weekly copy hiker ${suffix}`,
+        `weekly-copy-${suffix}@example.com`,
+        'test-password-hash',
+      ],
+    );
+    const booking = await runAsync(
+      `INSERT INTO bookings (
+         hiker_id, booking_date, slot_id, party_size, status
+       )
+       VALUES (?, ?, ?, ?, 'confirmed')`,
+      [hiker.lastID, destinationSlot.slotDate, destinationSlot.id, 1],
+    );
+
+    try {
+      await expect(
+        copyWeeklySchedule({
+          sourceWeekStart: '2098-03-02',
+          destinationWeekStart: '2098-04-06',
+        }),
+      ).rejects.toBeInstanceOf(WeeklyScheduleConflictError);
+
+      const unchanged = await getMealSlots();
+      expect(
+        unchanged.some((slot) => slot.id === destinationSlot.id),
+      ).toBe(true);
+    } finally {
+      await runAsync(
+        'DELETE FROM booking_table_allocations WHERE booking_id = ?',
+        [booking.lastID],
+      );
+      await runAsync(
+        'DELETE FROM bookings WHERE id = ?',
+        [booking.lastID],
+      );
+      await runAsync(
+        'DELETE FROM slot_tables WHERE slot_id = ?',
+        [destinationSlot.id],
+      );
+      await runAsync(
+        'DELETE FROM meal_slots WHERE id = ?',
+        [destinationSlot.id],
+      );
+      await runAsync(
+        'DELETE FROM users WHERE id = ?',
+        [hiker.lastID],
+      );
+    }
+  });
+
   // Created records must be returned with their configured values.
   it('reads the created meal slot and dining table', async () => {
     const slots = await getMealSlots();
