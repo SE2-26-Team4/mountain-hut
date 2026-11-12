@@ -98,10 +98,54 @@ async function createBooking(booking) {
   return data;
 }
 
+
+/**
+ * @param {string} [search]
+ * @returns {Promise<any[]>}
+ */
+async function searchHikers(search) {
+  const query = search ? `?${new URLSearchParams({ search })}` : '';
+  /** @type {{ hikers: any[] }} */
+  const data = await request(`/staff/hikers${query}`);
+
+  return data.hikers;
+}
+
+/**
+ * @param {{ full_name: string, email: string }} hiker
+ * @returns {Promise<any>}
+ */
+async function createHiker(hiker) {
+  /** @type {{ hiker: any }} */
+  const data = await request('/staff/hikers', {
+    method: 'POST',
+    body: JSON.stringify(hiker),
+  });
+
+  return data.hiker;
+}
+
+/**
+ * @param {{ hikerId: number, bookingDate: string, slotId: number, partySize: number, specialRequests?: string }} booking
+ * @returns {Promise<{ booking: BookingDTO, emailSent: boolean }>}
+ */
+async function createStaffBooking(booking) {
+  /** @type {{ booking: BookingDTO, emailSent: boolean }} */
+  const data = await request('/staff/bookings', {
+    method: 'POST',
+    body: JSON.stringify(booking),
+  });
+
+  return data;
+}
+
 const BookingAPI = {
   getMealSlots,
   getAvailability,
   createBooking,
+  searchHikers,
+  createHiker,
+  createStaffBooking,
 };
 
 export { BookingApiError };

@@ -6,7 +6,7 @@ import {
   getBookingById,
   getBookingsByHiker,
 } from '../dao/booking-dao.js';
-import { requireRole } from '../middleware/require-role.js';
+import { requireRole, requireStaff } from '../middleware/require-role.js';
 import { getDiningTables, getMealSlots } from '../dao/capacity-dao.js';
 import { buildBookingConfirmationEmail } from '../services/booking-confirmation-content.js';
 import { sendBookingConfirmationEmail } from '../services/booking-confirmation-service.js';
@@ -14,6 +14,11 @@ import {
   createBookingForHiker,
   getMealSlotAvailability,
 } from '../services/booking-service.js';
+import { randomUUID } from 'node:crypto';
+import { allAsync, getAsync, runAsync } from '../db.js';
+import { hashPassword } from '../services/password.js';
+
+
 
 // Group booking endpoints and their error handler in a dedicated router.
 const router = express.Router();
@@ -253,6 +258,157 @@ router.delete(
     const booking = await getBookingById(bookingId);
 
     return res.status(200).json({ booking });
+  })
+);
+
+/* STAFF HIKERS & BOOKINGS */
+
+router.get(
+  '/staff/hikers',
+  requireStaff,
+  asyncRoute(async (req, res) => {
+    const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+    let hikers;
+
+    if (search) {
+      hikers = await allAsync(
+        `SELECT id, full_name, email, role FROM users
+         WHERE role = 'hiker' AND (full_name LIKE ? OR email LIKE ?)
+         ORDER BY full_name LIMIT 50`,
+        [`%${search}%`, `%${search}%`]
+      );
+    } else {
+      hikers = await allAsync(
+        `SELECT id, full_name, email, role FROM users
+         WHERE role = 'hiker'
+         ORDER BY full_name LIMIT 50`
+      );
+    }
+
+    return res.status(200).json({ hikers });
+  })
+);
+
+router.post(
+  '/staff/hikers',
+  requireStaff,
+  asyncRoute(async (req, res) => {
+    const { full_name, email } = req.body ?? {};
+
+    if (
+      typeof full_name !== 'string' ||
+      !full_name.trim() ||
+      typeof email !== 'string' ||
+      !email.trim() ||
+      !email.includes('@')
+    ) {
+      return res.status(400).json({
+        error: {
+          code: 'INVALID_INPUT',
+          message: 'A valid full name and email address are required.',
+        },
+      });
+    }
+
+    const trimmedName = full_name.trim();
+    const trimmedEmail = email.trim().toLowerCase();
+
+    const existing = await getAsync('SELECT id FROM users WHERE email = ?', [trimmedEmail]);
+    if (existing) {
+      return res.status(409).json({
+        error: {
+          code: 'DUPLICATE_EMAIL',
+          message: `A user with email "${trimmedEmail}" already exists.`,
+        },
+      });
+    }
+
+    const tempPassword = randomUUID();
+    const passwordHash = await hashPassword(tempPassword);
+
+    const result = await runAsync(
+      `INSERT INTO users (full_name, email, password_hash, role)
+       VALUES (?, ?, ?, 'hiker')`,
+      [trimmedName, trimmedEmail, passwordHash]
+    );
+
+    const hiker = {
+      id: result.lastID,
+      full_name: trimmedName,
+      email: trimmedEmail,
+      role: 'hiker',
+    };
+
+    return res.status(201).json({ hiker });
+  })
+);
+
+router.post(
+  '/staff/bookings',
+  requireStaff,
+  asyncRoute(async (req, res) => {
+    const { hikerId, bookingDate, slotId, partySize, specialRequests } = req.body ?? {};
+
+    if (!Number.isSafeInteger(Number(hikerId)) || Number(hikerId) <= 0) {
+      return res.status(400).json({
+        error: {
+          code: 'INVALID_BOOKING',
+          message: 'A valid hiker ID is required.',
+        },
+      });
+    }
+
+    const hiker = await getAsync('SELECT id, full_name, email, role FROM users WHERE id = ? AND role = ?', [Number(hikerId), 'hiker']);
+    if (!hiker) {
+      return res.status(404).json({
+        error: {
+          code: 'HIKER_NOT_FOUND',
+          message: 'The requested hiker was not found.',
+        },
+      });
+    }
+
+    const booking = await createBookingForHiker({
+      hikerId: Number(hikerId),
+      bookingDate,
+      slotId,
+      partySize,
+      specialRequests,
+    });
+
+    let emailSent = false;
+    try {
+      const [mealSlots, tables] = await Promise.all([
+        getMealSlots(),
+        getDiningTables(),
+      ]);
+
+      const mealSlot = mealSlots.find((slot) => slot.id === booking.slotId);
+      if (!mealSlot) {
+        throw new Error(`Meal slot ${booking.slotId} not found.`);
+      }
+
+      const allocatedTableIds = new Set(
+        booking.allocations.map((allocation) => allocation.tableId)
+      );
+
+      const email = buildBookingConfirmationEmail({
+        hiker,
+        booking,
+        mealSlot,
+        tables: tables.filter((table) => allocatedTableIds.has(table.id)),
+        requirements: booking.specialRequests
+          ? [{ hasAllergies: false, description: booking.specialRequests }]
+          : [],
+      });
+
+      await sendBookingConfirmationEmail(email);
+      emailSent = true;
+    } catch (emailError) {
+      console.error('Staff booking saved, but confirmation email could not be sent:', emailError);
+    }
+
+    return res.status(201).json({ booking, emailSent });
   })
 );
 
