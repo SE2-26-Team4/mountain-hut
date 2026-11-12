@@ -8,14 +8,8 @@ import { Link } from 'react-router-dom';
 /**
  * @param {Object} props
  * @param {BookingState} props.booking
- * @param {boolean} props.isAuthenticated
- * @param {() => void} [props.onRequireLogin]
  */
-function BookingSearch({
-  booking,
-  isAuthenticated,
-  onRequireLogin,
-}) {
+function BookingSearch({ booking }) {
   const {
     bookingDate,
     selectedMealSlotId,
@@ -37,14 +31,7 @@ function BookingSearch({
   return (
     <Form
       className="mh-booking-search"
-      noValidate={!isAuthenticated}
       onSubmit={(event) => {
-        if (!isAuthenticated) {
-          event.preventDefault();
-          onRequireLogin?.();
-          return;
-        }
-
         void handleSearch(event);
       }}
     >
@@ -52,7 +39,6 @@ function BookingSearch({
         <Col xs={12} md={4} xl={3}>
           <div className="mh-booking-field">
             <fieldset
-              disabled={!isAuthenticated}
               className="mh-booking-fieldset"
             >
               <Form.Group controlId="booking-date">
@@ -77,21 +63,12 @@ function BookingSearch({
               </Form.Group>
             </fieldset>
 
-            {!isAuthenticated && (
-              <button
-                type="button"
-                className="mh-booking-login-trigger"
-                onClick={() => onRequireLogin?.()}
-                aria-label="Sign in to select a date"
-              />
-            )}
           </div>
         </Col>
 
         <Col xs={12} md={5} xl={4}>
           <div className="mh-booking-field">
             <fieldset
-              disabled={!isAuthenticated}
               className="mh-booking-fieldset"
             >
               <Form.Group controlId="booking-meal-slot">
@@ -158,21 +135,12 @@ function BookingSearch({
               </Form.Group>
             </fieldset>
 
-            {!isAuthenticated && (
-              <button
-                type="button"
-                className="mh-booking-login-trigger"
-                onClick={() => onRequireLogin?.()}
-                aria-label="Sign in to select a meal service"
-              />
-            )}
           </div>
         </Col>
 
         <Col xs={12} md={3} xl={2}>
           <div className="mh-booking-field">
             <fieldset
-              disabled={!isAuthenticated}
               className="mh-booking-fieldset"
             >
               <Form.Group controlId="booking-party-size">
@@ -198,14 +166,6 @@ function BookingSearch({
               </Form.Group>
             </fieldset>
 
-            {!isAuthenticated && (
-              <button
-                type="button"
-                className="mh-booking-login-trigger"
-                onClick={() => onRequireLogin?.()}
-                aria-label="Sign in to choose the number of guests"
-              />
-            )}
           </div>
         </Col>
 
@@ -219,14 +179,11 @@ function BookingSearch({
             className="mh-booking-search-button d-inline-flex align-items-center justify-content-between gap-3 w-100"
             type="submit"
             disabled={
-              isAuthenticated &&
-              (
-                isLoadingSlots ||
-                isSearching ||
-                isBooking ||
-                activeMealSlots.length === 0 ||
-                isBookingWindowClosed
-              )
+              isLoadingSlots ||
+              isSearching ||
+              isBooking ||
+              activeMealSlots.length === 0 ||
+              isBookingWindowClosed
             }
           >
             {isSearching ? (
@@ -257,8 +214,7 @@ function BookingSearch({
         <span>Coming soon</span>
       </div>
 
-      {isAuthenticated &&
-        !isLoadingSlots &&
+      {!isLoadingSlots &&
         bookingDate &&
         activeMealSlots.length === 0 &&
         !booking.errorMessage && (
