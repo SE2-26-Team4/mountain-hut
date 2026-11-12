@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import { Button, Spinner } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 
 import useMyBookings from '../../hooks/useMyBookings.js';
+import { formatBookingDate } from '../../utils/formatBookingDate.js';
 import Alert from '../common/AutoDismissAlert.jsx';
 import BookingCard from './BookingCard.jsx';
+import CancelBookingModal from './CancelBookingModal.jsx';
 
 /**
  * @typedef {import('../../models/models.js').BookingDTO} BookingDTO
@@ -19,7 +22,57 @@ export default function MyBookingsList({ hikerId }) {
     isLoading,
     errorMessage,
     retry,
+    cancelBooking,
   } = useMyBookings(hikerId);
+
+  // The selected booking stays set while the modal fades out,
+  // so its details do not disappear during the animation.
+  const [bookingToCancel, setBookingToCancel] = useState(
+    /** @type {BookingDTO | null} */ (null),
+  );
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  /** @param {BookingDTO} booking */
+  const openCancelModal = (booking) => {
+    setBookingToCancel(booking);
+    setCancelError('');
+    setSuccessMessage('');
+    setShowCancelModal(true);
+  };
+
+  const closeCancelModal = () => {
+    setShowCancelModal(false);
+  };
+
+  const confirmCancellation = async () => {
+    if (!bookingToCancel) return;
+
+    setIsCancelling(true);
+    setCancelError('');
+
+    try {
+      const cancelled = await cancelBooking(bookingToCancel.id);
+
+      setShowCancelModal(false);
+      setSuccessMessage(
+        `Booking #${cancelled.id} for ${formatBookingDate(
+          cancelled.bookingDate,
+        )} has been cancelled.`,
+      );
+    } catch (error) {
+      // Keep the modal open so the hiker can read the error and retry.
+      setCancelError(
+        error instanceof Error
+          ? error.message
+          : 'Could not cancel your booking.',
+      );
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -36,7 +89,8 @@ export default function MyBookingsList({ hikerId }) {
 
   if (errorMessage) {
     return (
-      <Alert variant="danger">
+      // Keep the alert visible: it holds the only way to retry.
+      <Alert variant="danger" timeout={0}>
         <p>{errorMessage}</p>
 
         <Button variant="outline-danger" onClick={retry}>
@@ -81,14 +135,31 @@ export default function MyBookingsList({ hikerId }) {
 
   return (
     <>
+      {successMessage && (
+        <Alert variant="success" role="status">
+          {successMessage}
+        </Alert>
+      )}
+
       <BookingGroup
         title="Upcoming bookings"
         bookings={upcoming}
+        onCancel={openCancelModal}
       />
 
       <BookingGroup
         title="Past and cancelled bookings"
         bookings={other}
+      />
+
+      <CancelBookingModal
+        show={showCancelModal}
+        booking={bookingToCancel}
+        isCancelling={isCancelling}
+        errorMessage={cancelError}
+        onConfirm={confirmCancellation}
+        onHide={closeCancelModal}
+        onExited={() => setBookingToCancel(null)}
       />
     </>
   );
@@ -98,8 +169,9 @@ export default function MyBookingsList({ hikerId }) {
  * @param {Object} props
  * @param {string} props.title
  * @param {BookingDTO[]} props.bookings
+ * @param {(booking: BookingDTO) => void} [props.onCancel]
  */
-function BookingGroup({ title, bookings }) {
+function BookingGroup({ title, bookings, onCancel }) {
   if (bookings.length === 0) return null;
 
   return (
@@ -109,7 +181,7 @@ function BookingGroup({ title, bookings }) {
       <div className="row g-3">
         {bookings.map((booking) => (
           <div className="col-12 col-md-6" key={booking.id}>
-            <BookingCard booking={booking} />
+            <BookingCard booking={booking} onCancel={onCancel} />
           </div>
         ))}
       </div>
