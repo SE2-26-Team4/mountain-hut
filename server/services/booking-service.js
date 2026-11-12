@@ -1,8 +1,12 @@
 import {
   BookingError,
   createBooking,
+  createStaffBooking,
   getBookingsByDateAndSlot,
+  registerHiker,
 } from '../dao/booking-dao.js';
+
+import { searchHikers } from '../dao/auth-dao.js';
 
 import {
   getMealSlotCapacity,
@@ -10,6 +14,10 @@ import {
 } from '../dao/capacity-dao.js';
 
 import { getBookingDeadline } from './booking-time.js';
+import {
+  generateInitialPassword,
+  hashPassword,
+} from './password.js';
 
 /**
  * Data types used to validate bookings and calculate availability.
@@ -19,7 +27,21 @@ import { getBookingDeadline } from './booking-time.js';
  * @typedef {import('../models/models.js').DiningTableDTO} DiningTableDTO
  * @typedef {import('../models/models.js').DiningTableAvailabilityDTO} DiningTableAvailabilityDTO
  * @typedef {import('../models/models.js').MealSlotAvailabilityDTO} MealSlotAvailabilityDTO
+ * @typedef {import('../models/models.js').HikerDTO} HikerDTO
+ * @typedef {import('../models/models.js').StaffHikerInputDTO} StaffHikerInputDTO
+ * @typedef {import('../models/models.js').CreateStaffBookingRequestDTO} CreateStaffBookingRequestDTO
+ * @typedef {import('../models/models.js').StaffHikerRegistrationDTO} StaffHikerRegistrationDTO
+ * @typedef {import('../models/models.js').StaffBookingDTO} StaffBookingDTO
+ * @typedef {import('../dao/auth-dao.js').NewHikerRecord} NewHikerRecord
  */
+
+/* LIMITS */
+
+const MAX_NAME_LENGTH = 100;
+const MAX_EMAIL_LENGTH = 254;
+const MAX_TEXT_LENGTH = 500;
+const MIN_SEARCH_LENGTH = 2;
+const MAX_SEARCH_LENGTH = 100;
 
 /* VALIDATION */
 
@@ -221,21 +243,16 @@ function getTodayInHutTimeZone() {
   return `${year}-${month}-${day}`;
 }
 
-/* CREATE */
+/* BOOKING VALIDATION */
 
 /**
- * Validates the input and delegates atomic booking creation to the DAO.
+ * Validates the date and slot ID and rejects past dates.
+ * Shared by hiker and staff bookings.
  *
- * @param {CreateBookingRequestDTO & { hikerId: number }} bookingData
- * @returns {Promise<BookingDTO>}
+ * @param {string} bookingDate
+ * @param {number} slotId
  */
-export async function createBookingForHiker({
-  hikerId,
-  bookingDate,
-  slotId,
-  partySize,
-  specialRequests = '',
-}) {
+function validateBookingDateAndSlot(bookingDate, slotId) {
   // Validate the date and slot ID before checking other booking fields.
   validateBookingSelection(bookingDate, slotId);
 
@@ -246,15 +263,16 @@ export async function createBookingForHiker({
       'Booking date must be today or a future date.'
     );
   }
+}
 
-  // Require a valid identifier for the hiker making the booking.
-  if (!Number.isSafeInteger(hikerId) || hikerId <= 0) {
-    throw new BookingError(
-      'INVALID_BOOKING',
-      'A valid hiker ID is required.'
-    );
-  }
-
+/**
+ * Validates the party size and the optional special requests.
+ * Shared by hiker and staff bookings.
+ *
+ * @param {number} partySize
+ * @param {string} specialRequests
+ */
+function validateBookingDetails(partySize, specialRequests) {
   // Require a positive whole number of guests.
   if (!Number.isSafeInteger(partySize) || partySize <= 0) {
     throw new BookingError(
@@ -273,6 +291,319 @@ export async function createBookingForHiker({
       'Special requests must be text of at most 1000 characters.'
     );
   }
+}
+
+/* HIKER VALIDATION */
+
+/**
+ * @param {string} message
+ * @returns {BookingError}
+ */
+function invalidHiker(message) {
+  return new BookingError('INVALID_HIKER', message);
+}
+
+/**
+ * Returns the trimmed text of a required field.
+ *
+ * @param {unknown} value
+ * @param {string} field
+ * @param {number} maxLength
+ * @returns {string}
+ */
+function requireText(value, field, maxLength) {
+  const text = typeof value === 'string' ? value.trim() : '';
+
+  if (text.length === 0 || text.length > maxLength) {
+    throw invalidHiker(
+      `${field} is required and must be at most ${maxLength} characters.`
+    );
+  }
+
+  return text;
+}
+
+/**
+ * Returns the trimmed text of an optional field, or null when it is empty.
+ *
+ * @param {unknown} value
+ * @param {string} field
+ * @param {number} maxLength
+ * @returns {string | null}
+ */
+function optionalText(value, field, maxLength) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (typeof value !== 'string' || value.trim().length > maxLength) {
+    throw invalidHiker(
+      `${field} must be text of at most ${maxLength} characters.`
+    );
+  }
+
+  return value.trim() || null;
+}
+
+/**
+ * Returns the email in lowercase, as stored for every account.
+ *
+ * @param {unknown} value
+ * @returns {string}
+ */
+function normalizeEmail(value) {
+  const email = requireText(value, 'Email', MAX_EMAIL_LENGTH).toLowerCase();
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw invalidHiker('A valid email address is required.');
+  }
+
+  return email;
+}
+
+/**
+ * Returns the phone without separators, so that it can be searched
+ * regardless of how it was typed (e.g. "+39 333 123-4567").
+ *
+ * @param {unknown} value
+ * @returns {string}
+ */
+function normalizePhone(value) {
+  const phone = requireText(value, 'Phone', 30).replace(/[\s\-().]/g, '');
+
+  if (!/^\+?\d{6,15}$/.test(phone)) {
+    throw invalidHiker(
+      'A valid phone number is required (6-15 digits, optional leading +).'
+    );
+  }
+
+  return phone;
+}
+
+/**
+ * Reads the hiker entered by staff as an object.
+ *
+ * @param {unknown} hiker
+ * @returns {Record<string, unknown>}
+ */
+function toHikerInput(hiker) {
+  if (typeof hiker !== 'object' || hiker === null) {
+    throw invalidHiker('Hiker details are required.');
+  }
+
+  return /** @type {Record<string, unknown>} */ (hiker);
+}
+
+/**
+ * Validates a new full or temporary hiker and prepares the record to save.
+ * A full account receives a random initial password, hashed here so that
+ * the slow hashing does not happen while the database is locked.
+ *
+ * @param {Record<string, unknown>} input
+ * @returns {Promise<{ newHiker: NewHikerRecord, initialPassword?: string }>}
+ */
+async function prepareNewHiker(input) {
+  switch (input.type) {
+    case 'new': {
+      const fullName = requireText(
+        input.fullName,
+        'Full name',
+        MAX_NAME_LENGTH
+      );
+      const email = normalizeEmail(input.email);
+      const phone = normalizePhone(input.phone);
+      const notes = optionalText(input.notes, 'Notes', MAX_TEXT_LENGTH);
+      const emergencyContact = optionalText(
+        input.emergencyContact,
+        'Emergency contact',
+        MAX_TEXT_LENGTH
+      );
+
+      // The hiker must change this password at the first login.
+      const initialPassword = generateInitialPassword();
+
+      return {
+        newHiker: {
+          fullName,
+          email,
+          phone,
+          notes,
+          emergencyContact,
+          passwordHash: await hashPassword(initialPassword),
+          isTemporary: false,
+          mustChangePassword: true,
+        },
+        initialPassword,
+      };
+    }
+
+    case 'temporary': {
+      // Only a name and an optional phone: no email, no web access.
+      const fullName = requireText(
+        input.fullName,
+        'Full name',
+        MAX_NAME_LENGTH
+      );
+      const phone = optionalText(input.phone, 'Phone', 30);
+
+      return {
+        newHiker: {
+          fullName,
+          email: null,
+          phone: phone === null ? null : normalizePhone(phone),
+          notes: null,
+          emergencyContact: null,
+          passwordHash: null,
+          isTemporary: true,
+          mustChangePassword: false,
+        },
+      };
+    }
+
+    default:
+      throw invalidHiker(
+        "Hiker type must be 'existing', 'new' or 'temporary'."
+      );
+  }
+}
+
+/* STAFF */
+
+/**
+ * Finds hikers by name, email or phone, for staff entering a booking.
+ *
+ * @param {unknown} term
+ * @returns {Promise<HikerDTO[]>}
+ */
+export async function findHikers(term) {
+  const text = typeof term === 'string' ? term.trim() : '';
+
+  if (
+    text.length < MIN_SEARCH_LENGTH ||
+    text.length > MAX_SEARCH_LENGTH
+  ) {
+    throw invalidHiker(
+      `The search term must be between ${MIN_SEARCH_LENGTH} and ${MAX_SEARCH_LENGTH} characters.`
+    );
+  }
+
+  return searchHikers(text);
+}
+
+/**
+ * Registers a new full or temporary hiker on behalf of staff.
+ *
+ * @param {unknown} hiker - A 'new' or 'temporary' StaffHikerInputDTO.
+ * @returns {Promise<StaffHikerRegistrationDTO>}
+ */
+export async function registerHikerByStaff(hiker) {
+  const input = toHikerInput(hiker);
+
+  // An existing hiker is selected, not registered again.
+  if (input.type === 'existing') {
+    throw invalidHiker('Only new or temporary hikers can be registered.');
+  }
+
+  const { newHiker, initialPassword } = await prepareNewHiker(input);
+
+  /** @type {StaffHikerRegistrationDTO} */
+  const result = { hiker: await registerHiker(newHiker) };
+
+  if (initialPassword !== undefined) {
+    result.initialPassword = initialPassword;
+  }
+
+  return result;
+}
+
+/**
+ * Creates a booking entered by staff for an existing, a new or a temporary
+ * hiker. Staff can book until the meal service starts; the other rules
+ * (availability, table allocation, one booking per slot) are the same as
+ * for hikers. The initial password of a new account is returned once.
+ *
+ * @param {CreateStaffBookingRequestDTO} bookingData
+ * @returns {Promise<StaffBookingDTO>}
+ */
+export async function createBookingByStaff({
+  hiker,
+  bookingDate,
+  slotId,
+  partySize,
+  specialRequests = '',
+}) {
+  validateBookingDateAndSlot(bookingDate, slotId);
+  validateBookingDetails(partySize, specialRequests);
+
+  const input = toHikerInput(hiker);
+
+  /** @type {import('../dao/booking-dao.js').StaffBookingHiker} */
+  let staffHiker;
+
+  /** @type {string | undefined} */
+  let initialPassword;
+
+  if (input.type === 'existing') {
+    if (
+      !Number.isSafeInteger(input.hikerId) ||
+      Number(input.hikerId) <= 0
+    ) {
+      throw invalidHiker('A valid hiker ID is required.');
+    }
+
+    staffHiker = { existingHikerId: Number(input.hikerId) };
+  } else {
+    const prepared = await prepareNewHiker(input);
+
+    staffHiker = { newHiker: prepared.newHiker };
+    initialPassword = prepared.initialPassword;
+  }
+
+  // The DAO creates the hiker (if needed) and the booking atomically.
+  const { booking, hiker: bookedHiker } = await createStaffBooking({
+    hiker: staffHiker,
+    bookingDate,
+    slotId,
+    partySize,
+    specialRequests: specialRequests.trim(),
+  });
+
+  /** @type {StaffBookingDTO} */
+  const result = { booking, hiker: bookedHiker };
+
+  if (initialPassword !== undefined) {
+    result.initialPassword = initialPassword;
+  }
+
+  return result;
+}
+
+/* CREATE */
+
+/**
+ * Validates the input and delegates atomic booking creation to the DAO.
+ *
+ * @param {CreateBookingRequestDTO & { hikerId: number }} bookingData
+ * @returns {Promise<BookingDTO>}
+ */
+export async function createBookingForHiker({
+  hikerId,
+  bookingDate,
+  slotId,
+  partySize,
+  specialRequests = '',
+}) {
+  validateBookingDateAndSlot(bookingDate, slotId);
+
+  // Require a valid identifier for the hiker making the booking.
+  if (!Number.isSafeInteger(hikerId) || hikerId <= 0) {
+    throw new BookingError(
+      'INVALID_BOOKING',
+      'A valid hiker ID is required.'
+    );
+  }
+
+  validateBookingDetails(partySize, specialRequests);
 
   // Normalize requests and delegate persistence to the DAO.
   // The DAO checks the slot, deadline, duplicates, and available seats
