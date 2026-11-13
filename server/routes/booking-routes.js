@@ -6,7 +6,11 @@ import {
   getBookingById,
   getBookingsByHiker,
 } from "../dao/booking-dao.js";
-import { requireRole, requireStaff } from "../middleware/require-role.js";
+import {
+  requirePasswordChanged,
+  requireRole,
+  requireStaff,
+} from "../middleware/require-role.js";
 import { getDiningTables, getMealSlots } from "../dao/capacity-dao.js";
 import { buildBookingConfirmationEmail } from "../services/booking-confirmation-content.js";
 import { sendBookingConfirmationEmail } from "../services/booking-confirmation-service.js";
@@ -120,6 +124,7 @@ async function sendBookingConfirmation(hiker, booking) {
 router.post(
   "/bookings",
   requireRole("hiker"),
+  requirePasswordChanged,
   asyncRoute(async (req, res) => {
     const user = req.user;
 
@@ -165,6 +170,7 @@ router.post(
 router.get(
   "/bookings",
   requireRole("hiker"),
+  requirePasswordChanged,
   asyncRoute(async (req, res) => {
     const user = req.user;
 
@@ -234,6 +240,7 @@ router.get(
 router.delete(
   "/bookings/:id",
   requireRole("hiker"),
+  requirePasswordChanged,
   asyncRoute(async (req, res) => {
     const user = req.user;
     const rawBookingId = req.params.id;

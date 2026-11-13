@@ -1,7 +1,13 @@
 import { randomUUID } from 'node:crypto';
 
 import request from 'supertest';
-import { beforeAll, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  it,
+} from 'vitest';
 
 import app from '../../app.js';
 import { initializeDatabase, runAsync } from '../../db.js';
@@ -217,6 +223,106 @@ describe('session for a deleted account', () => {
         [userId],
       );
     }
+  });
+
+  describe('initial password change', () => {
+    const email = `initial-password-${randomUUID()}@example.com`;
+    const initialPassword = 'InitialPassword123!';
+    const replacementPassword = 'ReplacementPassword123!';
+    let userId;
+
+    beforeAll(async () => {
+      const result = await runAsync(
+        `INSERT INTO users (
+           full_name, email, password_hash, role, must_change_password
+         )
+         VALUES (?, ?, ?, 'hiker', 1)`,
+        [
+          'Initial Password Hiker',
+          email,
+          await hashPassword(initialPassword),
+        ],
+      );
+
+      userId = result.lastID;
+    });
+
+    afterAll(async () => {
+      await runAsync('DELETE FROM users WHERE id = ?', [userId]);
+    });
+
+    it('marks the session as requiring a password change', async () => {
+      const agent = request.agent(app);
+
+      const response = await agent
+        .post('/api/sessions')
+        .send({ email, password: initialPassword });
+
+      expect(response.status).toBe(201);
+      expect(response.body.user.mustChangePassword).toBe(true);
+
+      const protectedResponse = await agent.get('/api/bookings');
+
+      expect(protectedResponse.status).toBe(403);
+      expect(protectedResponse.body.error.code).toBe(
+        'PASSWORD_CHANGE_REQUIRED',
+      );
+    });
+
+    it('changes the password and unlocks authenticated features', async () => {
+      const agent = request.agent(app);
+
+      await agent
+        .post('/api/sessions')
+        .send({ email, password: initialPassword });
+
+      const changeResponse = await agent
+        .put('/api/sessions/current/password')
+        .send({
+          currentPassword: initialPassword,
+          newPassword: replacementPassword,
+          confirmPassword: replacementPassword,
+        });
+
+      expect(changeResponse.status).toBe(200);
+      expect(changeResponse.body.user.mustChangePassword).toBe(false);
+
+      const protectedResponse = await agent.get('/api/bookings');
+
+      expect(protectedResponse.status).toBe(200);
+
+      const oldPasswordResponse = await request(app)
+        .post('/api/sessions')
+        .send({ email, password: initialPassword });
+
+      expect(oldPasswordResponse.status).toBe(401);
+
+      const newPasswordResponse = await request(app)
+        .post('/api/sessions')
+        .send({ email, password: replacementPassword });
+
+      expect(newPasswordResponse.status).toBe(201);
+      expect(newPasswordResponse.body.user.mustChangePassword).toBe(false);
+    });
+
+    it('does not allow temporary hikers to log in', async () => {
+      const temporaryEmail = `temporary-${randomUUID()}@example.com`;
+      const result = await runAsync(
+        `INSERT INTO users (full_name, role, is_temporary)
+         VALUES (?, 'hiker', 1)`,
+        ['Temporary Hiker'],
+      );
+
+      try {
+        const response = await request(app)
+          .post('/api/sessions')
+          .send({ email: temporaryEmail, password: initialPassword });
+
+        expect(response.status).toBe(401);
+      } finally {
+        await runAsync('DELETE FROM users WHERE id = ?', [result.lastID]);
+      }
+    });
   });
 
   // Verify that a login request without a body is rejected safely.

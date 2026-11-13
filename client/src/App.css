@@ -69,6 +69,31 @@
   color: var(--mh-glass-text);
 }
 
+.mh-auth-required-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: var(--mh-space-6);
+  background: var(--mh-cream);
+}
+
+.mh-auth-required-card {
+  width: min(100%, 30rem);
+  padding: var(--mh-space-8);
+  border: var(--mh-border-width) solid var(--mh-border);
+  border-radius: var(--mh-radius-xl);
+  background: var(--mh-white);
+  box-shadow: var(--mh-shadow-card);
+}
+
+.mh-auth-required-card h1 {
+  margin-bottom: var(--mh-space-3);
+}
+
+.mh-auth-required-card p {
+  color: var(--mh-muted);
+}
+
 .mh-auth-heading {
   display: flex;
   flex-direction: column;

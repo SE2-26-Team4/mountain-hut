@@ -12,6 +12,7 @@
  * @property {string} full_name
  * @property {string} email
  * @property {'hiker' | 'employee' | 'warden'} role
+ * @property {boolean} mustChangePassword
  */
 
 const API_URL = (
@@ -102,9 +103,24 @@ async function logout() {
   });
 }
 
+/**
+ * @param {{ currentPassword: string, newPassword: string, confirmPassword: string }} passwords
+ * @returns {Promise<SessionUser>}
+ */
+async function changePassword(passwords) {
+  /** @type {{ user: SessionUser }} */
+  const data = await request('/sessions/current/password', {
+    method: 'PUT',
+    body: JSON.stringify(passwords),
+  });
+
+  return data.user;
+}
+
 const API = {
   login,
   getUserInfo,
+  changePassword,
   logout,
 };
 

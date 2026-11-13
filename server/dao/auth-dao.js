@@ -1,10 +1,12 @@
-import { allAsync, getAsync } from '../db.js';
+import { allAsync, getAsync, runAsync } from '../db.js';
 
 /**
  * Database account record used to verify login credentials.
  *
  * @typedef {Express.User & {
- *   password_hash: string
+ *   password_hash: string | null,
+ *   is_temporary: number,
+ *   must_change_password: number
  * }} AuthenticationUserRow
  */
 
@@ -81,7 +83,14 @@ function escapeLikePattern(value) {
  */
 export function getUserByEmail(email) {
   return getAsync(
-    `SELECT id, full_name, email, password_hash, role
+    `SELECT
+       id,
+       full_name,
+       email,
+       password_hash,
+       role,
+       is_temporary,
+       must_change_password
      FROM users
      WHERE email = ? COLLATE NOCASE`,
     [email],
@@ -96,11 +105,44 @@ export function getUserByEmail(email) {
  */
 export function getUserById(id) {
   return getAsync(
-    `SELECT id, full_name, email, role
+    `SELECT
+       id,
+       full_name,
+       email,
+       role,
+       is_temporary AS isTemporary,
+       must_change_password AS mustChangePassword
      FROM users
      WHERE id = ?`,
     [id],
+  ).then((user) =>
+    user
+      ? {
+          ...user,
+          isTemporary: Boolean(user.isTemporary),
+          mustChangePassword: Boolean(user.mustChangePassword),
+        }
+      : undefined,
   );
+}
+
+/**
+ * Updates the password and clears the first-login password-change flag.
+ *
+ * @param {number} id
+ * @param {string} passwordHash
+ * @returns {Promise<Express.User | undefined>}
+ */
+export async function changeUserPassword(id, passwordHash) {
+  await runAsync(
+    `UPDATE users
+     SET password_hash = ?, must_change_password = 0
+     WHERE id = ?
+       AND is_temporary = 0`,
+    [passwordHash, id],
+  );
+
+  return getUserById(id);
 }
 
 /**

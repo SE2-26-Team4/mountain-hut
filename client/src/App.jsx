@@ -10,6 +10,7 @@ import StaffLoginPage from './pages/StaffLoginPage.jsx';
 import StaffCapacityPage from './pages/StaffCapacityPage.jsx';
 import MyBookingsPage from './pages/MyBookingsPage.jsx';
 import StaffAccessNotice from './components/auth/StaffAccessNotice.jsx';
+import ChangePasswordForm from './components/auth/ChangePasswordForm.jsx';
 
 /**
  * @param {Object} props
@@ -52,6 +53,22 @@ function App() {
 
   if (auth.isLoading) {
     return <main role="status">Loading Mountain Hut…</main>;
+  }
+
+  if (
+    auth.user?.role === 'hiker' &&
+    auth.user.mustChangePassword
+  ) {
+    return (
+      <AuthProvider value={auth}>
+        <ChangePasswordForm
+          isSubmitting={auth.isChangingPassword}
+          errorMessage={auth.errorMessage}
+          onSubmit={auth.handleChangePassword}
+          onSignOut={auth.handleLogout}
+        />
+      </AuthProvider>
+    );
   }
 
   return (

@@ -71,6 +71,8 @@ describe('authentication data access', () => {
         email: testEmail,
         password_hash: passwordHash,
         role: 'hiker',
+        is_temporary: 0,
+        must_change_password: 0,
       });
     });
 
@@ -104,6 +106,8 @@ describe('authentication data access', () => {
         full_name: testFullName,
         email: testEmail,
         role: 'hiker',
+        isTemporary: false,
+        mustChangePassword: false,
       });
 
       expect(user).not.toHaveProperty('password_hash');
@@ -380,6 +384,8 @@ describe('hiker data access for staff bookings', () => {
         email,
         password_hash: passwordHash,
         role: 'hiker',
+        is_temporary: 0,
+        must_change_password: 1,
       });
     });
 
