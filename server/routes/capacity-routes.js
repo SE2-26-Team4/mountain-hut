@@ -14,12 +14,15 @@ import {
   CapacityConflictError,
   TableSlotConflictError,
   DuplicateMealSlotError,
+  WeeklyScheduleConflictError,
+  copyWeeklySchedule,
 } from '../dao/capacity-dao.js';
 import { requireStaff } from '../middleware/require-role.js';
 import {
   validateDiningTable,
   validateMealSlot,
   validateSlotTableAssignment,
+  validateWeeklyScheduleCopy,
 } from '../services/capacity-validation.js';
 import { getBookingDeadline } from '../services/booking-time.js';
 
@@ -154,6 +157,29 @@ router.get(
             )
           ).toISOString(),
         })),
+    });
+  }),
+);
+
+// Replace a destination week with a copy of a source week's schedule.
+router.post(
+  '/capacity/meal-slots/copy-week',
+  requireStaff,
+  asyncRoute(async (req, res) => {
+    let copyRequest;
+
+    try {
+      copyRequest = validateWeeklyScheduleCopy(req.body);
+    } catch (error) {
+      return sendValidationError(res, error);
+    }
+
+    const mealSlots = await copyWeeklySchedule(copyRequest);
+
+    return res.status(201).json({
+      sourceWeekStart: copyRequest.sourceWeekStart,
+      destinationWeekStart: copyRequest.destinationWeekStart,
+      mealSlots,
     });
   }),
 );
@@ -389,7 +415,8 @@ const handleCapacityError = (error, _req, res, _next) => {
     error instanceof DuplicateNameError ||
     error instanceof CapacityConflictError ||
     error instanceof TableSlotConflictError ||
-    error instanceof DuplicateMealSlotError
+    error instanceof DuplicateMealSlotError ||
+    error instanceof WeeklyScheduleConflictError
   ) {
     return res.status(409).json({
       error: {
