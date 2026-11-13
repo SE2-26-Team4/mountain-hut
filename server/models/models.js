@@ -158,9 +158,8 @@
 
 /**
  * @typedef {StaffHikerRegistrationDTO & {
- *   booking: BookingDTO,
- *   emailSent: boolean
- * }} StaffBookingResultDTO
+ *   booking: BookingDTO
+ * }} StaffBookingDTO
  */
 
 export {};
