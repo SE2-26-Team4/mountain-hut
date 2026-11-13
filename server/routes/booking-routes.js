@@ -49,9 +49,10 @@ function asyncRoute(handler) {
  *
  * @param {{ full_name: string, email: string | null }} hiker
  * @param {BookingDTO} booking
+ * @param {boolean} [isEdit]
  * @returns {Promise<boolean>} True when the sending service accepted the email.
  */
-async function sendBookingConfirmation(hiker, booking) {
+async function sendBookingConfirmation(hiker, booking, isEdit = false) {
   const recipient = hiker.email;
 
   if (!recipient) {
@@ -82,6 +83,7 @@ async function sendBookingConfirmation(hiker, booking) {
     // Include optional requests without automatically classifying them
     // as allergies; their full description remains in the message.
     const email = buildBookingConfirmationEmail({
+      isEdit,
       hiker: { full_name: hiker.full_name, email: recipient },
       booking,
       mealSlot,
@@ -114,50 +116,58 @@ async function sendBookingConfirmation(hiker, booking) {
   }
 }
 
-/* CREATE */
+/* CREATE AND UPDATE */
 
-// Create a reservation for the authenticated hiker.
-router.post(
-  "/bookings",
-  requireRole("hiker"),
-  asyncRoute(async (req, res) => {
-    const user = req.user;
+// Use the same booking validation and persistence flow for creation and edits.
+const saveBooking = asyncRoute(async (req, res) => {
+  const user = req.user;
+  const isEdit = req.method === "PUT";
+  const rawBookingId = req.params.id;
+  const bookingId = Number(rawBookingId);
 
-    // Require a session user before accepting a booking.
-    if (!user) {
-      return res.status(401).json({
-        error: {
-          code: "UNAUTHENTICATED",
-          message: "Login is required.",
-        },
-      });
-    }
+  if (
+    isEdit &&
+    (typeof rawBookingId !== "string" ||
+      !/^[1-9]\d*$/.test(rawBookingId) ||
+      !Number.isSafeInteger(bookingId))
+  ) {
+    throw new BookingError(
+      "INVALID_BOOKING",
+      "A valid booking ID is required.",
+    );
+  }
 
-    // Read the booking selection and optional requests from the request body.
-    const {
-      bookingDate,
-      slotId,
-      partySize,
-      specialRequests,
-    } = req.body ?? {};
-
-    // Validate and persist the booking for the session user.
-    // The DAO checks availability and allocates seats atomically.
-    const booking = await createBookingForHiker({
-      hikerId: user.id,
-      bookingDate,
-      slotId,
-      partySize,
-      specialRequests,
+  if (!user) {
+    return res.status(401).json({
+      error: {
+        code: "UNAUTHENTICATED",
+        message: "Login is required.",
+      },
     });
+  }
 
-    // Send the email only after the booking has been saved.
-    const emailSent = await sendBookingConfirmation(user, booking);
+  const { bookingDate, slotId, partySize, specialRequests } = req.body ?? {};
 
-    // Return the booking and email status so the UI can display both outcomes.
-    return res.status(201).json({ booking, emailSent });
-  })
-);
+  const bookingData = {
+    hikerId: user.id,
+    bookingDate,
+    slotId,
+    partySize,
+    specialRequests,
+  };
+
+  const booking = isEdit
+    ? await createBookingForHiker(bookingData, bookingId)
+    : await createBookingForHiker(bookingData);
+
+  // [REQUIREMENT] When a change has been done the change to the reservation should be notified by email.
+  const emailSent = await sendBookingConfirmation(user, booking, isEdit);
+
+  return res.status(isEdit ? 200 : 201).json({ booking, emailSent });
+});
+
+router.post("/bookings", requireRole("hiker"), saveBooking);
+router.put("/bookings/:id", requireRole("hiker"), saveBooking);
 
 /* READ */
 
@@ -182,7 +192,7 @@ router.get(
     const bookings = await getBookingsByHiker(user.id);
 
     return res.status(200).json({ bookings });
-  })
+  }),
 );
 
 // Expose seat availability for a date and meal slot without requiring login.
@@ -210,7 +220,7 @@ router.get(
     // then calculates the remaining seats.
     const availability = await getMealSlotAvailability(
       bookingDate,
-      Number(rawSlotId)
+      Number(rawSlotId),
     );
 
     // Report a slot that does not exist, is inactive, or does not match the date.
@@ -225,7 +235,7 @@ router.get(
 
     // Availability is informative; this endpoint does not reserve seats.
     return res.status(200).json({ availability });
-  })
+  }),
 );
 
 /* DELETE */
@@ -280,7 +290,7 @@ router.delete(
     const booking = await getBookingById(bookingId);
 
     return res.status(200).json({ booking });
-  })
+  }),
 );
 
 /* STAFF BOOKINGS */
@@ -382,6 +392,7 @@ const handleBookingError = (error, _req, res, next) => {
 
       // A requested meal slot or hiker does not exist.
       case "SLOT_NOT_FOUND":
+      case "BOOKING_NOT_FOUND":
       case "HIKER_NOT_FOUND":
         status = 404;
         break;
@@ -390,6 +401,7 @@ const handleBookingError = (error, _req, res, next) => {
       case "SLOT_INACTIVE":
       case "NO_AVAILABILITY":
       case "DUPLICATE_BOOKING":
+      case "BOOKING_EDIT_TOO_LATE":
       case "BOOKING_TOO_LATE":
       case "EMAIL_ALREADY_REGISTERED":
         status = 409;

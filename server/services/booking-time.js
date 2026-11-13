@@ -13,15 +13,15 @@ export function getMealStartTimestamp(bookingDate, startTime) {
 
   // Format candidate timestamps in the hut's time zone.
   // Europe/Rome accounts for standard time and daylight saving time.
-  const formatter = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/Rome',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Rome",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
   });
 
   // Start with the reference timestamp and adjust it to match the local clock.
@@ -32,13 +32,12 @@ export function getMealStartTimestamp(bookingDate, startTime) {
     const parts = formatter.formatToParts(new Date(timestamp));
 
     /** @param {Intl.DateTimeFormatPartTypes} type */
-    const value = (type) =>
-      parts.find((part) => part.type === type)?.value;
+    const value = (type) => parts.find((part) => part.type === type)?.value;
 
     // Represent the candidate's Rome clock values as UTC for comparison.
     const displayedTimestamp = Date.parse(
-      `${value('year')}-${value('month')}-${value('day')}` +
-      `T${value('hour')}:${value('minute')}:${value('second')}Z`
+      `${value("year")}-${value("month")}-${value("day")}` +
+        `T${value("hour")}:${value("minute")}:${value("second")}Z`,
     );
 
     // Measure the difference between the requested and displayed local times.
@@ -54,9 +53,7 @@ export function getMealStartTimestamp(bookingDate, startTime) {
   }
 
   // Reject a local time that could not be matched, such as a skipped DST time.
-  throw new Error(
-    'The selected meal time is not valid in the hut time zone.'
-  );
+  throw new Error("The selected meal time is not valid in the hut time zone.");
 }
 
 /**
@@ -68,8 +65,17 @@ export function getMealStartTimestamp(bookingDate, startTime) {
  */
 export function getBookingDeadline(bookingDate, startTime) {
   // Subtract two elapsed hours, expressed in milliseconds, from the meal start.
-  return (
-    getMealStartTimestamp(bookingDate, startTime) -
-    2 * 60 * 60 * 1000
-  );
+  return getMealStartTimestamp(bookingDate, startTime) - 2 * 60 * 60 * 1000;
+}
+
+/**
+ * Returns the edit deadline, 48 elapsed hours before the original meal
+ * starts in the hut's time zone.
+ *
+ * @param {string} bookingDate
+ * @param {string} startTime
+ * @returns {number}
+ */
+export function getBookingEditDeadline(bookingDate, startTime) {
+  return getMealStartTimestamp(bookingDate, startTime) - 48 * 60 * 60 * 1000;
 }

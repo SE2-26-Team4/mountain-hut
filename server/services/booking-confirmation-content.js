@@ -23,6 +23,7 @@
  * @property {Pick<MealSlotDTO, 'name' | 'startTime' | 'endTime'>} mealSlot - Booked meal service.
  * @property {Pick<DiningTableDTO, 'id' | 'name'>[]} [tables] - Used to show table names instead of IDs.
  * @property {PartyRequirement[]} [requirements] - Listed only when provided.
+ * @property {boolean} [isEdit] - Whether the email follows an update to an existing booking.
  */
 
 /**
@@ -44,7 +45,7 @@
  * @returns {value is string}
  */
 function isNonEmptyString(value) {
-  return typeof value === 'string' && value.trim().length > 0;
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 /**
@@ -65,15 +66,12 @@ function isPositiveInteger(value) {
  */
 function isValidBookingDate(value) {
   // Reject values that do not use the expected YYYY-MM-DD format.
-  if (
-    typeof value !== 'string' ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(value)
-  ) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return false;
   }
 
   // Compare the resulting date parts to detect invalid calendar dates.
-  const [year, month, day] = value.split('-').map(Number);
+  const [year, month, day] = value.split("-").map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
 
   return (
@@ -91,11 +89,11 @@ function isValidBookingDate(value) {
  */
 function escapeHtml(value) {
   return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 /**
@@ -106,19 +104,18 @@ function escapeHtml(value) {
  */
 function formatBookingDate(bookingDate) {
   // Use UTC to preserve the calendar date and assemble a consistent layout.
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
   }).formatToParts(new Date(`${bookingDate}T00:00:00Z`));
 
   /** @param {Intl.DateTimeFormatPartTypes} type */
-  const part = (type) =>
-    parts.find((item) => item.type === type)?.value;
+  const part = (type) => parts.find((item) => item.type === type)?.value;
 
-  return `${part('weekday')} ${part('day')} ${part('month')} ${part('year')}`;
+  return `${part("weekday")} ${part("day")} ${part("month")} ${part("year")}`;
 }
 
 /**
@@ -128,11 +125,8 @@ function formatBookingDate(bookingDate) {
  */
 function validateInput({ hiker, booking, mealSlot, tables, requirements }) {
   // Require both the recipient address and the booking hiker's name.
-  if (
-    !isNonEmptyString(hiker?.email) ||
-    !isNonEmptyString(hiker.full_name)
-  ) {
-    throw new Error('Hiker name and email are required.');
+  if (!isNonEmptyString(hiker?.email) || !isNonEmptyString(hiker.full_name)) {
+    throw new Error("Hiker name and email are required.");
   }
 
   // Require valid booking details and positive table allocations.
@@ -146,15 +140,15 @@ function validateInput({ hiker, booking, mealSlot, tables, requirements }) {
     !booking.allocations.every(
       (allocation) =>
         isPositiveInteger(allocation?.tableId) &&
-        isPositiveInteger(allocation?.seatsReserved)
+        isPositiveInteger(allocation?.seatsReserved),
     ) ||
     booking.allocations.reduce(
       (total, allocation) => total + allocation.seatsReserved,
-      0
+      0,
     ) !== booking.partySize
   ) {
     throw new Error(
-      'Booking ID, date, party size, and table allocations are required.'
+      "Booking ID, date, party size, and table allocations are required.",
     );
   }
 
@@ -164,40 +158,35 @@ function validateInput({ hiker, booking, mealSlot, tables, requirements }) {
     !isNonEmptyString(mealSlot.startTime) ||
     !isNonEmptyString(mealSlot.endTime)
   ) {
-    throw new Error('Meal service name and times are required.');
+    throw new Error("Meal service name and times are required.");
   }
 
   // Validate optional table records used to display names instead of IDs.
   if (
     tables !== undefined &&
-    (
-      !Array.isArray(tables) ||
+    (!Array.isArray(tables) ||
       !tables.every(
         (table) =>
-          isPositiveInteger(table?.id) &&
-          isNonEmptyString(table?.name)
-      )
-    )
+          isPositiveInteger(table?.id) && isNonEmptyString(table?.name),
+      ))
   ) {
     throw new TypeError(
-      'Dining tables must be an array of valid table records.'
+      "Dining tables must be an array of valid table records.",
     );
   }
 
   // Require each optional requirement to have a boolean flag and description.
   if (
     requirements !== undefined &&
-    (
-      !Array.isArray(requirements) ||
+    (!Array.isArray(requirements) ||
       !requirements.every(
         (requirement) =>
-          typeof requirement?.hasAllergies === 'boolean' &&
-          isNonEmptyString(requirement.description)
-      )
-    )
+          typeof requirement?.hasAllergies === "boolean" &&
+          isNonEmptyString(requirement.description),
+      ))
   ) {
     throw new TypeError(
-      'Party requirements must be an array of items with a description.'
+      "Party requirements must be an array of items with a description.",
     );
   }
 }
@@ -216,13 +205,7 @@ export function buildBookingConfirmationEmail(input) {
   validateInput(input);
 
   // Default optional table names and party requirements to empty lists.
-  const {
-    hiker,
-    booking,
-    mealSlot,
-    tables = [],
-    requirements = [],
-  } = input;
+  const { hiker, booking, mealSlot, tables = [], requirements = [] } = input;
 
   // Prepare the values shared by the subject, text body, and HTML body.
   const hikerName = hiker.full_name.trim();
@@ -233,41 +216,40 @@ export function buildBookingConfirmationEmail(input) {
   // Define the booking details displayed in the summary.
   /** @type {[string, string | number][]} */
   const details = [
-    ['Booking reference', reference],
-    ['Name', hikerName],
-    ['Date', date],
-    ['Meal service', service],
-    ['Party size', booking.partySize],
+    ["Booking reference", reference],
+    ["Name", hikerName],
+    ["Date", date],
+    ["Meal service", service],
+    ["Party size", booking.partySize],
   ];
 
   // Resolve table names, falling back to IDs when names are unavailable.
-  const tableNames = new Map(
-    tables.map((table) => [table.id, table.name])
-  );
+  const tableNames = new Map(tables.map((table) => [table.id, table.name]));
 
   const allocations = booking.allocations.map((allocation) => {
     const tableName =
       tableNames.get(allocation.tableId) ?? `Table #${allocation.tableId}`;
 
-    const seats = allocation.seatsReserved === 1 ? 'seat' : 'seats';
+    const seats = allocation.seatsReserved === 1 ? "seat" : "seats";
 
     return `${tableName}: ${allocation.seatsReserved} ${seats}`;
   });
 
-  // Prepare the greeting, confirmation sentence, and contact instruction.
+  // Use the same wording in the subject, HTML, and plain-text versions of the email.
   const greeting = `Hello ${hikerName},`;
-  const intro = 'Your table booking at the Mountain Hut is confirmed.';
+  const action = input.isEdit ? "updated" : "confirmed";
+  const intro = `Your table booking at the Mountain Hut is ${action}.`;
   const closing = `Please quote booking reference ${reference} if you need to contact the hut.`;
 
   // Build the plain-text summary for email clients that do not display HTML.
   const textLines = [
     greeting,
-    '',
+    "",
     intro,
-    '',
+    "",
     ...details.map(([label, value]) => `${label}: ${value}`),
-    '',
-    'Table allocation:',
+    "",
+    "Table allocation:",
     ...allocations.map((allocation) => `- ${allocation}`),
   ];
 
@@ -283,49 +265,46 @@ export function buildBookingConfirmationEmail(input) {
           ${escapeHtml(value)}
         </td>
       </tr>
-    `
+    `,
     )
-    .join('');
+    .join("");
 
   // Build escaped list items for the table allocation row.
   const allocationRows = allocations
-    .map(
-      (allocation) => `<li>${escapeHtml(allocation)}</li>`
-    )
-    .join('');
+    .map((allocation) => `<li>${escapeHtml(allocation)}</li>`)
+    .join("");
 
   // Omit the requirements row when no requirements were provided.
-  let requirementsHtml = '';
+  let requirementsHtml = "";
 
   if (requirements.length > 0) {
     // Include complete requirement descriptions in the plain-text message.
     textLines.push(
-      '',
-      'Party requirements:',
+      "",
+      "Party requirements:",
       ...requirements.map(
         (requirement) =>
-          `- ${requirement.hasAllergies ? '[ALLERGIES] ' : ''}${requirement.description.trim()}`
-      )
+          `- ${requirement.hasAllergies ? "[ALLERGIES] " : ""}${requirement.description.trim()}`,
+      ),
     );
 
     // Escape user-provided text before preserving line breaks in HTML.
     // Display an allergy marker only when the requirement is flagged.
     const requirementsContent = requirements
       .map((requirement) => {
-        const description = escapeHtml(
-          requirement.description.trim()
-        ).replace(/\r\n|\r|\n/g, '<br>');
+        const description = escapeHtml(requirement.description.trim()).replace(
+          /\r\n|\r|\n/g,
+          "<br>",
+        );
 
         return `
           <div style="margin:0 0 8px;">
-            ${requirement.hasAllergies
-              ? '<strong>[ALLERGIES]</strong> '
-              : ''}
+            ${requirement.hasAllergies ? "<strong>[ALLERGIES]</strong> " : ""}
             ${description}
           </div>
         `;
       })
-      .join('');
+      .join("");
 
     // Place requirements in the final summary row, spanning both columns.
     // Keep the full text below its label without truncation.
@@ -348,13 +327,7 @@ export function buildBookingConfirmationEmail(input) {
   }
 
   // Finish the plain-text message with the contact instruction and signature.
-  textLines.push(
-    '',
-    closing,
-    '',
-    'See you soon,',
-    'The Mountain Hut team'
-  );
+  textLines.push("", closing, "", "See you soon,", "The Mountain Hut team");
 
   // Assemble the HTML email with inline styles and presentation tables.
   // The hidden opening text provides an inbox preview.
@@ -365,11 +338,11 @@ export function buildBookingConfirmationEmail(input) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Your booking is confirmed</title>
+  <title>Your booking is ${action}</title>
 </head>
 <body style="margin:0;padding:0;background:#f3f1ec;color:#172c38;font-family:Arial,Helvetica,sans-serif;">
   <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">
-    Your Mountain Hut booking ${escapeHtml(reference)} is confirmed.
+    Your Mountain Hut booking ${escapeHtml(reference)} is ${action}.
   </div>
 
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -385,10 +358,10 @@ export function buildBookingConfirmationEmail(input) {
                 MOUNTAIN HUT
               </p>
               <p style="margin:0 0 10px;color:#f49461;font-size:12px;letter-spacing:1.4px;font-weight:bold;">
-                RESERVATION CONFIRMED
+                RESERVATION ${action.toUpperCase()}
               </p>
               <h1 style="margin:0;color:#ffffff;font-size:28px;line-height:1.25;font-weight:600;">
-                Your booking is confirmed
+                Your booking is ${action}
               </h1>
             </td>
           </tr>
@@ -448,8 +421,8 @@ export function buildBookingConfirmationEmail(input) {
   // Sending the email is handled separately by the email service.
   return {
     to: hiker.email.trim(),
-    subject: `Booking confirmed ${reference} - ${mealSlot.name.trim()}, ${date}`,
+    subject: `Booking ${action} ${reference} - ${mealSlot.name.trim()}, ${date}`,
     html,
-    text: textLines.join('\n'),
+    text: textLines.join("\n"),
   };
 }

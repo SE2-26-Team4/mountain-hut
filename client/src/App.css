@@ -36,6 +36,14 @@
 }
 
 /* ==========================================================================
+   StatusBadge — components/common/StatusBadge.jsx
+   ========================================================================== */
+
+.mh-status-badge-danger {
+  background-color: var(--mh-status-badge-danger-background);
+}
+
+/* ==========================================================================
    LoginForm — components/auth/LoginForm.jsx
    ========================================================================== */
 
@@ -3032,6 +3040,76 @@
   }
 }
 
+/* Use the staff palette for the My bookings mobile menu. */
+.mh-site-header-bookings .mh-menu-toggle,
+.mh-mobile-menu-bookings .mh-menu-toggle {
+  color: var(--mh-copper);
+}
+
+.offcanvas.mh-mobile-menu-bookings.offcanvas-top {
+  background-color: var(--mh-navy);
+  color: var(--mh-white);
+}
+
+.mh-mobile-menu-bookings .offcanvas-header,
+.mh-mobile-menu-bookings .mh-mobile-account {
+  border-color: var(--mh-white-transparent);
+}
+
+.mh-mobile-menu-bookings .mh-mobile-navigation > a,
+.mh-mobile-menu-bookings .mh-mobile-navigation > span,
+.mh-mobile-menu-bookings .mh-mobile-account .mh-profile .mh-profile-toggle {
+  color: var(--mh-white);
+}
+
+.mh-mobile-menu-bookings .mh-mobile-navigation > a:hover {
+  background: var(--mh-cap-active-background);
+  color: var(--mh-white);
+}
+
+.mh-mobile-user {
+  gap: var(--mh-space-2);
+  padding: var(--mh-space-2) var(--mh-cap-size-12);
+}
+
+.mh-mobile-user > i,
+.mh-mobile-signout > i {
+  display: inline-grid;
+  flex: 0 0 var(--mh-cap-size-20);
+  place-items: center;
+  font-size: var(--mh-text-md);
+}
+
+.mh-mobile-signout {
+  display: flex;
+  align-items: center;
+  gap: var(--mh-space-2);
+  width: 100%;
+  padding: var(--mh-cap-size-14) var(--mh-cap-size-12);
+  border: 0;
+  border-radius: var(--mh-cap-size-12);
+  background: transparent;
+  color: var(--mh-profile-signout-color);
+  text-align: left;
+}
+
+.mh-mobile-signout:hover {
+  background: var(--mh-profile-signout-hover-background);
+}
+
+.mh-mobile-menu-bookings .mh-mobile-signout {
+  color: var(--mh-mobile-signout-on-navy);
+}
+
+.mh-mobile-menu-bookings .mh-mobile-signout:hover {
+  background: var(--mh-white-transparent);
+}
+
+.mh-mobile-menu-bookings .mh-mobile-navigation > a[aria-current="page"] {
+  background: var(--mh-cap-active-background);
+  color: var(--mh-white);
+}
+
 /* ==========================================================================
    Shared page styles — App.jsx, pages/
    ========================================================================== */
@@ -3344,6 +3422,47 @@
   font-size: var(--mh-text-lg);
   font-weight: var(--mh-weight-medium);
   letter-spacing: var(--mh-my-bookings-heading-tracking);
+}
+
+.mh-my-bookings .mh-booking-dietary {
+  min-width: 0;
+}
+
+.mh-my-bookings .mh-booking-dietary-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--mh-weight-normal);
+  font-size: var(--mh-text-sm);
+  line-height: var(--mh-my-bookings-dietary-line-height);
+}
+
+.mh-my-bookings .mh-booking-card-actions > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--mh-my-bookings-action-size);
+  height: var(--mh-my-bookings-action-size);
+  padding: 0;
+  border-radius: var(--mh-cap-size-11);
+}
+
+.mh-my-bookings .mh-booking-card-actions > button[aria-disabled="true"] {
+  opacity: var(--mh-disabled-opacity);
+  cursor: help;
+}
+
+@media (min-width: 576px) {
+  .mh-my-bookings {
+    padding-inline: var(--mh-space-8);
+  }
+}
+
+@media (min-width: 720px) and (max-width: 1199.98px) {
+  .mh-my-bookings .mh-booking-column {
+    width: 50%;
+  }
 }
 
 /* ==========================================================================
