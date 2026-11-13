@@ -110,11 +110,8 @@
   width: 100%;
   min-height: var(--mh-glass-input-height);
   height: var(--mh-glass-input-height);
-  padding:
-    var(--mh-space-3)
-    var(--mh-glass-input-padding-right)
-    var(--mh-space-3)
-    var(--mh-glass-input-padding-left);
+  padding: var(--mh-space-3) var(--mh-glass-input-padding-right)
+    var(--mh-space-3) var(--mh-glass-input-padding-left);
   border: var(--mh-border-width) solid var(--mh-glass-input-border);
   border-radius: var(--mh-glass-input-radius);
   color: var(--mh-glass-text);
@@ -357,9 +354,7 @@
 
   height: 100%;
   min-height: 0;
-  padding:
-    var(--mh-login-panel-padding-y)
-    var(--mh-login-panel-padding-x);
+  padding: var(--mh-login-panel-padding-y) var(--mh-login-panel-padding-x);
   overflow-y: auto;
   border-left: var(--mh-border-width) solid var(--mh-border);
   background: var(--mh-white);
@@ -440,7 +435,8 @@
   }
 
   .mh-login-dialog-caption {
-    padding: var(--mh-cap-size-20) var(--mh-cap-size-56) var(--mh-cap-size-20) var(--mh-cap-size-20);
+    padding: var(--mh-cap-size-20) var(--mh-cap-size-56) var(--mh-cap-size-20)
+      var(--mh-cap-size-20);
   }
 
   .mh-login-photo-message {
@@ -458,12 +454,12 @@
   }
 
   .mh-login-dialog-form {
-  height: auto;
-  min-height: 0;
-  overflow: visible;
-  padding: var(--mh-cap-size-40) var(--mh-cap-size-36) var(--mh-cap-size-48);
-  border-left: 0;
-}
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    padding: var(--mh-cap-size-40) var(--mh-cap-size-36) var(--mh-cap-size-48);
+    border-left: 0;
+  }
 
   .mh-login-dialog-form .mh-auth-heading {
     margin: var(--mh-cap-size-16) 0 var(--mh-cap-size-20);
@@ -489,7 +485,6 @@
     background: var(--mh-login-close-background);
     color: var(--mh-navy);
   }
-
 }
 
 @media (max-width: 575.98px) {
@@ -498,8 +493,8 @@
   }
 
   .mh-login-dialog-form {
-  padding: var(--mh-cap-size-60) var(--mh-cap-size-28) var(--mh-cap-size-40);
-}
+    padding: var(--mh-cap-size-60) var(--mh-cap-size-28) var(--mh-cap-size-40);
+  }
 
   .mh-login-dialog > .mh-login-close {
     top: var(--mh-cap-size-12);
@@ -587,7 +582,8 @@
   gap: var(--mh-cap-size-20);
   min-width: 0;
   padding: var(--mh-cap-size-4) var(--mh-cap-size-22);
-  border-right: var(--mh-border-width) solid var(--mh-availability-divider-color);
+  border-right: var(--mh-border-width) solid
+    var(--mh-availability-divider-color);
 }
 
 .mh-availability-info-item:first-child {
@@ -724,7 +720,8 @@
 .mh-my-bookings .card h3 {
   margin-bottom: var(--mh-cap-size-22);
   padding-bottom: var(--mh-cap-size-16);
-  border-bottom: var(--mh-border-width) solid var(--mh-booking-card-border-color);
+  border-bottom: var(--mh-border-width) solid
+    var(--mh-booking-card-border-color);
   color: var(--mh-navy);
   font-size: var(--mh-booking-card-title-size);
   font-weight: var(--mh-weight-semibold);
@@ -2154,10 +2151,7 @@
 }
 
 .cap-slot-head {
-  padding:
-    var(--mh-cap-size-19)
-    var(--mh-cap-size-6)
-    var(--mh-cap-size-12);
+  padding: var(--mh-cap-size-19) var(--mh-cap-size-6) var(--mh-cap-size-12);
   color: var(--cap-muted);
   font-size: var(--mh-cap-size-13);
 }
@@ -2324,8 +2318,9 @@
   }
 
   .cap-slot-column-seats {
-    grid-column: 2;
-    grid-row: 1;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    text-align: left;
   }
 
   .cap-seat-count {
@@ -2333,8 +2328,10 @@
   }
 
   .cap-slot-column-tables {
-    grid-column: 1 / -1;
-    grid-row: 2;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    align-self: start;
   }
 
   .cap-chips > span {
@@ -2363,6 +2360,67 @@
   }
 }
 
+.cap-slot-seat-total {
+  font-size: var(--mh-cap-size-13);
+  font-weight: var(--mh-weight-medium);
+}
+
+.cap-slot-status .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mh-cap-size-6);
+  padding: var(--mh-cap-size-6) var(--mh-cap-size-10);
+  font-size: var(--mh-cap-size-12);
+  font-weight: var(--mh-weight-medium);
+  white-space: normal;
+  text-align: left;
+}
+
+.cap-slot-status .text-bg-success {
+  background-color: var(--mh-cap-slot-status-assigned-background) !important;
+  color: var(--mh-cap-slot-status-assigned-color) !important;
+}
+
+.cap-slot-status .text-bg-warning {
+  background-color: var(--mh-cap-slot-status-unassigned-background) !important;
+  color: var(--mh-cap-slot-status-unassigned-color) !important;
+}
+.cap-slot-row .cap-slot-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--mh-cap-size-8);
+}
+
+.cap-slot-row .cap-slot-actions .cap-outline {
+  width: 100%;
+  min-width: 0;
+  white-space: normal;
+}
+
+@container time-slots (width > 600px) {
+  .cap-slot-head,
+  .cap-slot-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding-inline: var(--mh-cap-size-12);
+  }
+
+  .cap-slot-head {
+    border-inline: var(--mh-border-width) solid transparent;
+  }
+
+  .cap-slot-head > *,
+  .cap-slot-row > * {
+    width: auto;
+  }
+}
+
+@container time-slots (420px <= width <= 600px) {
+  .cap-slot-row .cap-slot-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* ==========================================================================
    AutoDismissAlert — components/common/AutoDismissAlert.jsx
    ========================================================================== */
@@ -2372,7 +2430,10 @@
   top: var(--mh-cap-size-24);
   left: 50%;
   transform: var(--mh-floating-alert-transform);
-  width: min(var(--mh-floating-alert-width), calc(100% - var(--mh-cap-size-32)));
+  width: min(
+    var(--mh-floating-alert-width),
+    calc(100% - var(--mh-cap-size-32))
+  );
   z-index: var(--mh-floating-alert-layer);
   margin: 0;
   box-shadow: var(--mh-floating-alert-shadow);
@@ -2499,14 +2560,10 @@
 
 .mh-profile .mh-profile-menu {
   min-width: var(--mh-profile-menu-min-width);
-  max-width: calc(
-    var(--mh-viewport-width) - var(--mh-cap-size-24)
-  );
+  max-width: calc(var(--mh-viewport-width) - var(--mh-cap-size-24));
   padding: var(--mh-cap-size-8);
   margin-top: var(--mh-cap-size-10);
-  border:
-    var(--mh-border-width) solid
-    var(--mh-profile-menu-border);
+  border: var(--mh-border-width) solid var(--mh-profile-menu-border);
   border-radius: var(--mh-cap-size-18);
   background: var(--mh-white);
   box-shadow: var(--mh-profile-menu-shadow);
@@ -2676,7 +2733,8 @@
 }
 
 .mh-site-header.mh-site-header-light {
-  border-bottom: var(--mh-border-width) solid var(--mh-profile-light-hover-background);
+  border-bottom: var(--mh-border-width) solid
+    var(--mh-profile-light-hover-background);
 }
 
 .mh-site-header-light .mh-site-nav > span {
@@ -2942,19 +3000,19 @@
   }
 
   .mh-site-header .mh-site-brand-column {
-  order: 0;
-  flex: 1 1 0;
-  width: auto;
-  min-width: 0;
-}
+    order: 0;
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+  }
 
-.mh-site-header .mh-menu-toggle {
-  order: 1;
-  display: inline-flex;
-  flex: 0 0 var(--mh-cap-size-44);
-  width: var(--mh-cap-size-44);
-  margin-left: auto;
-}
+  .mh-site-header .mh-menu-toggle {
+    order: 1;
+    display: inline-flex;
+    flex: 0 0 var(--mh-cap-size-44);
+    width: var(--mh-cap-size-44);
+    margin-left: auto;
+  }
 
   .mh-site-header-hero .mh-menu-toggle {
     color: var(--mh-white);
@@ -3179,10 +3237,10 @@
 
 @media (max-width: 767px) {
   .mh-reserve-hero {
-  height: auto;
-  min-height: 440px;
-  padding: 140px 0 var(--mh-cap-size-48);
-}
+    height: auto;
+    min-height: 440px;
+    padding: 140px 0 var(--mh-cap-size-48);
+  }
 
   .mh-reserve-picture {
     position: absolute;
@@ -3349,41 +3407,41 @@
     padding-top: 68px;
   }
 
- .cap-sidebar-column {
-  flex: 0 0 232px;
-  width: 232px;
-  min-width: 0;
-  overflow: hidden;
-  transition:
-    flex-basis 250ms ease,
-    width 250ms ease;
-}
+  .cap-sidebar-column {
+    flex: 0 0 232px;
+    width: 232px;
+    min-width: 0;
+    overflow: hidden;
+    transition:
+      flex-basis 250ms ease,
+      width 250ms ease;
+  }
 
-.cap-sidebar-column .cap-sidebar {
-  width: 232px;
-  transition:
-    transform 250ms ease,
-    opacity 250ms ease;
-}
+  .cap-sidebar-column .cap-sidebar {
+    width: 232px;
+    transition:
+      transform 250ms ease,
+      opacity 250ms ease;
+  }
 
-.cap-sidebar-collapsed .cap-sidebar-column {
-  flex-basis: 0;
-  width: 0;
-  visibility: hidden;
-  transition:
-    flex-basis 250ms ease,
-    width 250ms ease,
-    visibility 0s 250ms;
-}
+  .cap-sidebar-collapsed .cap-sidebar-column {
+    flex-basis: 0;
+    width: 0;
+    visibility: hidden;
+    transition:
+      flex-basis 250ms ease,
+      width 250ms ease,
+      visibility 0s 250ms;
+  }
 
-.cap-sidebar-collapsed .cap-sidebar {
-  transform: translateX(-100%);
-  opacity: 0;
-}
+  .cap-sidebar-collapsed .cap-sidebar {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
 
-.cap-sidebar-toggle {
-  transition: left 250ms ease;
-}
+  .cap-sidebar-toggle {
+    transition: left 250ms ease;
+  }
 
   .cap-sidebar-collapsed .cap-sidebar-toggle {
     left: var(--mh-cap-size-12);
@@ -3421,10 +3479,14 @@
   }
 
   .cap-tables-column {
-    flex: 0 0 max(
-      var(--mh-cap-size-350),
-      calc((100% - var(--mh-cap-size-12)) * var(--mh-cap-tables-ratio) / var(--mh-cap-columns-ratio-total))
-    );
+    flex: 0 0
+      max(
+        var(--mh-cap-size-350),
+        calc(
+          (100% - var(--mh-cap-size-12)) * var(--mh-cap-tables-ratio) /
+            var(--mh-cap-columns-ratio-total)
+        )
+      );
     width: auto;
   }
 
@@ -3443,10 +3505,7 @@
   }
 
   .cap-content {
-    padding:
-      var(--mh-cap-size-10)
-      var(--mh-cap-size-16)
-      var(--mh-cap-size-30);
+    padding: var(--mh-cap-size-10) var(--mh-cap-size-16) var(--mh-cap-size-30);
   }
 }
 
@@ -3475,11 +3534,11 @@
     min-height: 0;
   }
 
- .cap-datebar {
-  gap: var(--mh-cap-size-12);
-  margin: var(--mh-cap-size-14) 0 var(--mh-cap-size-18);
-  flex-wrap: wrap;
-}
+  .cap-datebar {
+    gap: var(--mh-cap-size-12);
+    margin: var(--mh-cap-size-14) 0 var(--mh-cap-size-18);
+    flex-wrap: wrap;
+  }
 
   .cap-columns {
     flex: 1;
@@ -3656,7 +3715,6 @@
 }
 
 .mh-staff-login-card {
-
   max-width: var(--mh-staff-login-width);
   min-width: 0;
   padding: var(--mh-cap-size-48);
