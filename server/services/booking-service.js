@@ -411,7 +411,13 @@ async function prepareNewHiker(input) {
         MAX_NAME_LENGTH
       );
       const email = normalizeEmail(input.email);
-      const phone = normalizePhone(input.phone);
+      const phone =
+        input.phone === undefined ||
+        input.phone === null ||
+        (typeof input.phone === 'string' &&
+          input.phone.trim().length === 0)
+          ? null
+          : normalizePhone(input.phone);
       const notes = optionalText(input.notes, 'Notes', MAX_TEXT_LENGTH);
       const emergencyContact = optionalText(
         input.emergencyContact,
@@ -520,7 +526,7 @@ export async function registerHikerByStaff(hiker) {
  * Creates a booking entered by staff for an existing, a new or a temporary
  * hiker. Staff can book until the meal service starts; the other rules
  * (availability, table allocation, one booking per slot) are the same as
- * for hikers. The initial password of a new account is returned once.
+ * for hikers. The initial password of a new account is sent by email.
  *
  * @param {CreateStaffBookingRequestDTO} bookingData
  * @returns {Promise<StaffBookingDTO>}

@@ -14,6 +14,7 @@ import {
 import { getDiningTables, getMealSlots } from "../dao/capacity-dao.js";
 import { buildBookingConfirmationEmail } from "../services/booking-confirmation-content.js";
 import { sendBookingConfirmationEmail } from "../services/booking-confirmation-service.js";
+import { buildInitialPasswordEmail } from "../services/initial-password-content.js";
 import {
   createBookingByStaff,
   createBookingForHiker,
@@ -111,6 +112,38 @@ async function sendBookingConfirmation(hiker, booking) {
     // Log email failures while preserving the successfully saved booking.
     console.error(
       "Booking saved, but confirmation email could not be sent:",
+      emailError
+    );
+
+    return false;
+  }
+}
+
+/**
+ * Sends the initial credentials to a newly created full hiker.
+ *
+ * @param {{ fullName: string, email: string | null }} hiker
+ * @param {string | undefined} initialPassword
+ * @returns {Promise<boolean>}
+ */
+async function sendInitialPassword(hiker, initialPassword) {
+  if (!initialPassword || !hiker.email) {
+    return false;
+  }
+
+  try {
+    const email = buildInitialPasswordEmail({
+      fullName: hiker.fullName,
+      email: hiker.email,
+      initialPassword,
+    });
+
+    await sendBookingConfirmationEmail(email);
+
+    return true;
+  } catch (emailError) {
+    console.error(
+      "Hiker account saved, but initial password email could not be sent:",
       emailError
     );
 
@@ -318,11 +351,17 @@ router.post(
   asyncRoute(async (req, res) => {
     // The service validates the hiker type and fields.
     // [REQUIREMENT] If a full hiker account is created, the password is randomly
-    // generated, it can be communicated to the hiker e.g. verbally.
-    // It is returned only in this response, so that staff can communicate it.
+    // generated and sent to the hiker by email.
     const registration = await registerHikerByStaff(req.body);
+    const passwordSent = await sendInitialPassword(
+      registration.hiker,
+      registration.initialPassword
+    );
 
-    return res.status(201).json(registration);
+    return res.status(201).json({
+      hiker: registration.hiker,
+      passwordSent,
+    });
   })
 );
 
@@ -361,8 +400,17 @@ router.post(
       { full_name: result.hiker.fullName, email: result.hiker.email },
       result.booking
     );
+    const passwordSent = await sendInitialPassword(
+      result.hiker,
+      result.initialPassword
+    );
 
-    return res.status(201).json({ ...result, emailSent });
+    return res.status(201).json({
+      booking: result.booking,
+      hiker: result.hiker,
+      emailSent,
+      passwordSent,
+    });
   })
 );
 

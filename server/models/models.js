@@ -117,7 +117,7 @@
  *     type: 'new',
  *     fullName: string,
  *     email: string,
- *     phone: string,
+ *     phone?: string | null,
  *     notes?: string | null,
  *     emergencyContact?: string | null
  *   } |
@@ -132,12 +132,12 @@
  */
 
 /**
- * Hiker created by staff. The initial password is returned only once,
- * for a new full account, so that staff can communicate it.
+ * Hiker created by staff. The initial password is sent by email only.
  *
  * @typedef {Object} StaffHikerRegistrationDTO
  * @property {HikerDTO} hiker
- * @property {string} [initialPassword]
+ * @property {boolean} [passwordSent]
+ * @property {string} [initialPassword] - Internal value used only to send the email.
  */
 
 /**
