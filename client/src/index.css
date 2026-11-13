@@ -254,6 +254,12 @@
   --mh-booking-card-title-size: 1.05rem;
   --mh-booking-card-label-color: #737b86;
   --mh-booking-card-value-size: 0.95rem;
+  --mh-booking-status-upcoming-background: #e7f1ff;
+  --mh-booking-status-upcoming-color: #174a8b;
+  --mh-booking-status-past-background: #edf0f3;
+  --mh-booking-status-past-color: #475569;
+  --mh-booking-status-cancelled-background: #fce8e8;
+  --mh-booking-status-cancelled-color: #9b2525;
 
   /* HomePage and shared geometry — pages/HomePage.jsx, components/capacity/ */
   --mh-cap-assign-picker-flex: 1.5 1 0;
