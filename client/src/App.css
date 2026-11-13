@@ -118,11 +118,8 @@
   width: 100%;
   min-height: var(--mh-glass-input-height);
   height: var(--mh-glass-input-height);
-  padding:
-    var(--mh-space-3)
-    var(--mh-glass-input-padding-right)
-    var(--mh-space-3)
-    var(--mh-glass-input-padding-left);
+  padding: var(--mh-space-3) var(--mh-glass-input-padding-right)
+    var(--mh-space-3) var(--mh-glass-input-padding-left);
   border: var(--mh-border-width) solid var(--mh-glass-input-border);
   border-radius: var(--mh-glass-input-radius);
   color: var(--mh-glass-text);
@@ -365,9 +362,7 @@
 
   height: 100%;
   min-height: 0;
-  padding:
-    var(--mh-login-panel-padding-y)
-    var(--mh-login-panel-padding-x);
+  padding: var(--mh-login-panel-padding-y) var(--mh-login-panel-padding-x);
   overflow-y: auto;
   border-left: var(--mh-border-width) solid var(--mh-border);
   background: var(--mh-white);
@@ -448,7 +443,8 @@
   }
 
   .mh-login-dialog-caption {
-    padding: var(--mh-cap-size-20) var(--mh-cap-size-56) var(--mh-cap-size-20) var(--mh-cap-size-20);
+    padding: var(--mh-cap-size-20) var(--mh-cap-size-56) var(--mh-cap-size-20)
+      var(--mh-cap-size-20);
   }
 
   .mh-login-photo-message {
@@ -466,12 +462,12 @@
   }
 
   .mh-login-dialog-form {
-  height: auto;
-  min-height: 0;
-  overflow: visible;
-  padding: var(--mh-cap-size-40) var(--mh-cap-size-36) var(--mh-cap-size-48);
-  border-left: 0;
-}
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    padding: var(--mh-cap-size-40) var(--mh-cap-size-36) var(--mh-cap-size-48);
+    border-left: 0;
+  }
 
   .mh-login-dialog-form .mh-auth-heading {
     margin: var(--mh-cap-size-16) 0 var(--mh-cap-size-20);
@@ -497,7 +493,6 @@
     background: var(--mh-login-close-background);
     color: var(--mh-navy);
   }
-
 }
 
 @media (max-width: 575.98px) {
@@ -506,8 +501,8 @@
   }
 
   .mh-login-dialog-form {
-  padding: var(--mh-cap-size-60) var(--mh-cap-size-28) var(--mh-cap-size-40);
-}
+    padding: var(--mh-cap-size-60) var(--mh-cap-size-28) var(--mh-cap-size-40);
+  }
 
   .mh-login-dialog > .mh-login-close {
     top: var(--mh-cap-size-12);
@@ -595,7 +590,8 @@
   gap: var(--mh-cap-size-20);
   min-width: 0;
   padding: var(--mh-cap-size-4) var(--mh-cap-size-22);
-  border-right: var(--mh-border-width) solid var(--mh-availability-divider-color);
+  border-right: var(--mh-border-width) solid
+    var(--mh-availability-divider-color);
 }
 
 .mh-availability-info-item:first-child {
@@ -732,7 +728,8 @@
 .mh-my-bookings .card h3 {
   margin-bottom: var(--mh-cap-size-22);
   padding-bottom: var(--mh-cap-size-16);
-  border-bottom: var(--mh-border-width) solid var(--mh-booking-card-border-color);
+  border-bottom: var(--mh-border-width) solid
+    var(--mh-booking-card-border-color);
   color: var(--mh-navy);
   font-size: var(--mh-booking-card-title-size);
   font-weight: var(--mh-weight-semibold);
@@ -853,6 +850,18 @@
   border: 0;
 }
 
+.mh-reservation-modal .mh-reservation-header-centered {
+  position: relative;
+  padding-inline: var(--mh-cap-size-56);
+}
+
+.mh-reservation-modal .mh-reservation-header-centered .btn-close {
+  position: absolute;
+  top: var(--mh-cap-size-28);
+  right: var(--mh-cap-size-28);
+  margin: 0;
+}
+
 .mh-reservation-modal .btn-close {
   flex: 0 0 auto;
   padding: var(--mh-cap-size-10);
@@ -887,8 +896,8 @@
 .mh-reservation-email {
   margin: var(--mh-cap-size-18) 0 0;
   padding: var(--mh-cap-size-14) var(--mh-cap-size-16);
-  border-left: var(--mh-cap-size-3) solid var(--mh-reservation-accent);
-  border-radius: 0 var(--mh-cap-size-8) var(--mh-cap-size-8) 0;
+  border: 0;
+  border-radius: var(--mh-cap-size-8);
   background: var(--mh-reservation-email-background);
   font-size: var(--mh-cap-size-14);
   line-height: 1.6;
@@ -974,6 +983,32 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mh-reservation-detail.mh-reservation-requests {
+  display: flex;
+  align-items: baseline;
+  gap: var(--mh-cap-size-8);
+}
+
+.mh-reservation-detail.mh-reservation-requests dt {
+  flex: 0 0 auto;
+  width: auto;
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+
+.mh-reservation-detail.mh-reservation-requests dd {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 @media (max-width: 380px) {
@@ -2162,10 +2197,7 @@
 }
 
 .cap-slot-head {
-  padding:
-    var(--mh-cap-size-19)
-    var(--mh-cap-size-6)
-    var(--mh-cap-size-12);
+  padding: var(--mh-cap-size-19) var(--mh-cap-size-6) var(--mh-cap-size-12);
   color: var(--cap-muted);
   font-size: var(--mh-cap-size-13);
 }
@@ -2380,7 +2412,10 @@
   top: var(--mh-cap-size-24);
   left: 50%;
   transform: var(--mh-floating-alert-transform);
-  width: min(var(--mh-floating-alert-width), calc(100% - var(--mh-cap-size-32)));
+  width: min(
+    var(--mh-floating-alert-width),
+    calc(100% - var(--mh-cap-size-32))
+  );
   z-index: var(--mh-floating-alert-layer);
   margin: 0;
   box-shadow: var(--mh-floating-alert-shadow);
@@ -2507,14 +2542,10 @@
 
 .mh-profile .mh-profile-menu {
   min-width: var(--mh-profile-menu-min-width);
-  max-width: calc(
-    var(--mh-viewport-width) - var(--mh-cap-size-24)
-  );
+  max-width: calc(var(--mh-viewport-width) - var(--mh-cap-size-24));
   padding: var(--mh-cap-size-8);
   margin-top: var(--mh-cap-size-10);
-  border:
-    var(--mh-border-width) solid
-    var(--mh-profile-menu-border);
+  border: var(--mh-border-width) solid var(--mh-profile-menu-border);
   border-radius: var(--mh-cap-size-18);
   background: var(--mh-white);
   box-shadow: var(--mh-profile-menu-shadow);
@@ -2684,7 +2715,8 @@
 }
 
 .mh-site-header.mh-site-header-light {
-  border-bottom: var(--mh-border-width) solid var(--mh-profile-light-hover-background);
+  border-bottom: var(--mh-border-width) solid
+    var(--mh-profile-light-hover-background);
 }
 
 .mh-site-header-light .mh-site-nav > span {
@@ -2950,19 +2982,19 @@
   }
 
   .mh-site-header .mh-site-brand-column {
-  order: 0;
-  flex: 1 1 0;
-  width: auto;
-  min-width: 0;
-}
+    order: 0;
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+  }
 
-.mh-site-header .mh-menu-toggle {
-  order: 1;
-  display: inline-flex;
-  flex: 0 0 var(--mh-cap-size-44);
-  width: var(--mh-cap-size-44);
-  margin-left: auto;
-}
+  .mh-site-header .mh-menu-toggle {
+    order: 1;
+    display: inline-flex;
+    flex: 0 0 var(--mh-cap-size-44);
+    width: var(--mh-cap-size-44);
+    margin-left: auto;
+  }
 
   .mh-site-header-hero .mh-menu-toggle {
     color: var(--mh-white);
@@ -3257,10 +3289,10 @@
 
 @media (max-width: 767px) {
   .mh-reserve-hero {
-  height: auto;
-  min-height: 440px;
-  padding: 140px 0 var(--mh-cap-size-48);
-}
+    height: auto;
+    min-height: 440px;
+    padding: 140px 0 var(--mh-cap-size-48);
+  }
 
   .mh-reserve-picture {
     position: absolute;
@@ -3468,41 +3500,41 @@
     padding-top: 68px;
   }
 
- .cap-sidebar-column {
-  flex: 0 0 232px;
-  width: 232px;
-  min-width: 0;
-  overflow: hidden;
-  transition:
-    flex-basis 250ms ease,
-    width 250ms ease;
-}
+  .cap-sidebar-column {
+    flex: 0 0 232px;
+    width: 232px;
+    min-width: 0;
+    overflow: hidden;
+    transition:
+      flex-basis 250ms ease,
+      width 250ms ease;
+  }
 
-.cap-sidebar-column .cap-sidebar {
-  width: 232px;
-  transition:
-    transform 250ms ease,
-    opacity 250ms ease;
-}
+  .cap-sidebar-column .cap-sidebar {
+    width: 232px;
+    transition:
+      transform 250ms ease,
+      opacity 250ms ease;
+  }
 
-.cap-sidebar-collapsed .cap-sidebar-column {
-  flex-basis: 0;
-  width: 0;
-  visibility: hidden;
-  transition:
-    flex-basis 250ms ease,
-    width 250ms ease,
-    visibility 0s 250ms;
-}
+  .cap-sidebar-collapsed .cap-sidebar-column {
+    flex-basis: 0;
+    width: 0;
+    visibility: hidden;
+    transition:
+      flex-basis 250ms ease,
+      width 250ms ease,
+      visibility 0s 250ms;
+  }
 
-.cap-sidebar-collapsed .cap-sidebar {
-  transform: translateX(-100%);
-  opacity: 0;
-}
+  .cap-sidebar-collapsed .cap-sidebar {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
 
-.cap-sidebar-toggle {
-  transition: left 250ms ease;
-}
+  .cap-sidebar-toggle {
+    transition: left 250ms ease;
+  }
 
   .cap-sidebar-collapsed .cap-sidebar-toggle {
     left: var(--mh-cap-size-12);
@@ -3540,10 +3572,14 @@
   }
 
   .cap-tables-column {
-    flex: 0 0 max(
-      var(--mh-cap-size-350),
-      calc((100% - var(--mh-cap-size-12)) * var(--mh-cap-tables-ratio) / var(--mh-cap-columns-ratio-total))
-    );
+    flex: 0 0
+      max(
+        var(--mh-cap-size-350),
+        calc(
+          (100% - var(--mh-cap-size-12)) * var(--mh-cap-tables-ratio) /
+            var(--mh-cap-columns-ratio-total)
+        )
+      );
     width: auto;
   }
 
@@ -3562,10 +3598,7 @@
   }
 
   .cap-content {
-    padding:
-      var(--mh-cap-size-10)
-      var(--mh-cap-size-16)
-      var(--mh-cap-size-30);
+    padding: var(--mh-cap-size-10) var(--mh-cap-size-16) var(--mh-cap-size-30);
   }
 }
 
@@ -3594,11 +3627,11 @@
     min-height: 0;
   }
 
- .cap-datebar {
-  gap: var(--mh-cap-size-12);
-  margin: var(--mh-cap-size-14) 0 var(--mh-cap-size-18);
-  flex-wrap: wrap;
-}
+  .cap-datebar {
+    gap: var(--mh-cap-size-12);
+    margin: var(--mh-cap-size-14) 0 var(--mh-cap-size-18);
+    flex-wrap: wrap;
+  }
 
   .cap-columns {
     flex: 1;
@@ -3775,7 +3808,6 @@
 }
 
 .mh-staff-login-card {
-
   max-width: var(--mh-staff-login-width);
   min-width: 0;
   padding: var(--mh-cap-size-48);
@@ -3797,5 +3829,113 @@
 }
 
 .mh-staff-login-card > a:hover {
+  color: var(--mh-copper);
+}
+
+/* ==========================================================================
+   StaffBookingPage — pages/StaffBookingPage.jsx
+   ========================================================================== */
+
+.cap-app .cap-main > .cap-content.staff-booking-content {
+  padding-block-start: var(--mh-cap-size-24);
+  overflow-y: auto;
+}
+
+.cap-panel.staff-booking-panel {
+  flex-shrink: 0;
+  width: 100%;
+  max-width: var(--mh-staff-booking-panel-max-width);
+  min-height: 0;
+  margin-inline: auto;
+}
+
+.staff-hiker-results {
+  max-height: var(--mh-staff-hiker-results-max-height);
+  overflow-y: auto;
+}
+
+.staff-hiker-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: var(--mh-staff-hiker-option-min-height);
+  padding: var(--mh-cap-size-16);
+  border: var(--mh-border-width) solid var(--mh-border);
+  border-radius: var(--mh-cap-size-12);
+  background: var(--mh-white);
+  color: var(--mh-navy);
+  text-align: center;
+  cursor: pointer;
+}
+
+.staff-hiker-option > .bi:not(.staff-hiker-option-check) {
+  font-size: var(--mh-staff-hiker-option-icon-size);
+  line-height: 1;
+}
+
+.staff-hiker-option small {
+  margin-top: var(--mh-cap-size-6);
+}
+
+.staff-hiker-option:hover,
+.btn-check:checked + .staff-hiker-option,
+.staff-hiker-option[aria-expanded="true"] {
+  border-color: var(--mh-staff-hiker-option-accent);
+}
+
+.btn-check:checked + .staff-hiker-option,
+.staff-hiker-option[aria-expanded="true"] {
+  background: var(--mh-staff-hiker-option-selected-bg);
+}
+
+.btn-check:focus-visible + .staff-hiker-option,
+.staff-hiker-option:focus-visible {
+  outline: 2px solid var(--mh-staff-hiker-option-accent);
+  outline-offset: 2px;
+}
+
+.staff-hiker-option-check {
+  position: absolute;
+  top: var(--mh-cap-size-12);
+  right: var(--mh-cap-size-12);
+  color: var(--mh-staff-hiker-option-accent);
+}
+
+/* ==========================================================================
+   SuccessCheck — components/common/SuccessCheck.jsx
+   ========================================================================== */
+
+.mh-success-check {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: var(--mh-success-check-size);
+  height: var(--mh-success-check-size);
+  border-radius: 50%;
+  background-color: var(--mh-success-check-background);
+  color: var(--mh-success-check-color);
+  font-size: var(--mh-success-check-icon-size);
+  line-height: 1;
+}
+
+/* ==========================================================================
+   CancellationMark — components/common/CancellationMark.jsx
+   ========================================================================== */
+
+.mh-cancellation-mark {
+  background-color: var(--mh-cancellation-mark-background);
+  color: var(--mh-cancellation-mark-color);
+}
+
+/* ==========================================================================
+   WarningMark — components/common/WarningMark.jsx
+   ========================================================================== */
+
+.mh-warning-mark {
+  background-color: var(--mh-warning-mark-background);
   color: var(--mh-copper);
 }

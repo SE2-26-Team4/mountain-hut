@@ -7,13 +7,16 @@ import { getBookingStatus } from "../../utils/booking-status.js";
 import { formatBookingDate } from "../../utils/formatBookingDate.js";
 import Alert from "../common/AutoDismissAlert.jsx";
 import BookingCard from "./BookingCard.jsx";
+import BookingConfirmationModal from "./BookingConfirmationModal.jsx";
 import CancelBookingModal from "./CancelBookingModal.jsx";
 import EditBookingModal from "./EditBookingModal.jsx";
 
+const BOOKINGS_PER_BATCH = 6;
+
 /**
- * @typedef {import('../../models/models.js').BookingDTO} BookingDTO
+ * @typedef {import("../../models/models.js").BookingDTO} BookingDTO
+ * @typedef {import("./BookingConfirmationModal.jsx").BookingConfirmation} BookingConfirmation
  * @typedef {{ booking: BookingDTO, status: ReturnType<typeof getBookingStatus> }} BookingWithStatus
- * @typedef {{ variant: 'success' | 'warning', message: string }} BookingFeedback
  */
 
 /**
@@ -34,16 +37,17 @@ export default function MyBookingsList({ hikerId }) {
   const [editing, setEditing] = useState(
     /** @type {BookingDTO | null} */ (null),
   );
-  const [feedback, setFeedback] = useState(
-    /** @type {BookingFeedback | null} */ (null),
+  const [updatedReservation, setUpdatedReservation] = useState(
+    /** @type {BookingConfirmation | null} */ (null),
   );
+  const [cancellationFeedback, setCancellationFeedback] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [dateFilter, setDateFilter] = useState("");
   const [sortOrder, setSortOrder] = useState("default");
 
   /** @param {BookingDTO} booking */
   const openCancelModal = (booking) => {
-    setFeedback(null);
+    setCancellationFeedback("");
     setBookingToCancel(booking);
     setCancelError("");
     setShowCancelModal(true);
@@ -55,7 +59,7 @@ export default function MyBookingsList({ hikerId }) {
 
   /** @param {BookingDTO} booking */
   const openEditModal = (booking) => {
-    setFeedback(null);
+    setCancellationFeedback("");
     setEditing(booking);
   };
 
@@ -69,14 +73,12 @@ export default function MyBookingsList({ hikerId }) {
       const cancelled = await cancelBooking(bookingToCancel.id);
 
       setShowCancelModal(false);
-      setFeedback({
-        variant: "success",
-        message: `Booking #${cancelled.id} for ${formatBookingDate(
+      setCancellationFeedback(
+        `Booking #${cancelled.id} for ${formatBookingDate(
           cancelled.bookingDate,
         )} has been cancelled.`,
-      });
+      );
     } catch (error) {
-      // Keep the modal open so the hiker can read the error and retry.
       setCancelError(
         error instanceof Error
           ? error.message
@@ -87,21 +89,14 @@ export default function MyBookingsList({ hikerId }) {
     }
   };
 
-  /** @param {boolean} emailSent */
-  const handleBookingSaved = (emailSent) => {
+  /** @param {BookingConfirmation} reservation */
+  const handleBookingSaved = (reservation) => {
     setEditing(null);
-    setFeedback(
-      emailSent
-        ? {
-            variant: "success",
-            message: "Booking updated. A confirmation email was sent.",
-          }
-        : {
-            variant: "warning",
-            message:
-              "Booking updated. The confirmation email could not be sent.",
-          },
-    );
+    setUpdatedReservation(reservation);
+  };
+
+  const closeUpdateConfirmation = () => {
+    setUpdatedReservation(null);
     retry();
   };
 
@@ -116,7 +111,6 @@ export default function MyBookingsList({ hikerId }) {
 
   if (errorMessage) {
     return (
-      // Keep the alert visible because it contains the retry button.
       <Alert variant="danger" timeout={0}>
         <p>{errorMessage}</p>
 
@@ -136,7 +130,6 @@ export default function MyBookingsList({ hikerId }) {
     );
   }
 
-  // Use the same status for filtering, grouping, and the card badge.
   const now = new Date();
   const matchingBookings = bookings
     .map((booking) => ({ booking, status: getBookingStatus(booking, now) }))
@@ -165,11 +158,14 @@ export default function MyBookingsList({ hikerId }) {
       sortOrder === "oldest" ? compareMealDate(a, b) : compareMealDate(b, a),
     );
 
+  // Changing a filter or the sort order resets each group's visible count.
+  const filterKey = `${hikerId}:${statusFilter}:${dateFilter}:${sortOrder}`;
+
   return (
     <>
-      {feedback && (
-        <Alert variant={feedback.variant} role="status">
-          {feedback.message}
+      {cancellationFeedback && (
+        <Alert variant="success" role="status">
+          {cancellationFeedback}
         </Alert>
       )}
 
@@ -195,6 +191,7 @@ export default function MyBookingsList({ hikerId }) {
             onChange={(event) => setDateFilter(event.target.value)}
           />
         </Form.Group>
+
         <Form.Group controlId="booking-sort-order">
           <Form.Label>Sort by</Form.Label>
           <Form.Select
@@ -213,13 +210,18 @@ export default function MyBookingsList({ hikerId }) {
       )}
 
       <BookingGroup
+        key={`upcoming:${filterKey}`}
         title="Upcoming bookings"
         bookings={upcoming}
         onCancel={openCancelModal}
         onEdit={openEditModal}
       />
 
-      <BookingGroup title="Past and cancelled bookings" bookings={other} />
+      <BookingGroup
+        key={`other:${filterKey}`}
+        title="Past and cancelled bookings"
+        bookings={other}
+      />
 
       {editing && (
         <EditBookingModal
@@ -228,6 +230,12 @@ export default function MyBookingsList({ hikerId }) {
           onSaved={handleBookingSaved}
         />
       )}
+
+      <BookingConfirmationModal
+        reservation={updatedReservation}
+        updated
+        onClose={closeUpdateConfirmation}
+      />
 
       <CancelBookingModal
         show={showCancelModal}
@@ -250,14 +258,19 @@ export default function MyBookingsList({ hikerId }) {
  * @param {(booking: BookingDTO) => void} [props.onEdit]
  */
 function BookingGroup({ title, bookings, onCancel, onEdit }) {
+  const [visibleCount, setVisibleCount] = useState(BOOKINGS_PER_BATCH);
+
   if (bookings.length === 0) return null;
+
+  const visibleBookings = bookings.slice(0, visibleCount);
+  const hasMoreBookings = visibleBookings.length < bookings.length;
 
   return (
     <section className="mb-5" aria-label={title}>
       <h2 className="h4 mb-3">{title}</h2>
 
       <div className="row g-3">
-        {bookings.map(({ booking, status }) => (
+        {visibleBookings.map(({ booking, status }) => (
           <div className="col-12 col-xl-4 mh-booking-column" key={booking.id}>
             <BookingCard
               booking={booking}
@@ -268,6 +281,26 @@ function BookingGroup({ title, bookings, onCancel, onEdit }) {
           </div>
         ))}
       </div>
+
+      {bookings.length > BOOKINGS_PER_BATCH && (
+        <div className="d-flex flex-column align-items-center gap-2 mt-4">
+          <p className="small text-body-secondary mb-0" role="status">
+            Showing {visibleBookings.length} of {bookings.length} bookings
+          </p>
+
+          {hasMoreBookings && (
+            <Button
+              type="button"
+              variant="outline-secondary"
+              onClick={() =>
+                setVisibleCount((count) => count + BOOKINGS_PER_BATCH)
+              }
+            >
+              Show more bookings
+            </Button>
+          )}
+        </div>
+      )}
     </section>
   );
 }

@@ -4,20 +4,14 @@ import {
   createStaffBooking,
   getBookingsByDateAndSlot,
   registerHiker,
-} from '../dao/booking-dao.js';
+} from "../dao/booking-dao.js";
 
-import { searchHikers } from '../dao/auth-dao.js';
+import { searchHikers } from "../dao/auth-dao.js";
 
-import {
-  getMealSlotCapacity,
-  getMealSlots,
-} from '../dao/capacity-dao.js';
+import { getMealSlotCapacity, getMealSlots } from "../dao/capacity-dao.js";
 
-import { getBookingDeadline } from './booking-time.js';
-import {
-  generateInitialPassword,
-  hashPassword,
-} from './password.js';
+import { getBookingDeadline } from "./booking-time.js";
+import { generateInitialPassword, hashPassword } from "./password.js";
 
 /**
  * Data types used to validate bookings and calculate availability.
@@ -255,14 +249,18 @@ function validateBookingDateAndSlot(bookingDate, slotId) {
 }
 
 /**
- * Validates the party size and the optional special requests.
- * Shared by hiker and staff bookings.
+ * Validates the party size, special requests, and dietary requirements
+ * for hiker and staff bookings.
  *
  * @param {number} partySize
  * @param {string} specialRequests
+ * @param {string} [dietaryRequirements]
  */
-function validateBookingDetails(partySize, specialRequests) {
-  // Require a positive whole number of guests.
+function validateBookingDetails(
+  partySize,
+  specialRequests,
+  dietaryRequirements,
+) {
   if (!Number.isSafeInteger(partySize) || partySize <= 0) {
     throw new BookingError(
       "INVALID_PARTY_SIZE",
@@ -270,11 +268,21 @@ function validateBookingDetails(partySize, specialRequests) {
     );
   }
 
-  // Accept optional requests only as text of at most 1,000 characters.
   if (typeof specialRequests !== "string" || specialRequests.length > 1000) {
     throw new BookingError(
       "INVALID_BOOKING",
-      "Special requests must be text of at most 1000 characters.",
+      "Special requests must be a string of at most 1000 characters.",
+    );
+  }
+
+  if (
+    dietaryRequirements !== undefined &&
+    (typeof dietaryRequirements !== "string" ||
+      dietaryRequirements.length > 1000)
+  ) {
+    throw new BookingError(
+      "INVALID_BOOKING",
+      "Dietary requirements must be a string of at most 1000 characters.",
     );
   }
 }
@@ -286,7 +294,7 @@ function validateBookingDetails(partySize, specialRequests) {
  * @returns {BookingError}
  */
 function invalidHiker(message) {
-  return new BookingError('INVALID_HIKER', message);
+  return new BookingError("INVALID_HIKER", message);
 }
 
 /**
@@ -298,11 +306,11 @@ function invalidHiker(message) {
  * @returns {string}
  */
 function requireText(value, field, maxLength) {
-  const text = typeof value === 'string' ? value.trim() : '';
+  const text = typeof value === "string" ? value.trim() : "";
 
   if (text.length === 0 || text.length > maxLength) {
     throw invalidHiker(
-      `${field} is required and must be at most ${maxLength} characters.`
+      `${field} is required and must be at most ${maxLength} characters.`,
     );
   }
 
@@ -322,9 +330,9 @@ function optionalText(value, field, maxLength) {
     return null;
   }
 
-  if (typeof value !== 'string' || value.trim().length > maxLength) {
+  if (typeof value !== "string" || value.trim().length > maxLength) {
     throw invalidHiker(
-      `${field} must be text of at most ${maxLength} characters.`
+      `${field} must be text of at most ${maxLength} characters.`,
     );
   }
 
@@ -338,10 +346,10 @@ function optionalText(value, field, maxLength) {
  * @returns {string}
  */
 function normalizeEmail(value) {
-  const email = requireText(value, 'Email', MAX_EMAIL_LENGTH).toLowerCase();
+  const email = requireText(value, "Email", MAX_EMAIL_LENGTH).toLowerCase();
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    throw invalidHiker('A valid email address is required.');
+    throw invalidHiker("A valid email address is required.");
   }
 
   return email;
@@ -355,11 +363,11 @@ function normalizeEmail(value) {
  * @returns {string}
  */
 function normalizePhone(value) {
-  const phone = requireText(value, 'Phone', 30).replace(/[\s\-().]/g, '');
+  const phone = requireText(value, "Phone", 30).replace(/[\s\-().]/g, "");
 
   if (!/^\+?\d{6,15}$/.test(phone)) {
     throw invalidHiker(
-      'A valid phone number is required (6-15 digits, optional leading +).'
+      "A valid phone number is required (6-15 digits, optional leading +).",
     );
   }
 
@@ -373,8 +381,8 @@ function normalizePhone(value) {
  * @returns {Record<string, unknown>}
  */
 function toHikerInput(hiker) {
-  if (typeof hiker !== 'object' || hiker === null) {
-    throw invalidHiker('Hiker details are required.');
+  if (typeof hiker !== "object" || hiker === null) {
+    throw invalidHiker("Hiker details are required.");
   }
 
   return /** @type {Record<string, unknown>} */ (hiker);
@@ -390,19 +398,19 @@ function toHikerInput(hiker) {
  */
 async function prepareNewHiker(input) {
   switch (input.type) {
-    case 'new': {
+    case "new": {
       const fullName = requireText(
         input.fullName,
-        'Full name',
-        MAX_NAME_LENGTH
+        "Full name",
+        MAX_NAME_LENGTH,
       );
       const email = normalizeEmail(input.email);
       const phone = normalizePhone(input.phone);
-      const notes = optionalText(input.notes, 'Notes', MAX_TEXT_LENGTH);
+      const notes = optionalText(input.notes, "Notes", MAX_TEXT_LENGTH);
       const emergencyContact = optionalText(
         input.emergencyContact,
-        'Emergency contact',
-        MAX_TEXT_LENGTH
+        "Emergency contact",
+        MAX_TEXT_LENGTH,
       );
 
       // The hiker must change this password at the first login.
@@ -423,14 +431,14 @@ async function prepareNewHiker(input) {
       };
     }
 
-    case 'temporary': {
+    case "temporary": {
       // Only a name and an optional phone: no email, no web access.
       const fullName = requireText(
         input.fullName,
-        'Full name',
-        MAX_NAME_LENGTH
+        "Full name",
+        MAX_NAME_LENGTH,
       );
-      const phone = optionalText(input.phone, 'Phone', 30);
+      const phone = optionalText(input.phone, "Phone", 30);
 
       return {
         newHiker: {
@@ -448,7 +456,7 @@ async function prepareNewHiker(input) {
 
     default:
       throw invalidHiker(
-        "Hiker type must be 'existing', 'new' or 'temporary'."
+        "Hiker type must be 'existing', 'new' or 'temporary'.",
       );
   }
 }
@@ -462,14 +470,11 @@ async function prepareNewHiker(input) {
  * @returns {Promise<HikerDTO[]>}
  */
 export async function findHikers(term) {
-  const text = typeof term === 'string' ? term.trim() : '';
+  const text = typeof term === "string" ? term.trim() : "";
 
-  if (
-    text.length < MIN_SEARCH_LENGTH ||
-    text.length > MAX_SEARCH_LENGTH
-  ) {
+  if (text.length < MIN_SEARCH_LENGTH || text.length > MAX_SEARCH_LENGTH) {
     throw invalidHiker(
-      `The search term must be between ${MIN_SEARCH_LENGTH} and ${MAX_SEARCH_LENGTH} characters.`
+      `The search term must be between ${MIN_SEARCH_LENGTH} and ${MAX_SEARCH_LENGTH} characters.`,
     );
   }
 
@@ -486,8 +491,8 @@ export async function registerHikerByStaff(hiker) {
   const input = toHikerInput(hiker);
 
   // An existing hiker is selected, not registered again.
-  if (input.type === 'existing') {
-    throw invalidHiker('Only new or temporary hikers can be registered.');
+  if (input.type === "existing") {
+    throw invalidHiker("Only new or temporary hikers can be registered.");
   }
 
   const { newHiker, initialPassword } = await prepareNewHiker(input);
@@ -516,10 +521,11 @@ export async function createBookingByStaff({
   bookingDate,
   slotId,
   partySize,
-  specialRequests = '',
+  dietaryRequirements = "",
+  specialRequests = "",
 }) {
   validateBookingDateAndSlot(bookingDate, slotId);
-  validateBookingDetails(partySize, specialRequests);
+  validateBookingDetails(partySize, specialRequests, dietaryRequirements);
 
   const input = toHikerInput(hiker);
 
@@ -529,12 +535,9 @@ export async function createBookingByStaff({
   /** @type {string | undefined} */
   let initialPassword;
 
-  if (input.type === 'existing') {
-    if (
-      !Number.isSafeInteger(input.hikerId) ||
-      Number(input.hikerId) <= 0
-    ) {
-      throw invalidHiker('A valid hiker ID is required.');
+  if (input.type === "existing") {
+    if (!Number.isSafeInteger(input.hikerId) || Number(input.hikerId) <= 0) {
+      throw invalidHiker("A valid hiker ID is required.");
     }
 
     staffHiker = { existingHikerId: Number(input.hikerId) };
@@ -551,6 +554,7 @@ export async function createBookingByStaff({
     bookingDate,
     slotId,
     partySize,
+    dietaryRequirements: dietaryRequirements.trim(),
     specialRequests: specialRequests.trim(),
   });
 
@@ -573,24 +577,25 @@ export async function createBookingByStaff({
  * @param {number} [editBookingId]
  * @returns {Promise<BookingDTO>}
  */
-export async function createBookingForHiker({
-  hikerId,
-  bookingDate,
-  slotId,
-  partySize,
-  specialRequests = '',
-}, editBookingId) {
+export async function createBookingForHiker(
+  {
+    hikerId,
+    bookingDate,
+    slotId,
+    partySize,
+    dietaryRequirements,
+    specialRequests = "",
+  },
+  editBookingId,
+) {
   validateBookingDateAndSlot(bookingDate, slotId);
 
   // Require a valid identifier for the hiker making the booking.
   if (!Number.isSafeInteger(hikerId) || hikerId <= 0) {
-    throw new BookingError(
-      'INVALID_BOOKING',
-      'A valid hiker ID is required.'
-    );
+    throw new BookingError("INVALID_BOOKING", "A valid hiker ID is required.");
   }
 
-  validateBookingDetails(partySize, specialRequests);
+  validateBookingDetails(partySize, specialRequests, dietaryRequirements);
 
   // Pass validated booking details to the DAO, including the booking ID for an edit.
   const bookingData = {
@@ -598,6 +603,7 @@ export async function createBookingForHiker({
     bookingDate,
     slotId,
     partySize,
+    dietaryRequirements: dietaryRequirements?.trim(),
     specialRequests: specialRequests.trim(),
   };
 

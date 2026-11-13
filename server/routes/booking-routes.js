@@ -66,9 +66,7 @@ async function sendBookingConfirmation(hiker, booking, isEdit = false) {
       getDiningTables(),
     ]);
 
-    const mealSlot = mealSlots.find(
-      (slot) => slot.id === booking.slotId
-    );
+    const mealSlot = mealSlots.find((slot) => slot.id === booking.slotId);
 
     if (!mealSlot) {
       throw new Error(`Meal slot ${booking.slotId} not found.`);
@@ -76,7 +74,7 @@ async function sendBookingConfirmation(hiker, booking, isEdit = false) {
 
     // Include only tables allocated to this booking.
     const allocatedTableIds = new Set(
-      booking.allocations.map((allocation) => allocation.tableId)
+      booking.allocations.map((allocation) => allocation.tableId),
     );
 
     // Build the confirmation using saved booking details.
@@ -87,17 +85,25 @@ async function sendBookingConfirmation(hiker, booking, isEdit = false) {
       hiker: { full_name: hiker.full_name, email: recipient },
       booking,
       mealSlot,
-      tables: tables.filter((table) =>
-        allocatedTableIds.has(table.id)
-      ),
-      requirements: booking.specialRequests
-        ? [
-            {
-              hasAllergies: false,
-              description: booking.specialRequests,
-            },
-          ]
-        : [],
+      tables: tables.filter((table) => allocatedTableIds.has(table.id)),
+      requirements: [
+        ...(booking.dietaryRequirements
+          ? [
+              {
+                hasAllergies: false,
+                description: `Dietary requirements:\n${booking.dietaryRequirements}`,
+              },
+            ]
+          : []),
+        ...(booking.specialRequests
+          ? [
+              {
+                hasAllergies: false,
+                description: `Special requests:\n${booking.specialRequests}`,
+              },
+            ]
+          : []),
+      ],
     });
 
     // Report success when the sending service completes.
@@ -109,7 +115,7 @@ async function sendBookingConfirmation(hiker, booking, isEdit = false) {
     // Log email failures while preserving the successfully saved booking.
     console.error(
       "Booking saved, but confirmation email could not be sent:",
-      emailError
+      emailError,
     );
 
     return false;
@@ -146,13 +152,20 @@ const saveBooking = asyncRoute(async (req, res) => {
     });
   }
 
-  const { bookingDate, slotId, partySize, specialRequests } = req.body ?? {};
+  const {
+    bookingDate,
+    slotId,
+    partySize,
+    dietaryRequirements,
+    specialRequests,
+  } = req.body ?? {};
 
   const bookingData = {
     hikerId: user.id,
     bookingDate,
     slotId,
     partySize,
+    dietaryRequirements,
     specialRequests,
   };
 
@@ -307,7 +320,7 @@ router.get(
     const hikers = await findHikers(req.query.search);
 
     return res.status(200).json({ hikers });
-  })
+  }),
 );
 
 // Register a new full or temporary hiker without creating a booking.
@@ -326,7 +339,7 @@ router.post(
     const registration = await registerHikerByStaff(req.body);
 
     return res.status(201).json(registration);
-  })
+  }),
 );
 
 // Create a booking entered by staff for an existing, new or temporary hiker.
@@ -343,6 +356,7 @@ router.post(
       bookingDate,
       slotId,
       partySize,
+      dietaryRequirements,
       specialRequests,
     } = req.body ?? {};
 
@@ -356,17 +370,18 @@ router.post(
       bookingDate,
       slotId,
       partySize,
+      dietaryRequirements,
       specialRequests,
     });
 
     // Send the confirmation to hikers with an email; temporary hikers have none.
     const emailSent = await sendBookingConfirmation(
       { full_name: result.hiker.fullName, email: result.hiker.email },
-      result.booking
+      result.booking,
     );
 
     return res.status(201).json({ ...result, emailSent });
-  })
+  }),
 );
 
 /* ERROR HANDLING */

@@ -2,43 +2,47 @@ import { useEffect, useState } from "react";
 import { Button, Form, Modal } from "react-bootstrap";
 
 import BookingAPI from "../../API/booking-api.js";
-import Alert from "../common/AutoDismissAlert.jsx";
 import {
-  buildSpecialRequests,
-  FOOD_ALLERGY_REQUEST,
-  MAX_SPECIAL_REQUEST_LENGTH,
+  bookingRequestsTooLong,
+  readBookingRequests,
+  toBookingRequestFields,
 } from "../../utils/booking-requirements.js";
+import Alert from "../common/AutoDismissAlert.jsx";
+import BookingRequestFields from "./BookingRequestFields.jsx";
 
 /**
  * @param {{
- *   booking: import('../../models/models.js').BookingDTO,
+ *   booking: import("../../models/models.js").BookingDTO,
  *   onClose: () => void,
- *   onSaved: (emailSent: boolean) => void
+ *   onSaved: (reservation: import("./BookingConfirmationModal.jsx").BookingConfirmation) => void,
  * }} props
  */
 export default function EditBookingModal({ booking, onClose, onSaved }) {
   const [bookingDate, setBookingDate] = useState(booking.bookingDate);
   const [slotId, setSlotId] = useState(String(booking.slotId));
   const [partySize, setPartySize] = useState(String(booking.partySize));
-  const [firstLine, ...remainingLines] = (booking.specialRequests ?? "").split(
-    "\n",
-  );
-  const [hasAllergy, setHasAllergy] = useState(
-    firstLine === FOOD_ALLERGY_REQUEST,
-  );
-  const [requirements, setRequirements] = useState(
-    firstLine === FOOD_ALLERGY_REQUEST
-      ? remainingLines.join("\n")
-      : (booking.specialRequests ?? ""),
-  );
+  const [requests, setRequests] = useState(() => {
+    if (booking.dietaryRequirements) {
+      return {
+        showDietary: true,
+        dietary: booking.dietaryRequirements,
+        hasAllergies: false,
+        special: booking.specialRequests ?? "",
+      };
+    }
+
+    return readBookingRequests(booking.specialRequests);
+  });
   const [mealSlots, setMealSlots] = useState(
-    /** @type {import('../../models/models.js').MealSlotDTO[]} */ ([]),
+    /** @type {import("../../models/models.js").MealSlotDTO[]} */ ([]),
   );
   const [loadingSlots, setLoadingSlots] = useState(true);
   const [slotError, setSlotError] = useState("");
   const [saveError, setSaveError] = useState("");
   const [saving, setSaving] = useState(false);
   const [openedAt] = useState(() => Date.now());
+
+  const requestsTooLong = bookingRequestsTooLong(requests);
 
   useEffect(() => {
     let active = true;
@@ -70,27 +74,53 @@ export default function EditBookingModal({ booking, onClose, onSaved }) {
   const showOriginalSlot =
     bookingDate === booking.bookingDate &&
     !availableSlots.some((slot) => slot.id === booking.slotId);
-  const requirementsLimit =
-    MAX_SPECIAL_REQUEST_LENGTH -
-    (hasAllergy ? FOOD_ALLERGY_REQUEST.length + 1 : 0);
 
-  /** @param {import('react').SubmitEvent<HTMLFormElement>} event */
+  /** @param {import("react").SubmitEvent<HTMLFormElement>} event */
   async function handleSubmit(event) {
     event.preventDefault();
-    if (saving) return;
+    if (saving || !slotId || requestsTooLong) return;
 
     setSaving(true);
     setSaveError("");
 
     try {
-      const { emailSent } = await BookingAPI.updateBooking(booking.id, {
-        bookingDate,
-        slotId: Number(slotId),
-        partySize: Number(partySize),
-        specialRequests: buildSpecialRequests(requirements, hasAllergy),
-      });
+      const selectedSlot = availableSlots.find(
+        (slot) => String(slot.id) === slotId,
+      );
 
-      onSaved(emailSent);
+      const { booking: savedBooking, emailSent } =
+        await BookingAPI.updateBooking(booking.id, {
+          bookingDate,
+          slotId: Number(slotId),
+          partySize: Number(partySize),
+          ...toBookingRequestFields(requests),
+        });
+
+      const keptOriginalSlot = savedBooking.slotId === booking.slotId;
+
+      onSaved({
+        id: savedBooking.id,
+        bookingDate: savedBooking.bookingDate,
+        mealName:
+          savedBooking.slotName ??
+          selectedSlot?.name ??
+          (keptOriginalSlot ? booking.slotName : undefined) ??
+          "Meal service",
+        startTime:
+          savedBooking.slotStartTime ??
+          selectedSlot?.startTime ??
+          (keptOriginalSlot ? booking.slotStartTime : undefined) ??
+          "",
+        endTime:
+          savedBooking.slotEndTime ??
+          selectedSlot?.endTime ??
+          (keptOriginalSlot ? booking.slotEndTime : undefined) ??
+          "",
+        partySize: savedBooking.partySize,
+        dietaryRequirements: savedBooking.dietaryRequirements,
+        specialRequests: savedBooking.specialRequests,
+        emailSent,
+      });
     } catch (error) {
       setSaveError(
         error instanceof Error ? error.message : "Could not save your changes.",
@@ -153,9 +183,11 @@ export default function EditBookingModal({ booking, onClose, onSaved }) {
                     ? "Select a meal slot"
                     : "No meal slots available"}
                 </option>
+
                 {showOriginalSlot && (
                   <option value={booking.slotId}>Current meal slot</option>
                 )}
+
                 {availableSlots.map((slot) => (
                   <option key={slot.id} value={slot.id}>
                     {slot.name} ({slot.startTime}–{slot.endTime})
@@ -176,31 +208,12 @@ export default function EditBookingModal({ booking, onClose, onSaved }) {
               />
             </Form.Group>
 
-            <Form.Check
-              id="edit-booking-allergy"
-              className="mb-3"
-              label="Someone in my party has a food allergy"
-              checked={hasAllergy}
-              onChange={(event) => setHasAllergy(event.target.checked)}
+            <BookingRequestFields
+              requests={requests}
+              onChange={setRequests}
+              partySize={Number(partySize)}
+              disabled={saving}
             />
-
-            {hasAllergy && (
-              <Form.Group controlId="edit-booking-requirements">
-                <Form.Label>Food allergy details</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  placeholder="e.g. Peanuts and shellfish"
-                  value={requirements}
-                  maxLength={requirementsLimit}
-                  isInvalid={requirements.length > requirementsLimit}
-                  onChange={(event) => setRequirements(event.target.value)}
-                />
-                <Form.Control.Feedback type="invalid">
-                  Shorten the allergy details to {requirementsLimit} characters.
-                </Form.Control.Feedback>
-              </Form.Group>
-            )}
           </fieldset>
         </Modal.Body>
 
@@ -208,11 +221,7 @@ export default function EditBookingModal({ booking, onClose, onSaved }) {
           <Button
             type="submit"
             variant="primary"
-            disabled={
-              saving ||
-              !slotId ||
-              (hasAllergy && requirements.length > requirementsLimit)
-            }
+            disabled={saving || !slotId || requestsTooLong}
           >
             {saving ? "Saving…" : "Save changes"}
           </Button>

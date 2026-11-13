@@ -1,14 +1,16 @@
-import { useEffect, useState } from 'react';
-import { Offcanvas } from 'react-bootstrap';
+import { useEffect, useState } from "react";
+import { Offcanvas } from "react-bootstrap";
+import { NavLink } from "react-router-dom";
 
-import MountainLogo from '../common/MountainLogo.jsx';
-import ProfileMenu from '../common/ProfileMenu.jsx';
+import MountainLogo from "../common/MountainLogo.jsx";
+import ProfileMenu from "../common/ProfileMenu.jsx";
 
 const links = [
-  ['house-door', 'Dashboard'],
-  ['calendar-check', 'Reservations'],
-  ['calendar3', 'Tables & Slots'],
-  ['fork-knife', 'Menu'],
+  ["house-door", "Dashboard"],
+  ["calendar-check", "Reservations"],
+  ["people", "Staff Booking", "/staff/bookings"],
+  ["calendar3", "Tables & Slots", "/staff/capacity"],
+  ["fork-knife", "Menu"],
 ];
 
 /**
@@ -22,38 +24,51 @@ export default function StaffSidebar({ user, onLogout }) {
   const closeMenu = () => setMenuOpen(false);
 
   useEffect(() => {
-    const desktop = window.matchMedia('(min-width: 750.01px)');
+    const desktop = window.matchMedia("(min-width: 750.01px)");
 
     const handleResize = () => {
       if (desktop.matches) setMenuOpen(false);
     };
 
-    desktop.addEventListener('change', handleResize);
+    desktop.addEventListener("change", handleResize);
 
     return () => {
-      desktop.removeEventListener('change', handleResize);
+      desktop.removeEventListener("change", handleResize);
     };
   }, []);
 
   const navigation = (
     <nav className="cap-navigation" aria-label="Staff navigation">
-      {links.map(([icon, label]) => {
-        const isActive = label === 'Tables & Slots';
+      {links.map(([icon, label, to]) => {
+        const content = (
+          <>
+            <i className={`bi bi-${icon}`} aria-hidden="true" />
+            <span>{label}</span>
+          </>
+        );
 
-        return (
+        return to ? (
+          <NavLink
+            key={label}
+            to={to}
+            end
+            onClick={closeMenu}
+            className={({ isActive }) =>
+              `cap-nav-item d-flex align-items-center text-decoration-none${
+                isActive ? " active" : ""
+              }`
+            }
+          >
+            {content}
+          </NavLink>
+        ) : (
           <button
             key={label}
             type="button"
-            className={`cap-nav-item d-flex align-items-center ${
-              isActive ? 'active' : 'disabled'
-            }`}
-            disabled={!isActive}
-            aria-current={isActive ? 'page' : undefined}
-            onClick={closeMenu}
+            className="cap-nav-item d-flex align-items-center disabled"
+            disabled
           >
-            <i className={`bi bi-${icon}`} aria-hidden="true" />
-
-            <span>{label}</span>
+            {content}
           </button>
         );
       })}
