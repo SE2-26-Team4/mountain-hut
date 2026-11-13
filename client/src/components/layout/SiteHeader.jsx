@@ -24,7 +24,7 @@ function SiteHeader({ user, onSignIn, onSignOut }) {
   const closeMenu = () => setMenuOpen(false);
 
   useEffect(() => {
-    const desktop = window.matchMedia("(min-width: 768px)");
+    const desktop = window.matchMedia("(min-width: 992px)");
 
     const handleResize = () => {
       if (desktop.matches) setMenuOpen(false);
