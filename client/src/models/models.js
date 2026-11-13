@@ -28,6 +28,10 @@
  * @property {string} [specialRequests] - Optional requests, max 1000 characters.
  * @property {'confirmed' | 'cancelled'} status
  * @property {BookingTableAllocationDTO[]} allocations
+ * @property {string} [slotName]
+ * @property {string} [slotStartTime]
+ * @property {string} [slotEndTime]
+ * @property {string} [editClosesAt] - Edit deadline as an ISO timestamp.
  */
 
 /**

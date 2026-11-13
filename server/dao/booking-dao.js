@@ -1,6 +1,7 @@
 import { withTransaction } from '../db.js';
 import {
   getBookingDeadline,
+  getBookingEditDeadline,
   getMealStartTimestamp,
 } from '../services/booking-time.js';
 import {
@@ -95,9 +96,10 @@ function validateBookingFields(partySize, specialRequests) {
  * @param {TransactionQueries} queries
  * @param {BookingInsertData & { specialRequests: string }} bookingData
  * @param {boolean} bookedByStaff
+ * @param {number} [editBookingId] - Confirmed booking to update.
  * @returns {Promise<BookingDTO>}
  */
-async function insertBooking(
+async function saveBooking(
   { runAsync, getAsync, allAsync },
   {
     hikerId,
@@ -106,8 +108,86 @@ async function insertBooking(
     partySize,
     specialRequests,
   },
-  bookedByStaff
+  bookedByStaff,
+  editBookingId
 ) {
+  // Load the original meal and verify that the authenticated hiker owns the confirmed booking.
+  const originalBooking =
+    editBookingId === undefined
+      ? null
+      : await getAsync(
+          `SELECT b.booking_date AS bookingDate,
+            b.slot_id AS slotId,
+            b.party_size AS partySize,
+            s.start_time AS startTime
+     FROM bookings AS b
+     JOIN meal_slots AS s ON s.id = b.slot_id
+     WHERE b.id = ? AND b.hiker_id = ? AND b.status = 'confirmed'`,
+          [editBookingId, hikerId],
+        );
+
+  if (editBookingId !== undefined && !originalBooking) {
+    throw new BookingError(
+      "BOOKING_NOT_FOUND",
+      "The requested booking was not found.",
+    );
+  }
+
+  // [REQUIREMENT] Changes are admitted within 48 hours from the date booked.
+  if (
+    originalBooking &&
+    Date.now() >
+      getBookingEditDeadline(
+        originalBooking.bookingDate,
+        originalBooking.startTime,
+      )
+  ) {
+    throw new BookingError(
+      "BOOKING_EDIT_TOO_LATE",
+      "Changes close 48 hours before the original meal service starts.",
+    );
+  }
+
+  const sameSlot =
+    originalBooking?.slotId === slotId &&
+    originalBooking?.bookingDate === bookingDate;
+
+  // Load the existing table allocations when the date and meal slot stay the same.
+  /** @type {BookingTableAllocationDTO[]} */
+  const originalAllocations =
+    editBookingId !== undefined && sameSlot
+      ? await allAsync(
+          `SELECT table_id AS tableId, seats_reserved AS seatsReserved
+            FROM booking_table_allocations
+            WHERE booking_id = ?
+            ORDER BY table_id`,
+          [editBookingId],
+        )
+      : [];
+
+  // Keep the current allocations when the edit only affects dietary requirements.
+  if (
+    editBookingId !== undefined &&
+    sameSlot &&
+    originalBooking?.partySize === partySize
+  ) {
+    await runAsync("UPDATE bookings SET special_requests = ? WHERE id = ?", [
+      specialRequests,
+      editBookingId,
+    ]);
+
+    return {
+      id: editBookingId,
+      hikerId,
+      bookingDate,
+      slotId,
+      partySize,
+      specialRequests,
+      status: "confirmed",
+      allocations: originalAllocations,
+    };
+  }
+
   // Retrieve the selected slot's date, start time, and active status.
   const slot = await getAsync(
     `SELECT
@@ -183,8 +263,9 @@ async function insertBooking(
        AND booking_date = ?
        AND slot_id = ?
        AND status = 'confirmed'
+       AND id IS NOT ?
      LIMIT 1`,
-    [hikerId, bookingDate, slotId]
+    [hikerId, bookingDate, slotId, editBookingId ?? null]
   );
 
   if (existingBooking) {
@@ -196,10 +277,11 @@ async function insertBooking(
     );
   }
 
+  // [REQUIREMENT] Changes to party size are subject to the automatic verification of availability.
   // Calculate free seats for active tables assigned to this slot.
   // Only confirmed bookings for the same date and slot occupy seats.
   /** @type {{ tableId: number, availableSeats: number }[]} */
-  const tables = await allAsync(
+  const availableTables = await allAsync(
     `SELECT
        t.id AS tableId,
        t.seat_count - COALESCE((
@@ -210,14 +292,35 @@ async function insertBooking(
            AND b.booking_date = ?
            AND b.slot_id = ?
            AND b.status = 'confirmed'
+           AND b.id IS NOT ?
        ), 0) AS availableSeats
      FROM slot_tables AS st
      JOIN dining_tables AS t ON t.id = st.table_id
      WHERE st.slot_id = ?
        AND t.is_active = 1
      ORDER BY t.id`,
-    [bookingDate, slotId, slotId]
+    [bookingDate, slotId, editBookingId ?? null, slotId]
   );
+
+  const assignedTableIds = new Set(
+    originalAllocations.map((allocation) => allocation.tableId),
+  );
+  const assignedTables = availableTables.filter((table) =>
+    assignedTableIds.has(table.tableId),
+  );
+  const assignedCapacity = assignedTables.reduce(
+    (total, table) => total + Math.max(0, table.availableSeats),
+    0,
+  );
+
+  // [REQUIREMENT] When a hiker increases the party size and the party no longer
+  // fits at the tables already assigned, it should be treated as a new booking.
+  // The current seats are released and the tables are assigned again with the
+  // MH-01 rules.
+  const tables =
+    sameSlot && assignedCapacity >= partySize
+      ? assignedTables
+      : availableTables;
 
   // Collect the exact number of seats reserved at each selected table.
   /** @type {BookingTableAllocationDTO[]} */
@@ -260,7 +363,8 @@ async function insertBooking(
       if (maximumSeats >= partySize) break;
     }
 
-    // Reject insufficient capacity before inserting any booking records.
+    // [REQUIREMENT] If there are not enough seats, the change is refused and
+    // the booking stays as it was.
     if (maximumSeats < partySize) {
       throw new BookingError(
         'NO_AVAILABILITY',
@@ -351,27 +455,32 @@ async function insertBooking(
     }
   }
 
-  // Save the booking details, including normalized special requests.
-  const bookingResult = await runAsync(
-    `INSERT INTO bookings (
-       hiker_id,
-       booking_date,
-       slot_id,
-       party_size,
-       special_requests
-     )
-     VALUES (?, ?, ?, ?, ?)`,
-    [
-      hikerId,
-      bookingDate,
-      slotId,
-      partySize,
-      specialRequests,
-    ]
-  );
+  // Save the booking and replace its allocations within the same transaction.
+  let bookingId;
 
-  // Use the generated booking ID to link its table allocations.
-  const bookingId = bookingResult.lastID;
+  if (editBookingId === undefined) {
+    const result = await runAsync(
+      `INSERT INTO bookings
+         (hiker_id, booking_date, slot_id, party_size, special_requests)
+       VALUES (?, ?, ?, ?, ?)`,
+      [hikerId, bookingDate, slotId, partySize, specialRequests]
+    );
+    bookingId = result.lastID;
+  } else {
+    bookingId = editBookingId;
+
+    await runAsync(
+      `UPDATE bookings
+       SET booking_date = ?, slot_id = ?, party_size = ?, special_requests = ?
+       WHERE id = ?`,
+      [bookingDate, slotId, partySize, specialRequests, bookingId]
+    );
+
+    await runAsync(
+      'DELETE FROM booking_table_allocations WHERE booking_id = ?',
+      [bookingId]
+    );
+  }
 
   // Persist each table allocation within the same transaction.
   for (const allocation of allocations) {
@@ -411,9 +520,10 @@ async function insertBooking(
 }
 
 /**
- * Creates a booking for a hiker and allocates seats atomically.
+ * Saves a hiker booking and its allocations atomically.
  *
  * @param {BookingInsertData} bookingData
+ * @param {number} [editBookingId]
  * @returns {Promise<BookingDTO>}
  */
 export async function createBooking({
@@ -422,12 +532,12 @@ export async function createBooking({
   slotId,
   partySize,
   specialRequests = '',
-}) {
+}, editBookingId) {
   validateBookingFields(partySize, specialRequests);
 
   // Check availability and save all booking records atomically.
   return withTransaction((queries) =>
-    insertBooking(
+    saveBooking(
       queries,
       {
         hikerId,
@@ -437,7 +547,8 @@ export async function createBooking({
         // Remove surrounding whitespace before saving the requests.
         specialRequests: specialRequests.trim(),
       },
-      false
+      false,
+      editBookingId
     )
   );
 }
@@ -516,7 +627,7 @@ export async function createStaffBooking({
 
     // Reuse the same availability checks and table allocation as hikers,
     // with the staff time limit.
-    const booking = await insertBooking(
+    const booking = await saveBooking(
       queries,
       {
         hikerId: bookedHiker.id,
@@ -587,20 +698,24 @@ export async function getBookingsByHiker(hikerId) {
   // Read the hiker's bookings and their allocations in one transaction.
   return withTransaction(async ({ allAsync }) => {
     // Include every status and list the most recent booking dates first.
-    /** @type {BookingRow[]} */
+    /** @type {(BookingRow & { slotStartTime: string })[]} */
     const bookings = await allAsync(
       `SELECT
-         id,
-         hiker_id AS hikerId,
-         booking_date AS bookingDate,
-         slot_id AS slotId,
-         party_size AS partySize,
-         special_requests AS specialRequests,
-         status
-       FROM bookings
-       WHERE hiker_id = ?
-       ORDER BY booking_date DESC, id DESC`,
-      [hikerId]
+        b.id,
+        b.hiker_id AS hikerId,
+        b.booking_date AS bookingDate,
+        b.slot_id AS slotId,
+        b.party_size AS partySize,
+        b.special_requests AS specialRequests,
+        b.status,
+        s.name AS slotName,
+        s.start_time AS slotStartTime,
+        s.end_time AS slotEndTime
+      FROM bookings AS b
+      JOIN meal_slots AS s ON s.id = b.slot_id
+      WHERE b.hiker_id = ?
+      ORDER BY b.booking_date DESC, b.id DESC`,
+      [hikerId],
     );
 
     // Load allocations for each booking and return the complete records.
@@ -614,11 +729,16 @@ export async function getBookingsByHiker(hikerId) {
            FROM booking_table_allocations
            WHERE booking_id = ?
            ORDER BY table_id`,
-          [booking.id]
+          [booking.id],
         );
 
-        return { ...booking, allocations };
-      })
+        // Expose the same edit deadline enforced when saving a booking change.
+        const editClosesAt = new Date(
+          getBookingEditDeadline(booking.bookingDate, booking.slotStartTime),
+        ).toISOString();
+
+        return { ...booking, allocations, editClosesAt };
+      }),
     );
   });
 }

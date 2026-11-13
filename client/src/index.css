@@ -296,11 +296,15 @@
   --mh-site-account-border: rgba(255, 255, 255, 0.25);
   --mh-site-hero-header-layer: 10;
   --mh-site-hero-nav-muted: rgba(255, 255, 255, 0.7);
+  --mh-mobile-signout-on-navy: #ff8580;
 
   /* MyBookingsPage — pages/MyBookingsPage.jsx */
   --mh-my-bookings-width: 1160px;
   --mh-my-bookings-title-size: clamp(1.8rem, 3vw, 2.4rem);
   --mh-my-bookings-heading-tracking: -0.02em;
+  --mh-my-bookings-action-size: 44px;
+  --mh-my-bookings-dietary-line-height: 1.4;
+  --mh-status-badge-danger-background: #d00000;
 
   /* StaffLoginPage — pages/StaffLoginPage.jsx */
   --mh-viewport-dynamic-height: 100dvh;

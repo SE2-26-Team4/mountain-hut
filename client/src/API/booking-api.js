@@ -48,9 +48,7 @@ async function request(path, options = {}) {
   });
 
   const data =
-    response.status === 204
-      ? null
-      : await response.json().catch(() => null);
+    response.status === 204 ? null : await response.json().catch(() => null);
 
   if (!response.ok) {
     throw new BookingApiError(
@@ -153,10 +151,23 @@ async function createStaffBooking(booking) {
   return data;
 }
 
+/**
+ * @param {number} bookingId
+ * @param {CreateBookingRequestDTO} booking
+ * @returns {Promise<{ booking: BookingDTO, emailSent: boolean }>}
+ */
+function updateBooking(bookingId, booking) {
+  return request(`/bookings/${bookingId}`, {
+    method: "PUT",
+    body: JSON.stringify(booking),
+  });
+}
+
 const BookingAPI = {
   getMealSlots,
   getAvailability,
   createBooking,
+  updateBooking,
   searchHikers,
   createHiker,
   createStaffBooking,

@@ -53,14 +53,11 @@ const MAX_SEARCH_LENGTH = 100;
  */
 function isValidDate(value) {
   // Require the YYYY-MM-DD format before extracting date components.
-  if (
-    typeof value !== 'string' ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(value)
-  ) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return false;
   }
 
-  const [year, month, day] = value.split('-').map(Number);
+  const [year, month, day] = value.split("-").map(Number);
 
   // Exclude year zero.
   if (year < 1) {
@@ -90,13 +87,13 @@ function validateBookingSelection(bookingDate, slotId) {
   // Require a real calendar date and a positive safe integer slot ID.
   if (
     !isValidDate(bookingDate) ||
-    typeof slotId !== 'number' ||
+    typeof slotId !== "number" ||
     !Number.isSafeInteger(slotId) ||
     slotId <= 0
   ) {
     throw new BookingError(
-      'INVALID_BOOKING',
-      'A valid booking date and meal-slot ID are required.'
+      "INVALID_BOOKING",
+      "A valid booking date and meal-slot ID are required.",
     );
   }
 }
@@ -119,7 +116,7 @@ function calculateAvailableTables(tables, bookings) {
 
   for (const booking of bookings) {
     // Cancelled bookings do not occupy seats.
-    if (booking.status !== 'confirmed') {
+    if (booking.status !== "confirmed") {
       continue;
     }
 
@@ -130,7 +127,7 @@ function calculateAvailableTables(tables, bookings) {
 
       reservedSeatsByTable.set(
         allocation.tableId,
-        currentReservedSeats + allocation.seatsReserved
+        currentReservedSeats + allocation.seatsReserved,
       );
     }
   }
@@ -168,9 +165,7 @@ export async function getMealSlotAvailability(bookingDate, slotId) {
   const mealSlots = await getMealSlots();
 
   const mealSlot = mealSlots.find(
-    (slot) =>
-      slot.id === slotId &&
-      slot.slotDate === bookingDate
+    (slot) => slot.id === slotId && slot.slotDate === bookingDate,
   );
 
   // Missing, mismatched, and inactive slots are not available.
@@ -186,23 +181,17 @@ export async function getMealSlotAvailability(bookingDate, slotId) {
   }
 
   // Read existing bookings to determine which seats are already occupied.
-  const bookings = await getBookingsByDateAndSlot(
-    bookingDate,
-    slotId
-  );
+  const bookings = await getBookingsByDateAndSlot(bookingDate, slotId);
 
   // Calculate the free seats remaining at each assigned table.
-  const tables = calculateAvailableTables(
-    slotCapacity.tables,
-    bookings
-  );
+  const tables = calculateAvailableTables(slotCapacity.tables, bookings);
 
   // Return slot details, the booking deadline, and total remaining seats.
   // The deadline is included for the client to check the booking window.
   return {
     bookingDate,
     bookingClosesAt: new Date(
-      getBookingDeadline(bookingDate, mealSlot.startTime)
+      getBookingDeadline(bookingDate, mealSlot.startTime),
     ).toISOString(),
     slotId: mealSlot.id,
     slotName: mealSlot.name,
@@ -211,7 +200,7 @@ export async function getMealSlotAvailability(bookingDate, slotId) {
     tables,
     totalAvailableSeats: tables.reduce(
       (total, table) => total + table.availableSeats,
-      0
+      0,
     ),
   };
 }
@@ -223,21 +212,21 @@ export async function getMealSlotAvailability(bookingDate, slotId) {
  */
 function getTodayInHutTimeZone() {
   // Determine the Rome calendar date independently of the server's time zone.
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/Rome',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Rome",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).formatToParts(new Date());
 
   // Extract the components needed for a sortable YYYY-MM-DD date.
-  const year = parts.find((part) => part.type === 'year')?.value;
-  const month = parts.find((part) => part.type === 'month')?.value;
-  const day = parts.find((part) => part.type === 'day')?.value;
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
 
   // Stop rather than compare booking dates against an incomplete date.
   if (!year || !month || !day) {
-    throw new Error('Unable to determine the current date.');
+    throw new Error("Unable to determine the current date.");
   }
 
   return `${year}-${month}-${day}`;
@@ -259,8 +248,8 @@ function validateBookingDateAndSlot(bookingDate, slotId) {
   // Reject past dates using the hut's local calendar date.
   if (bookingDate < getTodayInHutTimeZone()) {
     throw new BookingError(
-      'INVALID_BOOKING',
-      'Booking date must be today or a future date.'
+      "INVALID_BOOKING",
+      "Booking date must be today or a future date.",
     );
   }
 }
@@ -276,19 +265,16 @@ function validateBookingDetails(partySize, specialRequests) {
   // Require a positive whole number of guests.
   if (!Number.isSafeInteger(partySize) || partySize <= 0) {
     throw new BookingError(
-      'INVALID_PARTY_SIZE',
-      'Party size must be a positive integer.'
+      "INVALID_PARTY_SIZE",
+      "Party size must be a positive integer.",
     );
   }
 
   // Accept optional requests only as text of at most 1,000 characters.
-  if (
-    typeof specialRequests !== 'string' ||
-    specialRequests.length > 1000
-  ) {
+  if (typeof specialRequests !== "string" || specialRequests.length > 1000) {
     throw new BookingError(
-      'INVALID_BOOKING',
-      'Special requests must be text of at most 1000 characters.'
+      "INVALID_BOOKING",
+      "Special requests must be text of at most 1000 characters.",
     );
   }
 }
@@ -578,12 +564,13 @@ export async function createBookingByStaff({
   return result;
 }
 
-/* CREATE */
+/* CREATE AND UPDATE */
 
 /**
- * Validates the input and delegates atomic booking creation to the DAO.
+ * Validates booking details before delegating creation or updates to the DAO.
  *
  * @param {CreateBookingRequestDTO & { hikerId: number }} bookingData
+ * @param {number} [editBookingId]
  * @returns {Promise<BookingDTO>}
  */
 export async function createBookingForHiker({
@@ -592,7 +579,7 @@ export async function createBookingForHiker({
   slotId,
   partySize,
   specialRequests = '',
-}) {
+}, editBookingId) {
   validateBookingDateAndSlot(bookingDate, slotId);
 
   // Require a valid identifier for the hiker making the booking.
@@ -605,14 +592,16 @@ export async function createBookingForHiker({
 
   validateBookingDetails(partySize, specialRequests);
 
-  // Normalize requests and delegate persistence to the DAO.
-  // The DAO checks the slot, deadline, duplicates, and available seats
-  // within the same transaction used to save the booking.
-  return createBooking({
+  // Pass validated booking details to the DAO, including the booking ID for an edit.
+  const bookingData = {
     hikerId,
     bookingDate,
     slotId,
     partySize,
     specialRequests: specialRequests.trim(),
-  });
+  };
+
+  return editBookingId === undefined
+    ? createBooking(bookingData)
+    : createBooking(bookingData, editBookingId);
 }
