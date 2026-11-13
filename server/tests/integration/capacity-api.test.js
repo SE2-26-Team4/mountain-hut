@@ -16,6 +16,7 @@ import * as CapacityValidation from "../../services/capacity-validation.js";
 import {
   createDiningTable,
   createMealSlot,
+  WeeklyScheduleConflictError,
   setMealSlotTables,
 } from "../../dao/capacity-dao.js";
 import { initializeDatabase, runAsync } from "../../db.js";
@@ -162,6 +163,55 @@ afterAll(async () => {
 });
 
 describe("meal-slot and capacity API", () => {
+  it('copies a weekly schedule through the staff API', async () => {
+    const response = await employeeAgent
+      .post('/api/capacity/meal-slots/copy-week')
+      .send({
+        sourceWeekStart: '2097-01-05',
+        destinationWeekStart: '2097-02-02',
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body).toMatchObject({
+      sourceWeekStart: '2097-01-05',
+      destinationWeekStart: '2097-02-02',
+      mealSlots: [],
+    });
+  });
+
+  it('rejects an invalid destination week through the staff API', async () => {
+    const response = await employeeAgent
+      .post('/api/capacity/meal-slots/copy-week')
+      .send({
+        sourceWeekStart: '2097-01-05',
+        destinationWeekStart: '2097-02-30',
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.message).toBe(
+      'A valid destination week start date in YYYY-MM-DD format is required.',
+    );
+  });
+
+  it('reports a destination schedule conflict', async () => {
+    vi.spyOn(CapacityDAO, 'copyWeeklySchedule').mockRejectedValueOnce(
+      new WeeklyScheduleConflictError(),
+    );
+
+    const response = await employeeAgent
+      .post('/api/capacity/meal-slots/copy-week')
+      .send({
+        sourceWeekStart: '2097-03-03',
+        destinationWeekStart: '2097-04-07',
+      });
+
+    expect(response.status).toBe(409);
+    expect(response.body.error).toEqual({
+      code: 'WEEKLY_SCHEDULE_CONFLICT',
+      message: 'The destination week contains bookings and cannot be replaced.',
+    });
+  });
+
   // Public users should see active slots but not inactive ones.
   it("lists active meal slots publicly and excludes inactive slots", async () => {
     const response = await request(app).get("/api/meal-slots");

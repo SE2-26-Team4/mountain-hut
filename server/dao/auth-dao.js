@@ -139,7 +139,7 @@ export async function searchHikers(term, limit = 20) {
   return rows.map(toHikerDTO);
 }
 
-/* STAFF BOOKINGS (MH-07) */
+/* STAFF BOOKINGS */
 
 // The functions below take the query helpers of the caller's transaction
 // (see withTransaction in db.js), so that checking or creating a hiker is

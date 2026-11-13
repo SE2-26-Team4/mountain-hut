@@ -8,6 +8,7 @@ import {
   validateDiningTable,
   validateMealSlot,
   validateSlotTableAssignment,
+  validateWeeklyScheduleCopy,
 } from '../../services/capacity-validation.js';
 
 describe('meal-slot validation', () => {
@@ -244,6 +245,78 @@ describe('slot-table assignment validation', () => {
     ).toEqual({
       slotId: 1,
       tableIds: [],
+    });
+  });
+
+  describe('weekly schedule copy validation', () => {
+    it('accepts two distinct valid week start dates', () => {
+      expect(
+        validateWeeklyScheduleCopy({
+          sourceWeekStart: '2099-12-27',
+          destinationWeekStart: '2100-01-03',
+        }),
+      ).toEqual({
+        sourceWeekStart: '2099-12-27',
+        destinationWeekStart: '2100-01-03',
+      });
+    });
+
+    it('rejects invalid or identical week start dates', () => {
+      expect(() =>
+        validateWeeklyScheduleCopy({
+          sourceWeekStart: '2099-02-30',
+          destinationWeekStart: '2099-03-06',
+        }),
+      ).toThrow(
+        'A valid source week start date in YYYY-MM-DD format is required.',
+      );
+
+      expect(() =>
+        validateWeeklyScheduleCopy({
+          sourceWeekStart: '2099-03-06',
+          destinationWeekStart: '2099-02-30',
+        }),
+      ).toThrow(
+        'A valid destination week start date in YYYY-MM-DD format is required.',
+      );
+
+      expect(() =>
+        validateWeeklyScheduleCopy({
+          sourceWeekStart: '2099-03-06',
+          destinationWeekStart: '2099-03-06',
+        }),
+      ).toThrow('The source and destination weeks must be different.');
+    });
+
+    // Overlapping weeks would let the copy delete slots of the source week.
+    it('rejects week start dates less than 7 days apart', () => {
+      for (const [sourceWeekStart, destinationWeekStart] of [
+        ['2099-03-02', '2099-03-03'],
+        ['2099-03-02', '2099-03-08'],
+        ['2099-03-08', '2099-03-02'],
+        ['2099-12-29', '2100-01-02'],
+      ]) {
+        expect(() =>
+          validateWeeklyScheduleCopy({
+            sourceWeekStart,
+            destinationWeekStart,
+          }),
+        ).toThrow(
+          'The source and destination week start dates must be at least 7 days apart.',
+        );
+      }
+    });
+
+    it('accepts week start dates exactly 7 days apart in either order', () => {
+      expect(
+        validateWeeklyScheduleCopy({
+          sourceWeekStart: '2099-03-09',
+          destinationWeekStart: '2099-03-02',
+        }),
+      ).toEqual({
+        sourceWeekStart: '2099-03-09',
+        destinationWeekStart: '2099-03-02',
+      });
     });
   });
 
