@@ -103,7 +103,7 @@ export class DuplicateMealSlotError extends Error {
 
 /**
  * Reports that a destination schedule cannot be replaced because it has
- * bookings referencing its meal slots.
+ * confirmed bookings referencing its meal slots.
  */
 export class WeeklyScheduleConflictError extends Error {
   constructor() {
@@ -542,10 +542,11 @@ export async function getMealSlotCapacity(slotId) {
 /**
  * Replaces a destination week with a copy of a source week.
  * The source records and reusable dining tables are never modified.
+ * Cancelled bookings of the destination week are deleted with its slots.
  *
  * @param {{ sourceWeekStart: string, destinationWeekStart: string }} input
  * @returns {Promise<Array<MealSlotDTO & { tableIds: number[] }>>}
- * @throws {WeeklyScheduleConflictError} If destination slots have bookings.
+ * @throws {WeeklyScheduleConflictError} If destination slots have confirmed bookings.
  * @throws {DuplicateMealSlotError} If a copied slot conflicts with another slot.
  */
 export async function copyWeeklySchedule({
@@ -587,10 +588,14 @@ export async function copyWeeklySchedule({
     if (destinationSlots.length > 0) {
       const destinationIds = destinationSlots.map((slot) => slot.id);
       const placeholders = destinationIds.map(() => '?').join(', ');
+
+      // [REQUIREMENT] It is not possible to copy a weekly schedule onto an existing schedule unless there are not reservations, in this case it completely replaces the existing one
+      // Cancelled bookings are no longer reservations, so only confirmed ones block the copy.
       const booking = await getAsync(
         `SELECT 1
          FROM bookings
          WHERE slot_id IN (${placeholders})
+           AND status = 'confirmed'
          LIMIT 1`,
         destinationIds,
       );
@@ -599,6 +604,24 @@ export async function copyWeeklySchedule({
         throw new WeeklyScheduleConflictError();
       }
 
+      // bookings.slot_id has no cascading delete, so remove the remaining
+      // cancelled bookings and their table allocations before the slots.
+      await runAsync(
+        `DELETE FROM booking_table_allocations
+         WHERE booking_id IN (
+           SELECT id
+           FROM bookings
+           WHERE slot_id IN (${placeholders})
+             AND status = 'cancelled'
+         )`,
+        destinationIds,
+      );
+      await runAsync(
+        `DELETE FROM bookings
+         WHERE slot_id IN (${placeholders})
+           AND status = 'cancelled'`,
+        destinationIds,
+      );
       await runAsync(
         `DELETE FROM slot_tables
          WHERE slot_id IN (${placeholders})`,

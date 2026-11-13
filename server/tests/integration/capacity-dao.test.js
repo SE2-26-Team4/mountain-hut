@@ -23,6 +23,7 @@ import {
 } from '../../dao/capacity-dao.js';
 
 import {
+  getAsync,
   initializeDatabase,
   runAsync,
 } from '../../db.js';
@@ -239,6 +240,117 @@ describe('meal-slot and dining-table data access', () => {
       await runAsync(
         'DELETE FROM users WHERE id = ?',
         [hiker.lastID],
+      );
+    }
+  });
+
+  // Cancelled bookings are not reservations, so they must not block the copy.
+  it('replaces a destination week that contains only cancelled bookings', async () => {
+    const suffix = `${Date.now()}-${Math.random()}`;
+    const table = await createDiningTable({
+      name: `Cancelled booking table ${suffix}`,
+      seatCount: 4,
+      isActive: false,
+    });
+    const sourceSlot = await createMealSlot({
+      slotDate: '2098-05-05',
+      name: `Cancelled booking source slot ${suffix}`,
+      startTime: '12:00',
+      endTime: '14:00',
+    });
+    const destinationSlot = await createMealSlot({
+      slotDate: '2098-06-08',
+      name: `Cancelled booking destination slot ${suffix}`,
+      startTime: '18:00',
+      endTime: '20:00',
+    });
+    await setMealSlotTables(destinationSlot.id, [table.id]);
+
+    const hiker = await runAsync(
+      `INSERT INTO users (full_name, email, password_hash, role)
+       VALUES (?, ?, ?, 'hiker')`,
+      [
+        `Cancelled booking hiker ${suffix}`,
+        `cancelled-booking-${suffix}@example.com`,
+        'test-password-hash',
+      ],
+    );
+    const booking = await runAsync(
+      `INSERT INTO bookings (
+         hiker_id, booking_date, slot_id, party_size, status
+       )
+       VALUES (?, ?, ?, ?, 'cancelled')`,
+      [hiker.lastID, destinationSlot.slotDate, destinationSlot.id, 2],
+    );
+    await runAsync(
+      `INSERT INTO booking_table_allocations (
+         booking_id, table_id, seats_reserved
+       )
+       VALUES (?, ?, ?)`,
+      [booking.lastID, table.id, 2],
+    );
+
+    try {
+      const copied = await copyWeeklySchedule({
+        sourceWeekStart: '2098-05-04',
+        destinationWeekStart: '2098-06-08',
+      });
+
+      expect(copied).toEqual([
+        expect.objectContaining({
+          slotDate: '2098-06-09',
+          name: sourceSlot.name,
+        }),
+      ]);
+
+      // The old destination slot is replaced together with its dependent rows.
+      expect(await getAsync(
+        'SELECT 1 FROM meal_slots WHERE id = ?',
+        [destinationSlot.id],
+      )).toBeUndefined();
+      expect(await getAsync(
+        'SELECT 1 FROM slot_tables WHERE slot_id = ?',
+        [destinationSlot.id],
+      )).toBeUndefined();
+      expect(await getAsync(
+        'SELECT 1 FROM bookings WHERE id = ?',
+        [booking.lastID],
+      )).toBeUndefined();
+      expect(await getAsync(
+        'SELECT 1 FROM booking_table_allocations WHERE booking_id = ?',
+        [booking.lastID],
+      )).toBeUndefined();
+    } finally {
+      await runAsync(
+        'DELETE FROM booking_table_allocations WHERE booking_id = ?',
+        [booking.lastID],
+      );
+      await runAsync(
+        'DELETE FROM bookings WHERE id = ?',
+        [booking.lastID],
+      );
+
+      const testSlots = (await getMealSlots()).filter((slot) =>
+        slot.name.endsWith(suffix),
+      );
+
+      for (const slot of testSlots) {
+        await runAsync(
+          'DELETE FROM slot_tables WHERE slot_id = ?',
+          [slot.id],
+        );
+        await runAsync(
+          'DELETE FROM meal_slots WHERE id = ?',
+          [slot.id],
+        );
+      }
+      await runAsync(
+        'DELETE FROM users WHERE id = ?',
+        [hiker.lastID],
+      );
+      await runAsync(
+        'DELETE FROM dining_tables WHERE id = ?',
+        [table.id],
       );
     }
   });

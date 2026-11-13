@@ -287,6 +287,37 @@ describe('slot-table assignment validation', () => {
         }),
       ).toThrow('The source and destination weeks must be different.');
     });
+
+    // Overlapping weeks would let the copy delete slots of the source week.
+    it('rejects week start dates less than 7 days apart', () => {
+      for (const [sourceWeekStart, destinationWeekStart] of [
+        ['2099-03-02', '2099-03-03'],
+        ['2099-03-02', '2099-03-08'],
+        ['2099-03-08', '2099-03-02'],
+        ['2099-12-29', '2100-01-02'],
+      ]) {
+        expect(() =>
+          validateWeeklyScheduleCopy({
+            sourceWeekStart,
+            destinationWeekStart,
+          }),
+        ).toThrow(
+          'The source and destination week start dates must be at least 7 days apart.',
+        );
+      }
+    });
+
+    it('accepts week start dates exactly 7 days apart in either order', () => {
+      expect(
+        validateWeeklyScheduleCopy({
+          sourceWeekStart: '2099-03-09',
+          destinationWeekStart: '2099-03-02',
+        }),
+      ).toEqual({
+        sourceWeekStart: '2099-03-09',
+        destinationWeekStart: '2099-03-02',
+      });
+    });
   });
 
   // Slot IDs and every requested table ID must be positive integers.

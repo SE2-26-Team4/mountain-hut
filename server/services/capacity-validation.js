@@ -56,6 +56,24 @@ function isPositiveInteger(value) {
 }
 
 /**
+ * Checks whether two valid calendar dates are at least 7 days apart,
+ * so the weeks starting on them do not overlap.
+ *
+ * @param {string} firstDate - Valid date in YYYY-MM-DD format.
+ * @param {string} secondDate - Valid date in YYYY-MM-DD format.
+ * @returns {boolean}
+ */
+function areAtLeastOneWeekApart(firstDate, secondDate) {
+  // Parse both dates at UTC midnight to avoid daylight-saving shifts.
+  const first = Date.parse(`${firstDate}T00:00:00Z`);
+  const second = Date.parse(`${secondDate}T00:00:00Z`);
+  const millisecondsPerDay = 24 * 60 * 60 * 1000;
+
+  // Accept either order, since the destination may precede the source.
+  return Math.abs(second - first) / millisecondsPerDay >= 7;
+}
+
+/**
  * Requires a non-null object and rejects arrays.
  *
  * @param {unknown} value
@@ -236,6 +254,14 @@ export function validateWeeklyScheduleCopy(input) {
   if (sourceWeekStart === destinationWeekStart) {
     throw new Error(
       'The source and destination weeks must be different.',
+    );
+  }
+
+  // [REQUIREMENT] It should be possible to replicate the schedule for all the days of a given week into another week
+  // Overlapping weeks would delete source slots while they are being copied.
+  if (!areAtLeastOneWeekApart(sourceWeekStart, destinationWeekStart)) {
+    throw new Error(
+      'The source and destination week start dates must be at least 7 days apart.',
     );
   }
 
