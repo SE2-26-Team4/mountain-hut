@@ -2748,32 +2748,7 @@
   color: var(--mh-site-hero-nav-muted);
 }
 
-@media (max-width: 991px) {
-  .mh-site-header {
-    padding-block: var(--mh-space-4);
-  }
-
-  .mh-site-brand-column {
-    order: 1;
-    min-width: 0;
-  }
-
-  .mh-site-account {
-    order: 2;
-    flex: 0 1 auto;
-  }
-
-  .mh-site-nav {
-    order: 3;
-    flex: 0 0 100%;
-    width: 100%;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: var(--mh-space-5);
-  }
-}
-
-@media (max-width: 767px) {
+@media (width < 992px) {
   .mh-site-header {
     gap: var(--mh-space-3);
   }
