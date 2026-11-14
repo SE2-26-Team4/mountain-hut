@@ -1862,7 +1862,6 @@
   background: var(--mh-white-transparent);
 }
 
-.cap-menu-toggle:focus-visible,
 .cap-navigation .cap-nav-item:focus-visible,
 .cap-logout.btn:focus-visible {
   outline: var(--mh-cap-size-3) solid var(--mh-copper);
@@ -2982,14 +2981,15 @@
   font-size: 26px;
 }
 
-.mh-menu-toggle:focus-visible {
-  outline: var(--mh-cap-size-3) solid var(--mh-copper);
-  outline-offset: var(--mh-cap-size-3);
+.mh-menu-toggle:focus-visible,
+.cap-menu-toggle:focus-visible {
+  outline: 1px solid currentColor;
+  outline-offset: -3px;
+  box-shadow: none;
 }
 
 .offcanvas.mh-mobile-menu.offcanvas-top {
   --bs-offcanvas-height: auto;
-
   inset: 0 0 auto;
   width: 100%;
   height: auto;
