@@ -589,7 +589,7 @@ export async function copyWeeklySchedule({
       const destinationIds = destinationSlots.map((slot) => slot.id);
       const placeholders = destinationIds.map(() => '?').join(', ');
 
-      // [REQUIREMENT] It is not possible to copy a weekly schedule onto an existing schedule unless there are not reservations, in this case it completely replaces the existing one
+      // [REQUIREMENT] MH-09: It is not possible to copy a weekly schedule onto an existing schedule unless there are not reservations, in this case it completely replaces the existing one
       // Cancelled bookings are no longer reservations, so only confirmed ones block the copy.
       const booking = await getAsync(
         `SELECT 1

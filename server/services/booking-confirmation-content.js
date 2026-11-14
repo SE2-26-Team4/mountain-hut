@@ -261,7 +261,7 @@ export function buildBookingConfirmationEmail(input) {
         <th style="padding:14px 18px;text-align:left;vertical-align:top;width:40%;font-size:14px;font-weight:400;color:#596873;border-bottom:1px solid #e3e3de;">
           ${escapeHtml(label)}
         </th>
-        <td style="padding:14px 18px;text-align:left;vertical-align:top;font-size:14px;font-weight:600;border-bottom:1px solid #e3e3de;overflow-wrap:anywhere;">
+        <td style="padding:14px 18px;text-align:left;vertical-align:top;font-size:14px;font-weight:500;border-bottom:1px solid #e3e3de;overflow-wrap:anywhere;">
           ${escapeHtml(value)}
         </td>
       </tr>
@@ -278,7 +278,6 @@ export function buildBookingConfirmationEmail(input) {
   let requirementsHtml = "";
 
   if (requirements.length > 0) {
-    // Include complete requirement descriptions in the plain-text message.
     textLines.push(
       "",
       "Party requirements:",
@@ -288,41 +287,48 @@ export function buildBookingConfirmationEmail(input) {
       ),
     );
 
-    // Escape user-provided text before preserving line breaks in HTML.
-    // Display an allergy marker only when the requirement is flagged.
-    const requirementsContent = requirements
-      .map((requirement) => {
-        const description = escapeHtml(requirement.description.trim()).replace(
-          /\r\n|\r|\n/g,
-          "<br>",
-        );
+    const requirementRows = requirements
+      .map((requirement, index) => {
+        const description = requirement.description.trim();
+        const lineBreak = description.indexOf("\n");
+        const firstLine =
+          lineBreak < 0 ? description : description.slice(0, lineBreak).trim();
+
+        const hasSectionLabel =
+          lineBreak >= 0 &&
+          (firstLine === "Dietary requirements:" ||
+            firstLine === "Special requests:");
+
+        const label = hasSectionLabel
+          ? firstLine
+          : index === 0
+            ? "Party requirements:"
+            : "";
+
+        const value = hasSectionLabel
+          ? description.slice(lineBreak + 1).trim()
+          : description;
+
+        const safeValue = escapeHtml(value).replace(/\r\n|\r|\n/g, "<br>");
+        const divider = index > 0 ? "border-top:1px solid #e3e7eb;" : "";
 
         return `
-          <div style="margin:0 0 8px;">
-            ${requirement.hasAllergies ? "<strong>[ALLERGIES]</strong> " : ""}
-            ${description}
-          </div>
+          <tr>
+            <td style="padding:12px 16px;${divider}text-align:left;vertical-align:top;font-size:14px;line-height:1.6;color:#172c38;overflow-wrap:anywhere;word-wrap:break-word;">
+              ${label ? `<div style="margin-bottom:4px;color:#596873;font-weight:400;">${escapeHtml(label)}</div>` : ""}
+              ${requirement.hasAllergies ? "<strong>[ALLERGIES]</strong> " : ""}
+              ${safeValue}
+            </td>
+          </tr>
         `;
       })
       .join("");
 
-    // Place requirements in the final summary row, spanning both columns.
-    // Keep the full text below its label without truncation.
     requirementsHtml = `
-      <tr>
-        <td colspan="2"
-          style="padding:14px 18px;border-top:1px solid #e3e3de;text-align:left;vertical-align:top;">
-
-          <div style="margin:0 0 8px;font-size:14px;font-weight:400;color:#596873;">
-            Party requirements:
-          </div>
-
-          <div style="font-size:14px;line-height:1.65;font-weight:400;color:#172c38;overflow-wrap:anywhere;word-wrap:break-word;word-break:break-word;">
-            ${requirementsContent}
-          </div>
-
-        </td>
-      </tr>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+        style="margin-top:16px;table-layout:fixed;background:#ffffff;border:1px solid #dce2e7;border-radius:12px;border-spacing:0;">
+        ${requirementRows}
+      </table>
     `;
   }
 
@@ -340,7 +346,7 @@ export function buildBookingConfirmationEmail(input) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Your booking is ${action}</title>
 </head>
-<body style="margin:0;padding:0;background:#f3f1ec;color:#172c38;font-family:Arial,Helvetica,sans-serif;">
+<body style="margin:0;padding:0;background:#f7f8fa;color:#172c38;font-family:Arial,Helvetica,sans-serif;">
   <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">
     Your Mountain Hut booking ${escapeHtml(reference)} is ${action}.
   </div>
@@ -352,15 +358,24 @@ export function buildBookingConfirmationEmail(input) {
           style="width:100%;max-width:600px;border-spacing:0;">
 
           <tr>
-            <td bgcolor="#102b3a"
-              style="padding:30px 28px 32px;border-radius:20px 20px 0 0;background:#102b3a;">
-              <p style="margin:0 0 22px;color:#ffffff;font-size:12px;font-weight:700;letter-spacing:2px;">
+            <td align="center" bgcolor="#ffffff"
+              style="padding:28px 28px 12px;border-radius:20px 20px 0 0;background:#ffffff;">
+              <p style="margin:0 0 20px;color:#172c38;font-size:12px;font-weight:400;letter-spacing:3px;">
                 MOUNTAIN HUT
               </p>
-              <p style="margin:0 0 10px;color:#f49461;font-size:12px;letter-spacing:1.4px;font-weight:bold;">
-                RESERVATION ${action.toUpperCase()}
-              </p>
-              <h1 style="margin:0;color:#ffffff;font-size:28px;line-height:1.25;font-weight:600;">
+
+              <table role="presentation" align="center" cellpadding="0" cellspacing="0"
+                style="margin:0 auto 16px;">
+                <tr>
+                  <td align="center" valign="middle">
+                    <img src="cid:booking-success-check"
+                      width="60" height="60" alt=""
+                      style="display:block;width:60px;height:60px;border:0;">
+                  </td>
+                </tr>
+              </table>
+
+              <h1 style="margin:0;color:#172c38;font-size:28px;line-height:1.25;font-weight:600;">
                 Your booking is ${action}
               </h1>
             </td>
@@ -378,20 +393,21 @@ export function buildBookingConfirmationEmail(input) {
               </p>
 
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-                style="table-layout:fixed;background:#f5f3ef;border-radius:12px;border-spacing:0;">
+                style="table-layout:fixed;background:#ffffff;border:1px solid #dce2e7;border-radius:12px;border-spacing:0;">
                 ${detailRows}
                 <tr>
                   <th style="padding:14px 18px;text-align:left;vertical-align:top;font-size:14px;font-weight:400;color:#596873;">
                     Table allocation
                   </th>
-                  <td style="padding:14px 18px;vertical-align:top;font-size:14px;line-height:1.8;font-weight:600;overflow-wrap:anywhere;">
+                  <td style="padding:14px 18px;vertical-align:top;font-size:14px;line-height:1.8;font-weight:500;overflow-wrap:anywhere;">
                     <ul style="list-style:none;margin:0;padding:0;">
                       ${allocationRows}
                     </ul>
                   </td>
                 </tr>
-                ${requirementsHtml}
               </table>
+
+              ${requirementsHtml}
 
               <p style="margin:24px 0;color:#596873;font-size:14px;">
                 ${escapeHtml(closing)}
@@ -403,7 +419,7 @@ export function buildBookingConfirmationEmail(input) {
 
               <img src="cid:mountain-hut-logo"
                 width="84" height="49" alt="Mountain Hut"
-                style="display:block;width:84px;height:49px;margin-top:14px;border:0;">
+                style="display:block;width:84px;height:49px;margin:14px auto 0;border:0;">
             </td>
           </tr>
         </table>

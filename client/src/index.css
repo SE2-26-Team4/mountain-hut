@@ -352,7 +352,11 @@
   --mh-reservation-text: #172c38;
   --mh-reservation-muted: #596873;
   --mh-reservation-accent: #cc551c;
-  --mh-reservation-email-background: #f4f1eb;
+  --mh-reservation-email-background: color-mix(
+    in srgb,
+    var(--mh-copper) 8%,
+    var(--mh-white)
+  );
   --mh-reservation-warning-background: #fff4e5;
   --mh-reservation-border: #e4e5e3;
   --mh-reservation-divider: #eceeeb;
@@ -365,6 +369,27 @@
   --mh-signin-hover-background: #a84b12;
   --mh-mobile-menu-backdrop: #091521;
   --mh-login-close-background: rgb(255 255 255 / 90%);
+
+  /* StaffBookingPage — pages/StaffBookingPage.jsx */
+  --mh-staff-booking-panel-max-width: 1100px;
+  --mh-staff-hiker-results-max-height: 18rem;
+  --mh-staff-hiker-option-selected-bg: #e8efff;
+  --mh-staff-hiker-option-accent: #175cd3;
+  --mh-staff-hiker-option-min-height: 8.5rem;
+  --mh-staff-hiker-option-icon-size: 1.75rem;
+
+  /* SuccessCheck — components/common/SuccessCheck.jsx */
+  --mh-success-check-background: #dff5e3;
+  --mh-success-check-color: #187a38;
+  --mh-success-check-size: 3.75rem;
+  --mh-success-check-icon-size: 2rem;
+
+  /* CancellationMark — components/common/CancellationMark.jsx */
+  --mh-cancellation-mark-background: #fce8e8;
+  --mh-cancellation-mark-color: #9b2525;
+
+  /* WarningMark — components/common/WarningMark.jsx */
+  --mh-warning-mark-background: #fbdcc8;
 }
 
 /* ==========================================================================
