@@ -39,10 +39,6 @@
    StatusBadge — components/common/StatusBadge.jsx
    ========================================================================== */
 
-.mh-status-badge-danger {
-  background-color: var(--mh-status-badge-danger-background);
-}
-
 /* ==========================================================================
    LoginForm — components/auth/LoginForm.jsx
    ========================================================================== */
@@ -747,6 +743,30 @@
   font-weight: var(--mh-weight-medium);
   text-align: right;
   overflow-wrap: anywhere;
+}
+
+.mh-booking-status .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mh-cap-size-6);
+  padding: var(--mh-cap-size-6) var(--mh-cap-size-10);
+  font-size: var(--mh-cap-size-12);
+  font-weight: var(--mh-weight-medium);
+}
+
+.mh-booking-status .text-bg-primary {
+  background-color: var(--mh-booking-status-upcoming-background) !important;
+  color: var(--mh-booking-status-upcoming-color) !important;
+}
+
+.mh-booking-status .text-bg-secondary {
+  background-color: var(--mh-booking-status-past-background) !important;
+  color: var(--mh-booking-status-past-color) !important;
+}
+
+.mh-booking-status .text-bg-danger {
+  background-color: var(--mh-booking-status-cancelled-background) !important;
+  color: var(--mh-booking-status-cancelled-color) !important;
 }
 
 @media (max-width: 575px) {
