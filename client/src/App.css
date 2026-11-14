@@ -3896,6 +3896,19 @@ button.cap-sidebar-toggle:focus-visible {
 .staff-hiker-results {
   max-height: var(--mh-staff-hiker-results-max-height);
   overflow-y: auto;
+  border: var(--mh-border-width) solid var(--mh-border);
+}
+
+.staff-hiker-results > .list-group-item {
+  border-inline: 0;
+}
+
+.staff-hiker-results > .list-group-item:first-child {
+  border-top: 0;
+}
+
+.staff-hiker-results > .list-group-item:last-child {
+  border-bottom: 0;
 }
 
 .staff-hiker-option {
