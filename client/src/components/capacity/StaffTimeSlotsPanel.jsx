@@ -13,14 +13,12 @@ import StatusBadge from "../common/StatusBadge.jsx";
  * @param {ConfiguredMealSlot[]} props.slots
  * @param {DiningTableDTO[]} props.tables
  * @param {() => void} props.onAdd
- * @param {(slot: ConfiguredMealSlot) => void} props.onEdit
  * @param {(slot: ConfiguredMealSlot) => void} props.onAssign
  */
 export default function StaffTimeSlotsPanel({
   slots,
   tables,
   onAdd,
-  onEdit,
   onAssign,
 }) {
   const [statusFilter, setStatusFilter] = useState("all");
