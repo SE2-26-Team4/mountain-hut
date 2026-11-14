@@ -27,7 +27,7 @@ export default function BookingAvailability({ booking, isAuthenticated }) {
     isBookingWindowClosed,
     requests,
     setRequests,
-    requestsTooLong,
+    requestsInvalid,
   } = booking;
 
   if (!availability) return null;
@@ -185,7 +185,7 @@ export default function BookingAvailability({ booking, isAuthenticated }) {
               <Button
                 className="mh-booking-confirm-button d-flex align-items-center justify-content-between w-100"
                 type="button"
-                disabled={isBooking || isBookingWindowClosed || requestsTooLong}
+                disabled={isBooking || isBookingWindowClosed || requestsInvalid}
                 onClick={handleReserve}
               >
                 {isBooking ? (
