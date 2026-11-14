@@ -9,6 +9,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 8080
+      CLIENT_ORIGIN: ${CLIENT_ORIGIN:-http://localhost:8080}
       DB_PATH: /app/data/mountain-hut.sqlite
       SESSION_SECRET: ${SESSION_SECRET:-mountain-hut-local-development-secret}
       COOKIE_SECURE: "false"

@@ -33,6 +33,11 @@ const hutClock = new Intl.DateTimeFormat("en-GB", {
 export default function StaffBookingForm({ onCancel }) {
   const [hikerMode, setHikerMode] = useState("existing");
   const [showNewHiker, setShowNewHiker] = useState(false);
+  const [newHikerRegistration, setNewHikerRegistration] = useState(
+    /** @type {{ hiker: import("../../models/models.js").HikerDTO, passwordSent: boolean } | null} */ (
+      null
+    ),
+  );
   const [temporaryName, setTemporaryName] = useState("");
   const [temporaryLastName, setTemporaryLastName] = useState("");
   const [temporaryPhone, setTemporaryPhone] = useState("");
@@ -63,6 +68,26 @@ export default function StaffBookingForm({ onCancel }) {
       null
     ),
   );
+
+  /** @param {Exclude<import("../../models/models.js").StaffHikerInputDTO, { type: "existing" }>} hiker */
+  const handleRegisterNewHiker = async (hiker) => {
+    const result = await BookingAPI.createHiker(hiker);
+    setNewHikerRegistration(result);
+  };
+
+  /** @param {import("../../models/models.js").HikerDTO} hiker */
+  const handleContinueWithNewHiker = (hiker) => {
+    setHikerMode("existing");
+    setSelectedHiker(hiker);
+    setHikerSearch("");
+    setSearchResults([]);
+    setSearchMessage("");
+  };
+
+  const handleHideNewHiker = () => {
+    setShowNewHiker(false);
+    setNewHikerRegistration(null);
+  };
 
   useEffect(() => {
     let ignore = false;
@@ -378,18 +403,12 @@ export default function StaffBookingForm({ onCancel }) {
         onClose={() => setConfirmedReservation(null)}
       />
 
-      {/* TODO: Feat — New Hiker First Login
-        Pass onRegister to NewHikerModal and call BookingAPI.createHiker
-        from client/src/API/booking-api.js with { type: "new", fullName, email, phone }.
-        POST /staff/hikers in server/routes/booking-routes.js on
-        origin/feature/new-hiker-login returns { hiker, passwordSent }.
-        Pass { hiker, emailSent: passwordSent } to the modal as registration.
-        On Continue to booking, switch to Existing and select the new hiker.
-        Preserve the booking date, slot, party size, and requests.
-        Clear the registration result when the modal closes. */}
       <NewHikerModal
         show={showNewHiker}
-        onHide={() => setShowNewHiker(false)}
+        onHide={handleHideNewHiker}
+        registration={newHikerRegistration}
+        onRegister={handleRegisterNewHiker}
+        onContinue={handleContinueWithNewHiker}
       />
     </>
   );
