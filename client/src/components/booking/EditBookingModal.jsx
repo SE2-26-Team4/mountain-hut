@@ -219,20 +219,19 @@ export default function EditBookingModal({ booking, onClose, onSaved }) {
 
         <Modal.Footer className="justify-content-end">
           <Button
-            type="submit"
-            variant="primary"
-            disabled={saving || !slotId || requestsTooLong}
-          >
-            {saving ? "Saving…" : "Save changes"}
-          </Button>
-
-          <Button
             type="button"
             variant="outline-secondary"
             onClick={onClose}
             disabled={saving}
           >
             Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={saving || !slotId || requestsTooLong}
+          >
+            {saving ? "Saving…" : "Save changes"}
           </Button>
         </Modal.Footer>
       </Form>

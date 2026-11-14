@@ -91,6 +91,14 @@ export default function CancelBookingModal({
       <Modal.Footer className="justify-content-end">
         <Button
           type="button"
+          variant="outline-secondary"
+          onClick={handleHide}
+          disabled={isCancelling}
+        >
+          Keep booking
+        </Button>
+        <Button
+          type="button"
           variant="danger"
           onClick={onConfirm}
           disabled={isCancelling || !booking}
@@ -105,15 +113,6 @@ export default function CancelBookingModal({
             />
           )}
           {isCancelling ? "Cancelling…" : "Cancel booking"}
-        </Button>
-
-        <Button
-          type="button"
-          variant="outline-secondary"
-          onClick={handleHide}
-          disabled={isCancelling}
-        >
-          Keep booking
         </Button>
       </Modal.Footer>
     </Modal>
