@@ -27,6 +27,13 @@ export async function hashPassword(password) {
 }
 
 /**
+ * @returns {string}
+ */
+export function generateInitialPassword() {
+  return randomBytes(12).toString('base64url');
+}
+
+/**
  * Verifies a password against the stored scrypt hash.
  * Returns false if the stored algorithm, salt or key format is invalid.
  *

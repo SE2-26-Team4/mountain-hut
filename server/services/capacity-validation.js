@@ -56,6 +56,24 @@ function isPositiveInteger(value) {
 }
 
 /**
+ * Checks whether two valid calendar dates are at least 7 days apart,
+ * so the weeks starting on them do not overlap.
+ *
+ * @param {string} firstDate - Valid date in YYYY-MM-DD format.
+ * @param {string} secondDate - Valid date in YYYY-MM-DD format.
+ * @returns {boolean}
+ */
+function areAtLeastOneWeekApart(firstDate, secondDate) {
+  // Parse both dates at UTC midnight to avoid daylight-saving shifts.
+  const first = Date.parse(`${firstDate}T00:00:00Z`);
+  const second = Date.parse(`${secondDate}T00:00:00Z`);
+  const millisecondsPerDay = 24 * 60 * 60 * 1000;
+
+  // Accept either order, since the destination may precede the source.
+  return Math.abs(second - first) / millisecondsPerDay >= 7;
+}
+
+/**
  * Requires a non-null object and rejects arrays.
  *
  * @param {unknown} value
@@ -208,4 +226,44 @@ export function validateSlotTableAssignment(slotId, tableIds) {
 
   // Return the validated assignment for database existence and conflict checks.
   return { slotId, tableIds };
+}
+
+/**
+ * Validates the first dates of two weekly schedules.
+ *
+ * @param {unknown} input
+ * @returns {{ sourceWeekStart: string, destinationWeekStart: string }}
+ */
+export function validateWeeklyScheduleCopy(input) {
+  requireObject(input, 'Weekly schedule copy');
+
+  const { sourceWeekStart, destinationWeekStart } = input;
+
+  if (!isValidCalendarDate(sourceWeekStart)) {
+    throw new Error(
+      'A valid source week start date in YYYY-MM-DD format is required.',
+    );
+  }
+
+  if (!isValidCalendarDate(destinationWeekStart)) {
+    throw new Error(
+      'A valid destination week start date in YYYY-MM-DD format is required.',
+    );
+  }
+
+  if (sourceWeekStart === destinationWeekStart) {
+    throw new Error(
+      'The source and destination weeks must be different.',
+    );
+  }
+
+  // [REQUIREMENT] MH-09: It should be possible to replicate the schedule for all the days of a given week into another week
+  // Overlapping weeks would delete source slots while they are being copied.
+  if (!areAtLeastOneWeekApart(sourceWeekStart, destinationWeekStart)) {
+    throw new Error(
+      'The source and destination week start dates must be at least 7 days apart.',
+    );
+  }
+
+  return { sourceWeekStart, destinationWeekStart };
 }

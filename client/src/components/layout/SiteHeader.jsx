@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import { Col, Offcanvas, Row } from 'react-bootstrap';
-import { Link, useLocation } from 'react-router-dom';
+import { useEffect, useState } from "react";
+import { Col, Offcanvas, Row } from "react-bootstrap";
+import { Link, useLocation } from "react-router-dom";
 
-import MountainLogo from '../common/MountainLogo.jsx';
-import ProfileMenu from '../common/ProfileMenu.jsx';
+import MountainLogo from "../common/MountainLogo.jsx";
+import ProfileMenu from "../common/ProfileMenu.jsx";
 
 /**
  * @typedef {import('../../API/session-api.js').SessionUser} SessionUser
@@ -17,22 +17,23 @@ import ProfileMenu from '../common/ProfileMenu.jsx';
  */
 function SiteHeader({ user, onSignIn, onSignOut }) {
   const { pathname } = useLocation();
-  const isHome = pathname === '/';
+  const isHome = pathname === "/";
+  const isMyBookings = pathname === "/my-bookings";
   const [menuOpen, setMenuOpen] = useState(false);
 
   const closeMenu = () => setMenuOpen(false);
 
   useEffect(() => {
-    const desktop = window.matchMedia('(min-width: 768px)');
+    const desktop = window.matchMedia("(min-width: 992px)");
 
     const handleResize = () => {
       if (desktop.matches) setMenuOpen(false);
     };
 
-    desktop.addEventListener('change', handleResize);
+    desktop.addEventListener("change", handleResize);
 
     return () => {
-      desktop.removeEventListener('change', handleResize);
+      desktop.removeEventListener("change", handleResize);
     };
   }, []);
 
@@ -40,7 +41,7 @@ function SiteHeader({ user, onSignIn, onSignOut }) {
     <>
       <Link
         to="/"
-        aria-current={isHome ? 'page' : undefined}
+        aria-current={isHome ? "page" : undefined}
         onClick={closeMenu}
       >
         DINE
@@ -48,7 +49,7 @@ function SiteHeader({ user, onSignIn, onSignOut }) {
 
       <Link
         to="/menu"
-        aria-current={pathname === '/menu' ? 'page' : undefined}
+        aria-current={pathname === "/menu" ? "page" : undefined}
         onClick={closeMenu}
       >
         MENU
@@ -59,16 +60,9 @@ function SiteHeader({ user, onSignIn, onSignOut }) {
   );
 
   const account = user ? (
-    <ProfileMenu
-      user={user}
-      onSignOut={onSignOut}
-    />
+    <ProfileMenu user={user} onSignOut={onSignOut} />
   ) : (
-    <button
-      className="mh-site-account-button"
-      type="button"
-      onClick={onSignIn}
-    >
+    <button className="mh-site-account-button" type="button" onClick={onSignIn}>
       Sign in
     </button>
   );
@@ -78,10 +72,8 @@ function SiteHeader({ user, onSignIn, onSignOut }) {
       <Row
         as="header"
         className={`g-0 align-items-center mh-site-header ${
-          isHome
-            ? 'mh-site-header-hero'
-            : 'mh-site-header-light'
-        }`}
+          isHome ? "mh-site-header-hero" : "mh-site-header-light"
+        }${isMyBookings ? " mh-site-header-bookings" : ""}`}
       >
         <Col className="mh-site-brand-column">
           <Link
@@ -122,7 +114,7 @@ function SiteHeader({ user, onSignIn, onSignOut }) {
 
       <Offcanvas
         id="site-mobile-menu"
-        className="mh-mobile-menu"
+        className={`mh-mobile-menu${isMyBookings ? " mh-mobile-menu-bookings" : ""}`}
         placement="top"
         show={menuOpen}
         onHide={closeMenu}
@@ -146,23 +138,46 @@ function SiteHeader({ user, onSignIn, onSignOut }) {
         </Offcanvas.Header>
 
         <Offcanvas.Body>
-          <nav
-            className="mh-mobile-navigation"
-            aria-label="Main navigation"
-          >
+          <nav className="mh-mobile-navigation" aria-label="Main navigation">
             {navigation}
+
+            {user?.role === "hiker" && (
+              <Link
+                to="/my-bookings"
+                aria-current={isMyBookings ? "page" : undefined}
+                onClick={closeMenu}
+              >
+                MY BOOKINGS
+              </Link>
+            )}
           </nav>
 
           <div className="mh-mobile-account">
             {user ? (
-              <ProfileMenu
-                user={user}
-                dropUp
-                onSignOut={() => {
-                  closeMenu();
-                  return onSignOut();
-                }}
-              />
+              <>
+                <div className="mh-mobile-user d-flex align-items-center">
+                  <i className="bi bi-person" aria-hidden="true" />
+
+                  <div className="text-break">
+                    <div className="fw-semibold">
+                      {user.full_name?.trim() || "Your account"}
+                    </div>
+                    <div className="small opacity-75">Personal account</div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="mh-mobile-signout"
+                  onClick={() => {
+                    closeMenu();
+                    return onSignOut();
+                  }}
+                >
+                  <i className="bi bi-box-arrow-right" aria-hidden="true" />
+                  Sign out
+                </button>
+              </>
             ) : (
               <button
                 type="button"

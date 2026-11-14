@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button, Form, Spinner } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 
 import Alert from '../common/AutoDismissAlert.jsx';
 import MountainLogo from '../common/MountainLogo.jsx';
@@ -214,6 +215,13 @@ function LoginForm({
           )}
         </Button>
       </Form>
+
+      {area === 'hiker' && (
+        <p className="mh-staff-login-prompt">
+          Are you an employee?{' '}
+          <Link to="/staff/login">Log in here</Link>
+        </p>
+      )}
 
       <p className="mh-privacy-note">
         Your details are used only to manage your

@@ -215,22 +215,6 @@ export async function initializeDatabase() {
     );
   }
 
-  const bookingColumns = await allAsync(
-    'PRAGMA table_info(bookings)',
-  );
-
-  if (
-    !bookingColumns.some(
-      (column) => column.name === 'special_requests',
-    )
-  ) {
-    await runAsync(`
-      ALTER TABLE bookings
-      ADD COLUMN special_requests TEXT NOT NULL DEFAULT ''
-      CHECK (length(special_requests) <= 1000)
-    `);
-  }
-
   console.log('Mountain Hut database schema is ready.');
 }
 

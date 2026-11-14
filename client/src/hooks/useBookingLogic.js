@@ -1,6 +1,12 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import BookingAPI, { BookingApiError } from '../API/booking-api.js';
+import BookingAPI, { BookingApiError } from "../API/booking-api.js";
+import { getMyBookings } from "../API/my-bookings-api.js";
+import {
+  bookingRequestsTooLong,
+  emptyBookingRequests,
+  toBookingRequestFields,
+} from "../utils/booking-requirements.js";
 
 /**
  * API data types used by the booking flow.
@@ -21,6 +27,7 @@ import BookingAPI, { BookingApiError } from '../API/booking-api.js';
  * @property {string} endTime
  * @property {number} partySize
  * @property {boolean} emailSent
+ * @property {string} dietaryRequirements
  * @property {string} specialRequests
  */
 
@@ -31,18 +38,17 @@ import BookingAPI, { BookingApiError } from '../API/booking-api.js';
  * @returns {string}
  */
 function getLocalDateString(date) {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/Rome',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Rome",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).formatToParts(date);
 
   /** @param {Intl.DateTimeFormatPartTypes} type */
-  const value = (type) =>
-    parts.find((part) => part.type === type)?.value;
+  const value = (type) => parts.find((part) => part.type === type)?.value;
 
-  return `${value('year')}-${value('month')}-${value('day')}`;
+  return `${value("year")}-${value("month")}-${value("day")}`;
 }
 
 /**
@@ -54,7 +60,7 @@ function getLocalDateString(date) {
 function getErrorMessage(error) {
   return error instanceof Error
     ? error.message
-    : 'An unexpected error occurred.';
+    : "An unexpected error occurred.";
 }
 
 /**
@@ -66,13 +72,11 @@ function getErrorMessage(error) {
 function formatBookingCountdown(remainingMilliseconds) {
   // Display a closed status once the deadline has passed.
   if (remainingMilliseconds < 0) {
-    return 'Bookings closed';
+    return "Bookings closed";
   }
 
   // Round up to avoid displaying zero seconds before the deadline.
-  const totalSeconds = Math.ceil(
-    remainingMilliseconds / 1000
-  );
+  const totalSeconds = Math.ceil(remainingMilliseconds / 1000);
 
   // Split the remaining time into days, hours, minutes, and seconds.
   const days = Math.floor(totalSeconds / 86400);
@@ -82,37 +86,35 @@ function formatBookingCountdown(remainingMilliseconds) {
 
   // Select the singular or plural label for each time unit.
   /** @param {number} value */
-  const dayLabel = (value) =>
-    `${value} ${value === 1 ? 'day' : 'days'}`;
+  const dayLabel = (value) => `${value} ${value === 1 ? "day" : "days"}`;
 
   /** @param {number} value */
-  const hourLabel = (value) =>
-    `${value} ${value === 1 ? 'hour' : 'hours'}`;
+  const hourLabel = (value) => `${value} ${value === 1 ? "hour" : "hours"}`;
 
   /** @param {number} value */
   const minuteLabel = (value) =>
-    `${value} ${value === 1 ? 'minute' : 'minutes'}`;
+    `${value} ${value === 1 ? "minute" : "minutes"}`;
 
   /** @param {number} value */
   const secondLabel = (value) =>
-    `${value} ${value === 1 ? 'second' : 'seconds'}`;
+    `${value} ${value === 1 ? "second" : "seconds"}`;
 
   // Show the largest remaining unit and the next unit when nonzero.
   if (days > 0) {
     return `Book within ${dayLabel(days)}${
-      hours > 0 ? ` and ${hourLabel(hours)}` : ''
+      hours > 0 ? ` and ${hourLabel(hours)}` : ""
     }`;
   }
 
   if (hours > 0) {
     return `Book within ${hourLabel(hours)}${
-      minutes > 0 ? ` and ${minuteLabel(minutes)}` : ''
+      minutes > 0 ? ` and ${minuteLabel(minutes)}` : ""
     }`;
   }
 
   if (minutes > 0) {
     return `Book within ${minuteLabel(minutes)}${
-      seconds > 0 ? ` and ${secondLabel(seconds)}` : ''
+      seconds > 0 ? ` and ${secondLabel(seconds)}` : ""
     }`;
   }
 
@@ -123,24 +125,28 @@ function formatBookingCountdown(remainingMilliseconds) {
  * Manages booking selections, availability searches, and confirmation.
  *
  * @param {Object} options
- * @param {object | null} options.user
+ * @param {import("../API/session-api.js").SessionUser | null} options.user
  * @param {() => void} [options.onRequireLogin]
  */
 export default function useBookingLogic({ user, onRequireLogin }) {
   // Store meal slots loaded from the server.
-  const [mealSlots, setMealSlots] = useState(
-    /** @type {MealSlotDTO[]} */ ([]),
-  );
+  const [mealSlots, setMealSlots] = useState(/** @type {MealSlotDTO[]} */ ([]));
 
   // Store the selected date, meal slot, and number of guests.
-  const [bookingDate, setBookingDate] = useState('');
-  const [selectedMealSlotId, setSelectedMealSlotId] = useState('');
-  const [partySize, setPartySize] = useState('2');
+  const [bookingDate, setBookingDate] = useState("");
+  const [selectedMealSlotId, setSelectedMealSlotId] = useState("");
+  const [partySize, setPartySize] = useState("2");
 
   // Store the latest availability result for the current selection.
   const [availability, setAvailability] = useState(
     /** @type {MealSlotAvailabilityDTO | null} */ (null),
   );
+
+  const [existingBooking, setExistingBooking] = useState(
+    /** @type {{ userId: number, bookingId: number } | null} */ (null),
+  );
+  const alreadyBooked =
+    existingBooking !== null && existingBooking.userId === user?.id;
 
   // Store the details shown after a successful reservation.
   const [confirmedReservation, setConfirmedReservation] = useState(
@@ -151,20 +157,19 @@ export default function useBookingLogic({ user, onRequireLogin }) {
   const [isLoadingSlots, setIsLoadingSlots] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [specialRequests, setSpecialRequests] = useState('');
+  const [errorMessage, setErrorMessage] = useState("");
+  const [requests, setRequests] = useState(emptyBookingRequests);
+  const requestsTooLong = bookingRequestsTooLong(requests);
 
   // Keep a clock value that triggers countdown updates.
-  const [currentTime, setCurrentTime] = useState(
-    () => Date.now()
-  );
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
 
   // Keep the feedback property available to consuming components.
-  const feedbackMessage = '';
+  const feedbackMessage = "";
 
   // Track searches and prevent overlapping booking submissions.
   const requestId = useRef(0);
-  const selectionRef = useRef('');
+  const selectionRef = useRef("");
   const bookingInProgressRef = useRef(false);
 
   // Identify selections that affect availability; requests do not affect seats.
@@ -186,12 +191,9 @@ export default function useBookingLogic({ user, onRequireLogin }) {
       return true;
     }
 
-    const deadline = Date.parse(slot.bookingClosesAt ?? '');
+    const deadline = Date.parse(slot.bookingClosesAt ?? "");
 
-    return (
-      Number.isFinite(deadline) &&
-      currentTime <= deadline
-    );
+    return Number.isFinite(deadline) && currentTime <= deadline;
   });
 
   // Resolve the selected slot and the numeric values used for seat checks.
@@ -204,12 +206,9 @@ export default function useBookingLogic({ user, onRequireLogin }) {
 
   // Read the booking deadline from the slot or availability response.
   const deadlineValue =
-    selectedMealSlot?.bookingClosesAt ??
-    availability?.bookingClosesAt;
+    selectedMealSlot?.bookingClosesAt ?? availability?.bookingClosesAt;
 
-  const bookingDeadline = deadlineValue
-    ? Date.parse(deadlineValue)
-    : NaN;
+  const bookingDeadline = deadlineValue ? Date.parse(deadlineValue) : NaN;
 
   // Determine whether bookings are closed or will close within five minutes.
   const isBookingWindowClosed =
@@ -227,28 +226,24 @@ export default function useBookingLogic({ user, onRequireLogin }) {
   const bookingCountdownLabel =
     selectedMealSlot && Number.isFinite(bookingDeadline)
       ? formatBookingCountdown(bookingDeadline - currentTime)
-      : '';
+      : "";
 
   // Check whether the latest availability result has enough seats.
   const canAccommodateParty =
-    availability !== null &&
-    totalAvailableSeats >= requestedPartySize;
+    availability !== null && totalAvailableSeats >= requestedPartySize;
 
   // Prevent selecting dates before today in the hut's time zone.
   const minimumBookingDate = getLocalDateString(new Date());
 
   // Format the selected date for availability and confirmation messages.
   const formattedBookingDate = bookingDate
-    ? new Date(`${bookingDate}T00:00:00`).toLocaleDateString(
-        'en-GB',
-        {
-          weekday: 'short',
-          day: 'numeric',
-          month: 'short',
-          year: 'numeric',
-        },
-      )
-    : '';
+    ? new Date(`${bookingDate}T00:00:00`).toLocaleDateString("en-GB", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : "";
 
   // Load meal slots on mount and ignore results after unmounting.
   useEffect(() => {
@@ -286,7 +281,8 @@ export default function useBookingLogic({ user, onRequireLogin }) {
     requestId.current += 1;
 
     setAvailability(null);
-    setErrorMessage('');
+    setExistingBooking(null);
+    setErrorMessage("");
     setIsSearching(false);
   }
 
@@ -300,7 +296,7 @@ export default function useBookingLogic({ user, onRequireLogin }) {
 
     invalidateAvailability();
     setBookingDate(value);
-    setSelectedMealSlotId('');
+    setSelectedMealSlotId("");
   }
 
   /**
@@ -345,11 +341,7 @@ export default function useBookingLogic({ user, onRequireLogin }) {
   async function handleSearch(event) {
     event.preventDefault();
 
-    // Require authentication before searching.
-    if (!user) {
-      onRequireLogin?.();
-      return;
-    }
+    // Availability is public; login is required only when reserving.
 
     // Prevent a search while a booking submission is in progress.
     if (bookingInProgressRef.current) return;
@@ -366,25 +358,20 @@ export default function useBookingLogic({ user, onRequireLogin }) {
       bookingDate < getLocalDateString(new Date())
     ) {
       setErrorMessage(
-        'Choose today or a later date, a meal service, and a positive whole number of guests.',
+        "Choose today or a later date, a meal service, and a positive whole number of guests.",
       );
 
       return;
     }
 
     // Recheck the deadline using the current time before calling the API.
-    const searchDeadline = Date.parse(
-      selectedMealSlot?.bookingClosesAt ?? ''
-    );
+    const searchDeadline = Date.parse(selectedMealSlot?.bookingClosesAt ?? "");
 
-    if (
-      !Number.isFinite(searchDeadline) ||
-      Date.now() > searchDeadline
-    ) {
+    if (!Number.isFinite(searchDeadline) || Date.now() > searchDeadline) {
       setCurrentTime(Date.now());
 
       setErrorMessage(
-        'Bookings for this service are closed. Choose another service.',
+        "Bookings for this service are closed. Choose another service.",
       );
 
       return;
@@ -397,17 +384,28 @@ export default function useBookingLogic({ user, onRequireLogin }) {
     setIsSearching(true);
 
     try {
-      const result = await BookingAPI.getAvailability(
-        bookingDate,
-        Number(selectedMealSlotId),
+      const [result, bookings] = await Promise.all([
+        BookingAPI.getAvailability(bookingDate, Number(selectedMealSlotId)),
+        user?.role === "hiker"
+          ? getMyBookings().catch(() => [])
+          : Promise.resolve([]),
+      ]);
+
+      const match = bookings.find(
+        (booking) =>
+          booking.status === "confirmed" &&
+          booking.bookingDate === bookingDate &&
+          booking.slotId === Number(selectedMealSlotId),
       );
 
-      // Apply results only if this is still the latest matching search.
       if (
         requestId.current === currentRequest &&
         selectionRef.current === currentSelection
       ) {
         setAvailability(result);
+        setExistingBooking(
+          match && user ? { userId: user.id, bookingId: match.id } : null,
+        );
       }
     } catch (error) {
       // Do not display errors from a search that is no longer relevant.
@@ -417,7 +415,7 @@ export default function useBookingLogic({ user, onRequireLogin }) {
       ) {
         setErrorMessage(
           error instanceof BookingApiError && error.status === 404
-            ? 'This meal service is no longer available. Choose another service.'
+            ? "This meal service is no longer available. Choose another service."
             : getErrorMessage(error),
         );
       }
@@ -429,23 +427,14 @@ export default function useBookingLogic({ user, onRequireLogin }) {
     }
   }
 
-  /**
-   * Updates optional requirements without invalidating seat availability.
-   *
-   * @param {string} value
-   */
-  function changeSpecialRequests(value) {
-    if (bookingInProgressRef.current) return;
-
-    setSpecialRequests(value);
-  }
-
   // Submit a booking after rechecking authentication, availability, and time.
   async function handleReserve() {
+    if (alreadyBooked) return;
+    if (requestsTooLong) return;
     // Block duplicate submissions immediately, before React updates state.
     if (bookingInProgressRef.current) return;
 
-    setErrorMessage('');
+    setErrorMessage("");
 
     // Ask the user to sign in if the session is no longer available.
     if (!user) {
@@ -456,9 +445,7 @@ export default function useBookingLogic({ user, onRequireLogin }) {
 
     // Require an availability result with enough seats for the party.
     if (!availability || !canAccommodateParty) {
-      setErrorMessage(
-        'Check availability before confirming your booking.',
-      );
+      setErrorMessage("Check availability before confirming your booking.");
 
       return;
     }
@@ -470,7 +457,7 @@ export default function useBookingLogic({ user, onRequireLogin }) {
       setCurrentTime(Date.now());
 
       setErrorMessage(
-        'Bookings close two hours before the meal service starts. Choose another service.',
+        "Bookings close two hours before the meal service starts. Choose another service.",
       );
 
       return;
@@ -481,7 +468,7 @@ export default function useBookingLogic({ user, onRequireLogin }) {
       invalidateAvailability();
 
       setErrorMessage(
-        'Choose today or a later date and check availability again.',
+        "Choose today or a later date and check availability again.",
       );
 
       return;
@@ -496,13 +483,13 @@ export default function useBookingLogic({ user, onRequireLogin }) {
     const startTime = availability.startTime;
     const endTime = availability.endTime;
 
-    // Include optional requirements, removing surrounding whitespace.
+    // Include optional requirements and allergy selection in the existing field.
     /** @type {CreateBookingRequestDTO} */
     const bookingData = {
       bookingDate: date,
       slotId,
       partySize: guests,
-      specialRequests: specialRequests.trim(),
+      ...toBookingRequestFields(requests),
     };
 
     // Lock booking controls and invalidate any pending availability search.
@@ -518,7 +505,7 @@ export default function useBookingLogic({ user, onRequireLogin }) {
         await BookingAPI.createBooking(bookingData);
 
       // Clear the input while preserving its submitted value in the popup.
-      setSpecialRequests('');
+      setRequests(emptyBookingRequests());
 
       setConfirmedReservation({
         id: savedBooking.id,
@@ -528,7 +515,12 @@ export default function useBookingLogic({ user, onRequireLogin }) {
         endTime,
         partySize: guests,
         emailSent,
-        specialRequests: bookingData.specialRequests ?? '',
+        dietaryRequirements:
+          savedBooking.dietaryRequirements ??
+          bookingData.dietaryRequirements ??
+          "",
+        specialRequests:
+          savedBooking.specialRequests ?? bookingData.specialRequests ?? "",
       });
 
       // Seats may have changed, so the submitted selection needs a new search.
@@ -536,70 +528,54 @@ export default function useBookingLogic({ user, onRequireLogin }) {
         setAvailability(null);
       }
     } catch (error) {
-      if (
-        error instanceof BookingApiError &&
-        error.status === 401
-      ) {
+      if (error instanceof BookingApiError && error.status === 401) {
         // Request authentication again when the server rejects the session.
         onRequireLogin?.();
       } else if (
         error instanceof BookingApiError &&
-        (
-          error.code === 'SLOT_INACTIVE' ||
-          error.code === 'SLOT_NOT_FOUND'
-        )
+        (error.code === "SLOT_INACTIVE" || error.code === "SLOT_NOT_FOUND")
       ) {
         // Remove a slot that is no longer available and clear the selection.
         setAvailability(null);
 
-        setMealSlots((slots) =>
-          slots.filter((slot) => slot.id !== slotId),
-        );
+        setMealSlots((slots) => slots.filter((slot) => slot.id !== slotId));
 
-        setSelectedMealSlotId('');
+        setSelectedMealSlotId("");
 
         setErrorMessage(
-          'This meal service is no longer available. Choose another service.',
+          "This meal service is no longer available. Choose another service.",
         );
       } else if (
         error instanceof BookingApiError &&
-        error.code === 'BOOKING_TOO_LATE'
+        error.code === "BOOKING_TOO_LATE"
       ) {
         // Handle a deadline rejection from the server.
         setAvailability(null);
 
         setErrorMessage(
-          'Bookings close two hours before the meal service starts. Choose another service.',
+          "Bookings close two hours before the meal service starts. Choose another service.",
         );
-      } else if (
-        error instanceof BookingApiError &&
-        error.status === 409
-      ) {
+      } else if (error instanceof BookingApiError && error.status === 409) {
         // Explain conflicts such as insufficient seats or a duplicate booking.
         setAvailability(null);
 
         setErrorMessage(
-          error.code === 'NO_AVAILABILITY'
-            ? 'There are no longer enough seats. Please check availability again.'
-            : error.code === 'DUPLICATE_BOOKING'
-              ? 'You already have a confirmed booking for this date and meal service.'
-              : 'Availability has changed. Please check again.',
+          error.code === "NO_AVAILABILITY"
+            ? "There are no longer enough seats. Please check availability again."
+            : error.code === "DUPLICATE_BOOKING"
+              ? "You already have a confirmed booking for this date and meal service."
+              : "Availability has changed. Please check again.",
         );
 
         // Refresh seats after a conflict, except when a booking already exists.
-        if (error.code !== 'DUPLICATE_BOOKING') {
+        if (error.code !== "DUPLICATE_BOOKING") {
           try {
-            const updated = await BookingAPI.getAvailability(
-              date,
-              slotId,
-            );
+            const updated = await BookingAPI.getAvailability(date, slotId);
 
-            // Apply refreshed seats only to the selection that was submitted.
             if (selectionRef.current === currentSelection) {
               setAvailability(updated);
             }
           } catch {
-            // Keep availability cleared if the refresh also fails.
             if (selectionRef.current === currentSelection) {
               setAvailability(null);
             }
@@ -621,8 +597,9 @@ export default function useBookingLogic({ user, onRequireLogin }) {
     bookingDate,
     selectedMealSlotId,
     partySize,
-    specialRequests,
-    changeSpecialRequests,
+    requests,
+    setRequests,
+    requestsTooLong,
     availability,
     confirmedReservation,
     closeReservationConfirmation,
@@ -645,5 +622,6 @@ export default function useBookingLogic({ user, onRequireLogin }) {
     isBookingWindowClosed,
     bookingCountdownLabel,
     isBookingDeadlineNear,
+    alreadyBooked,
   };
 }

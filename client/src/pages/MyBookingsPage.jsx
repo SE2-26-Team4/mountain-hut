@@ -1,9 +1,9 @@
-import { Col, Row } from 'react-bootstrap';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from "react-router-dom";
 
-import { useAuth } from '../contexts/auth-context.js';
-import SiteHeader from '../components/layout/SiteHeader.jsx';
-import SiteFooter from '../components/layout/SiteFooter.jsx';
+import { useAuth } from "../contexts/auth-context.js";
+import MyBookingsList from "../components/booking/MyBookingsList.jsx";
+import SiteHeader from "../components/layout/SiteHeader.jsx";
+import SiteFooter from "../components/layout/SiteFooter.jsx";
 
 export default function MyBookingsPage() {
   const { user, isLoading, handleLogout } = useAuth();
@@ -17,7 +17,7 @@ export default function MyBookingsPage() {
     return <Navigate to="/" replace />;
   }
 
-  if (user.role !== 'hiker') {
+  if (user.role !== "hiker") {
     return <Navigate to="/staff/capacity" replace />;
   }
 
@@ -25,37 +25,30 @@ export default function MyBookingsPage() {
     <div className="mh-app-shell d-flex flex-column">
       <SiteHeader
         user={user}
-        onSignIn={() => navigate('/')}
+        onSignIn={() => navigate("/")}
         onSignOut={handleLogout}
       />
 
-      <main className="container flex-grow-1 py-5">
-        <Row className="g-0 justify-content-center py-4">
-          <Col
-            as="section"
-            xs={12}
-            className="mh-staff-login-card text-center"
-            aria-labelledby="my-bookings-title"
-          >
-            <i
-              className="bi bi-calendar-check fs-1 d-block mb-4"
-              style={{ color: 'var(--mh-copper)' }}
-              aria-hidden="true"
-            />
+      <main
+        className="container mh-my-bookings flex-grow-1 py-5"
+        aria-labelledby="my-bookings-title"
+      >
+        <header className="mb-4">
+          <h1 id="my-bookings-title" className="mb-2">
+            My bookings
+          </h1>
 
-            <h1 id="my-bookings-title" className="h3 mb-3">
-              My bookings
-            </h1>
+          <p className="text-secondary mb-0">
+            View, edit, or cancel your table reservations.
+          </p>
 
-            <p className="fw-semibold mb-2">
-              Coming soon
-            </p>
+          <p className="small text-secondary mt-2 mb-0">
+            You can edit your booking up to 48 hours before your original meal
+            starts.
+          </p>
+        </header>
 
-            <p className="text-secondary mb-0">
-              Your bookings will be available here soon.
-            </p>
-          </Col>
-        </Row>
+        <MyBookingsList key={user.id} hikerId={user.id} />
       </main>
 
       <SiteFooter />

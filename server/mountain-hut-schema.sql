@@ -2,15 +2,32 @@ PRAGMA foreign_keys = ON;
 
 BEGIN TRANSACTION;
 
+-- Staff can create temporary hikers with a name, optional phone,
+-- and optional email. Temporary hikers have no password and cannot log in.
 CREATE TABLE users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   full_name TEXT NOT NULL CHECK (length(trim(full_name)) > 0),
-  email TEXT NOT NULL UNIQUE COLLATE NOCASE
-    CHECK (length(trim(email)) > 0),
-  password_hash TEXT NOT NULL,
+  email TEXT UNIQUE COLLATE NOCASE
+    CHECK (email IS NULL OR length(trim(email)) > 0),
+  password_hash TEXT,
   role TEXT NOT NULL
     CHECK (role IN ('hiker', 'employee', 'warden')),
-  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+  phone TEXT,
+  notes TEXT,
+  emergency_contact TEXT,
+  is_temporary INTEGER NOT NULL DEFAULT 0
+    CHECK (is_temporary IN (0, 1)),
+  must_change_password INTEGER NOT NULL DEFAULT 0
+    CHECK (must_change_password IN (0, 1)),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  CHECK (
+    (is_temporary = 0
+      AND email IS NOT NULL
+      AND password_hash IS NOT NULL)
+    OR (is_temporary = 1
+      AND password_hash IS NULL
+      AND role = 'hiker')
+  )
 );
 
 CREATE TABLE meal_slots (
@@ -51,6 +68,8 @@ CREATE TABLE bookings (
   booking_date TEXT NOT NULL,
   slot_id INTEGER NOT NULL REFERENCES meal_slots(id),
   party_size INTEGER NOT NULL CHECK (party_size > 0),
+  dietary_requirements TEXT NOT NULL DEFAULT ''
+    CHECK (length(dietary_requirements) <= 1000),
   special_requests TEXT NOT NULL DEFAULT ''
     CHECK (length(special_requests) <= 1000),
   status TEXT NOT NULL DEFAULT 'confirmed'
