@@ -794,6 +794,41 @@
   }
 }
 
+@media (min-width: 992px) {
+  .mh-my-bookings .mh-booking-ticket-column .card-body {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--mh-cap-size-16);
+  }
+
+  .mh-my-bookings .mh-booking-ticket-column .card-body > :first-child {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center !important;
+  }
+
+  .mh-my-bookings .mh-booking-ticket-column .card h3 {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .mh-my-bookings .mh-booking-ticket-column .card dl {
+    grid-template-columns: max-content minmax(0, 1fr);
+    row-gap: var(--mh-cap-size-8);
+  }
+
+  .mh-my-bookings .mh-booking-ticket-column .mh-booking-card-actions {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  .mh-my-bookings .mh-booking-ticket-column .card {
+    max-width: 840px;
+    margin-inline-end: auto;
+  }
+}
+
 /* ==========================================================================
    CancelBookingModal — components/booking/CancelBookingModal.jsx, BookingCard.jsx
    ========================================================================== */

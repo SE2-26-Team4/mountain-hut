@@ -264,6 +264,7 @@ function BookingGroup({ title, bookings, onCancel, onEdit }) {
 
   const visibleBookings = bookings.slice(0, visibleCount);
   const hasMoreBookings = visibleBookings.length < bookings.length;
+  const useTicketLayout = bookings.length < 3;
 
   return (
     <section className="mb-5" aria-label={title}>
@@ -271,7 +272,14 @@ function BookingGroup({ title, bookings, onCancel, onEdit }) {
 
       <div className="row g-3">
         {visibleBookings.map(({ booking, status }) => (
-          <div className="col-12 col-xl-4 mh-booking-column" key={booking.id}>
+          <div
+            className={
+              useTicketLayout
+                ? "col-12 mh-booking-ticket-column"
+                : "col-12 col-xl-4 mh-booking-column"
+            }
+            key={booking.id}
+          >
             <BookingCard
               booking={booking}
               status={status}
