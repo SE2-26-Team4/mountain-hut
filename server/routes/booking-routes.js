@@ -6,10 +6,15 @@ import {
   getBookingById,
   getBookingsByHiker,
 } from "../dao/booking-dao.js";
-import { requireRole, requireStaff } from "../middleware/require-role.js";
+import {
+  requirePasswordChanged,
+  requireRole,
+  requireStaff,
+} from "../middleware/require-role.js";
 import { getDiningTables, getMealSlots } from "../dao/capacity-dao.js";
 import { buildBookingConfirmationEmail } from "../services/booking-confirmation-content.js";
 import { sendBookingConfirmationEmail } from "../services/booking-confirmation-service.js";
+import { buildInitialPasswordEmail } from "../services/initial-password-content.js";
 import {
   createBookingByStaff,
   createBookingForHiker,
@@ -122,6 +127,38 @@ async function sendBookingConfirmation(hiker, booking, isEdit = false) {
   }
 }
 
+/**
+ * Sends the initial credentials to a newly created full hiker.
+ *
+ * @param {{ fullName: string, email: string | null }} hiker
+ * @param {string | undefined} initialPassword
+ * @returns {Promise<boolean>}
+ */
+async function sendInitialPassword(hiker, initialPassword) {
+  if (!initialPassword || !hiker.email) {
+    return false;
+  }
+
+  try {
+    const email = buildInitialPasswordEmail({
+      fullName: hiker.fullName,
+      email: hiker.email,
+      initialPassword,
+    });
+
+    await sendBookingConfirmationEmail(email);
+
+    return true;
+  } catch (emailError) {
+    console.error(
+      "Hiker account saved, but initial password email could not be sent:",
+      emailError
+    );
+
+    return false;
+  }
+}
+
 /* CREATE AND UPDATE */
 
 // Use the same booking validation and persistence flow for creation and edits.
@@ -179,8 +216,18 @@ const saveBooking = asyncRoute(async (req, res) => {
   return res.status(isEdit ? 200 : 201).json({ booking, emailSent });
 });
 
-router.post("/bookings", requireRole("hiker"), saveBooking);
-router.put("/bookings/:id", requireRole("hiker"), saveBooking);
+router.post(
+  "/bookings",
+  requireRole("hiker"),
+  requirePasswordChanged,
+  saveBooking,
+);
+router.put(
+  "/bookings/:id",
+  requireRole("hiker"),
+  requirePasswordChanged,
+  saveBooking,
+);
 
 /* READ */
 
@@ -188,6 +235,7 @@ router.put("/bookings/:id", requireRole("hiker"), saveBooking);
 router.get(
   "/bookings",
   requireRole("hiker"),
+  requirePasswordChanged,
   asyncRoute(async (req, res) => {
     const user = req.user;
 
@@ -257,6 +305,7 @@ router.get(
 router.delete(
   "/bookings/:id",
   requireRole("hiker"),
+  requirePasswordChanged,
   asyncRoute(async (req, res) => {
     const user = req.user;
     const rawBookingId = req.params.id;
@@ -333,12 +382,18 @@ router.post(
   requireStaff,
   asyncRoute(async (req, res) => {
     // The service validates the hiker type and fields.
-    // [REQUIREMENT] MH-07: If a full hiker account is created, the password is randomly
-    // generated, it can be communicated to the hiker e.g. verbally.
-    // It is returned only in this response, so that staff can communicate it.
+    // [REQUIREMENT] If a full hiker account is created, the password is randomly
+    // generated and sent to the hiker by email.
     const registration = await registerHikerByStaff(req.body);
+    const passwordSent = await sendInitialPassword(
+      registration.hiker,
+      registration.initialPassword
+    );
 
-    return res.status(201).json(registration);
+    return res.status(201).json({
+      hiker: registration.hiker,
+      passwordSent,
+    });
   }),
 );
 
@@ -404,8 +459,18 @@ router.post(
       { full_name: result.hiker.fullName, email: emailRecipient },
       result.booking,
     );
+    const passwordSent = await sendInitialPassword(
+      result.hiker,
+      result.initialPassword
+    );
 
-    return res.status(201).json({ ...result, emailSent, emailRecipient });
+    return res.status(201).json({
+      booking: result.booking,
+      hiker: result.hiker,
+      emailSent,
+      passwordSent,
+      emailRecipient,
+    });
   }),
 );
 

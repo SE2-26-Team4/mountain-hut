@@ -324,8 +324,8 @@ describe("GET /api/staff/hikers", () => {
   });
 });
 
-describe("POST /api/staff/hikers", () => {
-  it("registers a full hiker with a one-time initial password", async () => {
+describe('POST /api/staff/hikers', () => {
+  it('registers a full hiker and emails the initial password', async () => {
     const input = newHikerInput();
 
     const response = await employeeAgent.post("/api/staff/hikers").send(input);
@@ -338,17 +338,16 @@ describe("POST /api/staff/hikers", () => {
       isTemporary: false,
       mustChangePassword: true,
     });
-    expect(response.body.hiker).not.toHaveProperty("passwordHash");
-    expect(response.body.initialPassword).toEqual(expect.any(String));
-
-    // Staff can communicate the returned password: it matches the stored hash.
-    const row = await getAsync("SELECT password_hash FROM users WHERE id = ?", [
-      response.body.hiker.id,
-    ]);
-
-    await expect(
-      verifyPassword(response.body.initialPassword, row.password_hash),
-    ).resolves.toBe(true);
+    expect(response.body.hiker).not.toHaveProperty('passwordHash');
+    expect(response.body.passwordSent).toBe(true);
+    expect(response.body).not.toHaveProperty('initialPassword');
+    expect(emailMocks.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: input.email,
+        subject: 'Your Mountain Hut account is ready',
+        text: expect.stringContaining('Temporary password:'),
+      })
+    );
   });
 
   it("registers a temporary hiker without email or password", async () => {
@@ -365,6 +364,7 @@ describe("POST /api/staff/hikers", () => {
         isTemporary: true,
         mustChangePassword: false,
       }),
+      passwordSent: false,
     });
   });
 
@@ -422,7 +422,8 @@ describe("POST /api/staff/bookings", () => {
       hiker: { id: existingHikerId, email: existingHiker.email },
       emailSent: true,
     });
-    expect(response.body).not.toHaveProperty("initialPassword");
+    expect(response.body).not.toHaveProperty('initialPassword');
+    expect(response.body.passwordSent).toBe(false);
 
     expect(emailMocks.send).toHaveBeenCalledTimes(1);
     expect(emailMocks.send).toHaveBeenCalledWith(
@@ -447,16 +448,20 @@ describe("POST /api/staff/bookings", () => {
       mustChangePassword: true,
     });
     expect(response.body.booking.hikerId).toBe(response.body.hiker.id);
-    expect(response.body.initialPassword).toEqual(expect.any(String));
+    expect(response.body).not.toHaveProperty('initialPassword');
+    expect(response.body.passwordSent).toBe(true);
     expect(response.body.emailSent).toBe(true);
 
     expect(emailMocks.send).toHaveBeenCalledWith(
       expect.objectContaining({ to: input.email }),
     );
 
-    // The initial password is never sent by email.
-    expect(JSON.stringify(emailMocks.send.mock.calls)).not.toContain(
-      response.body.initialPassword,
+    expect(emailMocks.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: input.email,
+        subject: 'Your Mountain Hut account is ready',
+        text: expect.stringContaining('Temporary password:'),
+      })
     );
   });
 

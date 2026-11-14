@@ -7,6 +7,8 @@ declare global {
       full_name: string;
       email: string;
       role: 'hiker' | 'employee' | 'warden';
+      isTemporary: boolean;
+      mustChangePassword: boolean;
     }
   }
 }
