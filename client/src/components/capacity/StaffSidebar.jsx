@@ -3,7 +3,6 @@ import { Offcanvas } from "react-bootstrap";
 import { NavLink } from "react-router-dom";
 
 import MountainLogo from "../common/MountainLogo.jsx";
-import ProfileMenu from "../common/ProfileMenu.jsx";
 
 const links = [
   ["house-door", "Dashboard"],
@@ -77,14 +76,30 @@ export default function StaffSidebar({ user, onLogout }) {
 
   const accountMenu = (
     <div className="cap-sidebar-account">
-      <ProfileMenu
-        user={user}
-        dropUp
-        onSignOut={() => {
+      <div className="mh-mobile-user d-flex align-items-center text-white">
+        <i className="bi bi-person" aria-hidden="true" />
+
+        <div className="text-break">
+          <strong className="d-block">
+            {user.full_name?.trim() || "Your account"}
+          </strong>
+          <span className="small opacity-75">
+            {user.role === "warden" ? "Warden" : "Staff"}
+          </span>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        className="mh-mobile-signout"
+        onClick={() => {
           closeMenu();
           return onLogout();
         }}
-      />
+      >
+        <i className="bi bi-box-arrow-right" aria-hidden="true" />
+        Sign out
+      </button>
     </div>
   );
 

@@ -1979,6 +1979,14 @@
   border-top: var(--mh-border-width) solid var(--mh-white-transparent);
 }
 
+.cap-sidebar-account .mh-mobile-signout {
+  color: var(--mh-mobile-signout-on-navy);
+}
+
+.cap-sidebar-account .mh-mobile-signout:hover {
+  background: var(--mh-white-transparent);
+}
+
 .cap-sidebar-account .mh-profile .mh-profile-toggle {
   width: 100%;
   min-width: 0;
