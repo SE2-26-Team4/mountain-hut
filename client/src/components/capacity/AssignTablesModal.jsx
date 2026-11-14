@@ -18,7 +18,11 @@ import Alert from '../common/AutoDismissAlert.jsx';
  * @param {(tableId: number) => void} props.onToggle
  * @param {(tableIds: number[], selectAll: boolean) => void} props.onToggleAll
  * @param {boolean} props.isSuggestedConfiguration
+ * @param {(MealSlotDTO & { tableIds: number[] }) | null | undefined} props.previousConfigurationSlot
+ * @param {() => void} props.onReuseConfiguration
+ * @param {() => void} props.onUndoReuse
  * @param {() => void | Promise<void>} props.onSave
+ * @param {boolean} props.allowAssignLater
  * @param {boolean} props.saving
  * @param {string} props.error
  * @param {number} props.capacity
@@ -33,7 +37,11 @@ export default function AssignTablesModal({
   onToggle,
   onToggleAll,
   isSuggestedConfiguration,
+  previousConfigurationSlot,
+  onReuseConfiguration,
+  onUndoReuse,
   onSave,
+  allowAssignLater,
   saving,
   error,
   capacity,
@@ -102,10 +110,40 @@ export default function AssignTablesModal({
           </Alert>
         )}
 
-        {isSuggestedConfiguration && (
-          <div className="bg-light rounded-3 px-3 py-2 mb-3 text-secondary">
-            Configuration copied from the last slot. You can adjust it before
-            saving.
+        {previousConfigurationSlot && (
+          <div className="cap-previous-configuration">
+            <span className="cap-table-symbol" aria-hidden="true">
+              <i className="bi bi-clock-history" />
+            </span>
+            <div className="flex-grow-1">
+              <strong>Previous table configuration</strong>
+              <small>
+                From {previousConfigurationSlot.name} ·{' '}
+                {previousConfigurationSlot.startTime} –{' '}
+                {previousConfigurationSlot.endTime}
+              </small>
+              <span>Reuse the tables assigned to this previous time slot.</span>
+            </div>
+            <button
+              type="button"
+              className="cap-primary"
+              disabled={saving}
+              onClick={
+                isSuggestedConfiguration
+                  ? onUndoReuse
+                  : onReuseConfiguration
+              }
+            >
+              <i
+                className={
+                  isSuggestedConfiguration
+                    ? 'bi bi-arrow-counterclockwise'
+                    : 'bi bi-arrow-repeat'
+                }
+                aria-hidden="true"
+              />
+              {isSuggestedConfiguration ? 'Undo reuse' : 'Reuse configuration'}
+            </button>
           </div>
         )}
 
@@ -264,7 +302,7 @@ export default function AssignTablesModal({
           disabled={saving}
           onClick={onHide}
         >
-          Cancel
+          {allowAssignLater ? 'Assign later' : 'Cancel'}
         </button>
 
         <button
@@ -276,7 +314,7 @@ export default function AssignTablesModal({
           {saving ? (
             <Spinner animation="border" size="sm" />
           ) : (
-            'Assign tables'
+            allowAssignLater ? 'Assign tables' : 'Save changes'
           )}
         </button>
       </Modal.Footer>

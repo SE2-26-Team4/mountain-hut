@@ -138,7 +138,11 @@ function StaffCapacityContent({ user, onLogout }) {
             onToggle={staff.toggleTableAssignment}
             onToggleAll={staff.toggleAllTableAssignments}
             isSuggestedConfiguration={staff.isSuggestedConfiguration}
+            previousConfigurationSlot={staff.previousConfigurationSlot}
+            onReuseConfiguration={staff.reusePreviousConfiguration}
+            onUndoReuse={staff.undoReuseConfiguration}
             onSave={staff.saveAssignments}
+            allowAssignLater={staff.assignmentForNewSlot}
             saving={staff.isSaving}
             error={staff.errorMessage}
             capacity={staff.assignedCapacity}
@@ -167,15 +171,6 @@ function StaffCapacityContent({ user, onLogout }) {
             editing={staff.editingSlotId !== null}
             saving={staff.isSaving}
             error={staff.errorMessage}
-            hasPreviousTableConfiguration={staff.mealSlots.some(
-              (slot) => slot.tableIds.length > 0,
-            )}
-            usePreviousTableConfiguration={
-              staff.usePreviousTableConfiguration
-            }
-            onUsePreviousTableConfigurationChange={
-              staff.togglePreviousTableConfiguration
-            }
           />
         </div>
       </Col>

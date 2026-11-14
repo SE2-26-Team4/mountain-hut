@@ -172,7 +172,7 @@ export default function StaffTimeSlotsPanel({
                       }
                       aria-hidden="true"
                     />
-                    {hasTables ? "Tables assigned" : "No tables assigned"}
+                    {hasTables ? "Assigned" : "Not assigned"}
                   </StatusBadge>
                 </div>
               </Col>
@@ -181,24 +181,10 @@ export default function StaffTimeSlotsPanel({
                 <button
                   id={`modify-time-slot-tables-${slot.id}`}
                   type="button"
-                  className={`cap-outline${hasTables ? " opacity-50" : ""}`}
-                  aria-disabled={hasTables ? true : undefined}
-                  aria-describedby={
-                    editNoticeTarget?.id ===
-                    `modify-time-slot-tables-${slot.id}`
-                      ? "edit-time-slot-notice"
-                      : undefined
-                  }
-                  onClick={(event) => {
-                    if (hasTables) {
-                      setEditNoticeTarget(event.currentTarget);
-                      return;
-                    }
-
-                    onAssign(slot);
-                  }}
+                  className="cap-outline"
+                  onClick={() => onAssign(slot)}
                 >
-                  {hasTables ? "Modify tables" : "Assign tables"}
+                  {hasTables ? "Manage tables" : "Assign tables"}
                 </button>
 
                 <button
