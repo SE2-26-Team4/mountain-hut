@@ -2212,6 +2212,32 @@
   background-color: var(--mh-account-border);
 }
 
+.cap-tables-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.cap-tables-heading > button {
+  white-space: nowrap;
+}
+
+.cap-tables {
+  container: staff-tables / inline-size;
+}
+
+@container staff-tables (max-width: 18rem) {
+  .cap-tables-heading {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cap-tables-heading > button {
+    justify-self: stretch;
+    max-width: 100%;
+    white-space: normal;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cap-table-item .cap-icon-button {
     transition: none;
