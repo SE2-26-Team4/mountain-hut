@@ -4,6 +4,7 @@
  * @property {number} slotId
  * @property {number} partySize - Positive integer.
  * @property {string} [specialRequests] - Optional requests, max 1000 characters.
+ * @property {string} [dietaryRequirements] - Optional dietary requirements, max 1000 characters.
  */
 
 /**
@@ -20,6 +21,7 @@
  * @property {number} slotId
  * @property {number} partySize
  * @property {string} [specialRequests] - Optional requests, max 1000 characters.
+ * @property {string} [dietaryRequirements] - Optional dietary requirements, max 1000 characters.
  * @property {'confirmed' | 'cancelled'} status
  * @property {BookingTableAllocationDTO[]} allocations
  * @property {string} [slotName]
@@ -106,7 +108,7 @@
  */
 
 /**
- * Hiker profile as seen by staff. Temporary hikers have no email.
+ * Hiker profile as seen by staff. Temporary hikers can have an email address but cannot sign in.
  *
  * @typedef {Object} HikerDTO
  * @property {number} id

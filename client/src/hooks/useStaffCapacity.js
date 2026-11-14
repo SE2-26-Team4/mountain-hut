@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
-import CapacityAPI from '../API/capacity-api.js';
+import CapacityAPI from "../API/capacity-api.js";
+import { addCalendarDays } from "../utils/weekly-schedule.js";
 
 /**
  * API data types used by the capacity configuration.
@@ -15,17 +16,17 @@ import CapacityAPI from '../API/capacity-api.js';
 // Default values for creating or resetting a meal-slot form.
 /** @type {MealSlotInputDTO & { isActive: boolean }} */
 const emptySlotForm = {
-  slotDate: '',
-  name: '',
-  startTime: '',
-  endTime: '',
+  slotDate: "",
+  name: "",
+  startTime: "",
+  endTime: "",
   isActive: true,
 };
 
 // Keep the seat count as text while the user edits the table form.
 const emptyTableForm = {
-  name: '',
-  seatCount: '',
+  name: "",
+  seatCount: "",
   isActive: true,
 };
 
@@ -38,33 +39,30 @@ const emptyTableForm = {
 function getErrorMessage(error) {
   return error instanceof Error
     ? error.message
-    : 'An unexpected error occurred.';
+    : "An unexpected error occurred.";
 }
 
 /**
  * Returns today's calendar date in the hut's time zone.
  */
 function getTodayInHutTimeZone() {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/Rome',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Rome",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).formatToParts(new Date());
 
   /** @param {Intl.DateTimeFormatPartTypes} type */
-  const value = (type) =>
-    parts.find((part) => part.type === type)?.value;
+  const value = (type) => parts.find((part) => part.type === type)?.value;
 
-  return `${value('year')}-${value('month')}-${value('day')}`;
+  return `${value("year")}-${value("month")}-${value("day")}`;
 }
 
 // Manage staff capacity data, forms, modal visibility, and table assignments.
 export default function useStaffCapacity() {
   // Start with today's date in the hut's time zone.
-  const [selectedDate, setSelectedDate] = useState(
-    getTodayInHutTimeZone
-  );
+  const [selectedDate, setSelectedDate] = useState(getTodayInHutTimeZone);
 
   // Store configured meal slots and reusable dining tables.
   const [mealSlots, setMealSlots] = useState(
@@ -76,7 +74,7 @@ export default function useStaffCapacity() {
   );
 
   // Track the slot and table selection used by the assignment modal.
-  const [selectedSlotId, setSelectedSlotId] = useState('');
+  const [selectedSlotId, setSelectedSlotId] = useState("");
 
   const [selectedTableIds, setSelectedTableIds] = useState(
     /** @type {number[]} */ ([]),
@@ -98,23 +96,23 @@ export default function useStaffCapacity() {
   // Control the visibility of the slot, table, and assignment modals.
   const [isSlotModalOpen, setIsSlotModalOpen] = useState(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
-  const [isAssignmentModalOpen, setIsAssignmentModalOpen] =
-    useState(false);
+  const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
 
   // Track messages and pending load or save operations.
-  const [errorMessage, setErrorMessage] = useState('');
-  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState("");
+  const [feedbackMessage, setFeedbackMessage] = useState("");
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isCopyWeekOpen, setIsCopyWeekOpen] = useState(false);
+  const [copyWeekError, setCopyWeekError] = useState("");
 
   // Show only slots for the selected date, ordered by start time and ID.
   const visibleMealSlots = mealSlots
     .filter((slot) => slot.slotDate === selectedDate)
     .sort(
       (first, second) =>
-        first.startTime.localeCompare(second.startTime) ||
-        first.id - second.id
+        first.startTime.localeCompare(second.startTime) || first.id - second.id,
     );
 
   // Resolve the slot currently selected for table assignment.
@@ -132,26 +130,27 @@ export default function useStaffCapacity() {
   function getTableUnavailableReason(table) {
     // Inactive tables cannot contribute bookable seats.
     if (!table.isActive) {
-      return 'Inactive table';
+      return "Inactive table";
     }
 
     // Overlap checks apply only when the selected slot is active.
     if (!selectedSlot || !selectedSlot.isActive) {
-      return '';
+      return "";
     }
 
     // Find another active slot using the same table at overlapping times.
-    const conflictingSlot = mealSlots.find((slot) =>
-      slot.id !== selectedSlot.id &&
-      slot.slotDate === selectedSlot.slotDate &&
-      slot.isActive &&
-      slot.startTime < selectedSlot.endTime &&
-      slot.endTime > selectedSlot.startTime &&
-      slot.tableIds.includes(table.id)
+    const conflictingSlot = mealSlots.find(
+      (slot) =>
+        slot.id !== selectedSlot.id &&
+        slot.slotDate === selectedSlot.slotDate &&
+        slot.isActive &&
+        slot.startTime < selectedSlot.endTime &&
+        slot.endTime > selectedSlot.startTime &&
+        slot.tableIds.includes(table.id),
     );
 
     if (!conflictingSlot) {
-      return '';
+      return "";
     }
 
     // Include the conflicting service and time range in the explanation.
@@ -211,9 +210,8 @@ export default function useStaffCapacity() {
   const getSlotCapacity = (slot) =>
     diningTables.reduce(
       (total, table) =>
-        slot.tableIds.some(
-          (id) => String(id) === String(table.id),
-        ) && table.isActive
+        slot.tableIds.some((id) => String(id) === String(table.id)) &&
+        table.isActive
           ? total + table.seatCount
           : total,
       0,
@@ -225,10 +223,7 @@ export default function useStaffCapacity() {
 
     CapacityAPI.getConfiguration()
       .then(
-        ({
-          mealSlots: loadedMealSlots,
-          diningTables: loadedDiningTables,
-        }) => {
+        ({ mealSlots: loadedMealSlots, diningTables: loadedDiningTables }) => {
           if (!isMounted) return;
 
           setMealSlots(loadedMealSlots);
@@ -236,9 +231,7 @@ export default function useStaffCapacity() {
 
           // Select the first loaded slot when configuration is available.
           setSelectedSlotId(
-            loadedMealSlots.length > 0
-              ? String(loadedMealSlots[0].id)
-              : '',
+            loadedMealSlots.length > 0 ? String(loadedMealSlots[0].id) : "",
           );
         },
       )
@@ -268,7 +261,7 @@ export default function useStaffCapacity() {
 
     setSlotForm((current) => ({
       ...current,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   }
 
@@ -282,7 +275,7 @@ export default function useStaffCapacity() {
 
     setTableForm((current) => ({
       ...current,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   }
 
@@ -295,7 +288,7 @@ export default function useStaffCapacity() {
       slotDate: selectedDate,
     });
 
-    setErrorMessage('');
+    setErrorMessage("");
     setIsSlotModalOpen(true);
   }
 
@@ -303,7 +296,7 @@ export default function useStaffCapacity() {
   function openNewTableForm() {
     setEditingTableId(null);
     setTableForm(emptyTableForm);
-    setErrorMessage('');
+    setErrorMessage("");
     setIsTableModalOpen(true);
   }
 
@@ -323,7 +316,7 @@ export default function useStaffCapacity() {
       isActive: slot.isActive,
     });
 
-    setErrorMessage('');
+    setErrorMessage("");
     setIsSlotModalOpen(true);
   }
 
@@ -341,7 +334,7 @@ export default function useStaffCapacity() {
       isActive: table.isActive,
     });
 
-    setErrorMessage('');
+    setErrorMessage("");
     setIsTableModalOpen(true);
   }
 
@@ -353,8 +346,8 @@ export default function useStaffCapacity() {
   function openAssignmentModal(slot) {
     setSelectedSlotId(String(slot.id));
     setSelectedTableIds(slot.tableIds);
-    setErrorMessage('');
-    setFeedbackMessage('');
+    setErrorMessage("");
+    setFeedbackMessage("");
     setIsAssignmentModalOpen(true);
   }
 
@@ -366,12 +359,12 @@ export default function useStaffCapacity() {
   async function handleSlotSubmit(event) {
     event.preventDefault();
 
-    setErrorMessage('');
-    setFeedbackMessage('');
+    setErrorMessage("");
+    setFeedbackMessage("");
 
     // Require a service name before contacting the server.
     if (!slotForm.name.trim()) {
-      setErrorMessage('Enter a name for the meal slot.');
+      setErrorMessage("Enter a name for the meal slot.");
 
       return;
     }
@@ -382,7 +375,7 @@ export default function useStaffCapacity() {
       !slotForm.endTime ||
       slotForm.endTime <= slotForm.startTime
     ) {
-      setErrorMessage('Choose a valid start time and a later end time.');
+      setErrorMessage("Choose a valid start time and a later end time.");
 
       return;
     }
@@ -414,11 +407,10 @@ export default function useStaffCapacity() {
           ),
         );
 
-        setFeedbackMessage('Meal slot updated successfully.');
+        setFeedbackMessage("Meal slot updated successfully.");
       } else {
         // Create a slot with no table assignments and select it.
-        const createdMealSlot =
-          await CapacityAPI.createMealSlot(mealSlotData);
+        const createdMealSlot = await CapacityAPI.createMealSlot(mealSlotData);
 
         /** @type {ConfiguredMealSlot} */
         const newMealSlot = {
@@ -428,7 +420,7 @@ export default function useStaffCapacity() {
 
         setMealSlots((current) => [...current, newMealSlot]);
         setSelectedSlotId(String(newMealSlot.id));
-        setFeedbackMessage('Meal slot added successfully.');
+        setFeedbackMessage("Meal slot added successfully.");
       }
 
       // Close and reset the form only after a successful save.
@@ -451,20 +443,20 @@ export default function useStaffCapacity() {
   async function handleTableSubmit(event) {
     event.preventDefault();
 
-    setErrorMessage('');
-    setFeedbackMessage('');
+    setErrorMessage("");
+    setFeedbackMessage("");
 
     // Convert the input text to a number before validating the seat count.
     const seatCount = Number(tableForm.seatCount);
 
     if (!tableForm.name.trim()) {
-      setErrorMessage('Enter a name for the dining table.');
+      setErrorMessage("Enter a name for the dining table.");
 
       return;
     }
 
     if (!Number.isInteger(seatCount) || seatCount <= 0) {
-      setErrorMessage('Seat count must be a positive whole number.');
+      setErrorMessage("Seat count must be a positive whole number.");
 
       return;
     }
@@ -493,14 +485,14 @@ export default function useStaffCapacity() {
           ),
         );
 
-        setFeedbackMessage('Dining table updated successfully.');
+        setFeedbackMessage("Dining table updated successfully.");
       } else {
         // Add the newly created table to the reusable table list.
         const createdDiningTable =
           await CapacityAPI.createDiningTable(diningTableData);
 
         setDiningTables((current) => [...current, createdDiningTable]);
-        setFeedbackMessage('Dining table added successfully.');
+        setFeedbackMessage("Dining table added successfully.");
       }
 
       // Close and reset the form only after a successful save.
@@ -532,13 +524,13 @@ export default function useStaffCapacity() {
   async function saveAssignments() {
     // Require a selected slot before submitting table assignments.
     if (!selectedSlot) {
-      setErrorMessage('Choose a meal service before assigning tables.');
+      setErrorMessage("Choose a meal service before assigning tables.");
 
       return;
     }
 
-    setErrorMessage('');
-    setFeedbackMessage('');
+    setErrorMessage("");
+    setFeedbackMessage("");
     setIsSaving(true);
 
     try {
@@ -559,7 +551,7 @@ export default function useStaffCapacity() {
       );
 
       setSelectedTableIds(savedTableIds);
-      setFeedbackMessage('Table assignments saved successfully.');
+      setFeedbackMessage("Table assignments saved successfully.");
       setIsAssignmentModalOpen(false);
     } catch (error) {
       // Keep the modal open when assignments cannot be saved.
@@ -579,14 +571,77 @@ export default function useStaffCapacity() {
     if (isSaving || !value) return;
 
     setSelectedDate(value);
-    setSelectedSlotId('');
+    setSelectedSlotId("");
     setSelectedTableIds([]);
     setEditingSlotId(null);
     setSlotForm(emptySlotForm);
     setIsSlotModalOpen(false);
     setIsAssignmentModalOpen(false);
-    setErrorMessage('');
-    setFeedbackMessage('');
+    setErrorMessage("");
+    setFeedbackMessage("");
+  }
+
+  function openCopyWeek() {
+    setCopyWeekError("");
+    setErrorMessage("");
+    setFeedbackMessage("");
+    setIsCopyWeekOpen(true);
+  }
+
+  function closeCopyWeek() {
+    if (!isSaving) setIsCopyWeekOpen(false);
+  }
+
+  // TODO(MH-09): Keep copyWeek for a single destination week.
+  // Add a separate submit action when the recurrence API is available.
+  // For finite repeats, the server should validate every destination week
+  // before applying the copy so a conflict cannot leave a partial result.
+  /** @param {string} sourceWeekStart @param {string} destinationWeekStart */
+  async function copyWeek(sourceWeekStart, destinationWeekStart) {
+    if (isSaving) return;
+
+    const sourceWeekEnd = addCalendarDays(sourceWeekStart, 7);
+
+    // An empty source would replace the destination with an empty schedule.
+    if (
+      !mealSlots.some(
+        (slot) =>
+          slot.slotDate >= sourceWeekStart && slot.slotDate < sourceWeekEnd,
+      )
+    ) {
+      setCopyWeekError("The source week has no time slots to copy.");
+      return;
+    }
+
+    setCopyWeekError("");
+    setIsSaving(true);
+
+    try {
+      // [REQUIREMENT] MH-09: Copy meal slots and table assignments to another week.
+      const { mealSlots: copiedSlots } = await CapacityAPI.copyWeeklySchedule({
+        sourceWeekStart,
+        destinationWeekStart,
+      });
+      const destinationWeekEnd = addCalendarDays(destinationWeekStart, 7);
+
+      setMealSlots((current) => [
+        ...current.filter(
+          (slot) =>
+            slot.slotDate < destinationWeekStart ||
+            slot.slotDate >= destinationWeekEnd,
+        ),
+        ...copiedSlots,
+      ]);
+      setSelectedDate(destinationWeekStart);
+      setSelectedSlotId("");
+      setSelectedTableIds([]);
+      setIsCopyWeekOpen(false);
+      setFeedbackMessage("Weekly schedule copied successfully.");
+    } catch (error) {
+      setCopyWeekError(getErrorMessage(error));
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   // Expose configuration data, derived values, forms, and actions to components.
@@ -632,5 +687,10 @@ export default function useStaffCapacity() {
     closeSlotModal: () => setIsSlotModalOpen(false),
     closeTableModal: () => setIsTableModalOpen(false),
     closeAssignmentModal: () => setIsAssignmentModalOpen(false),
+    isCopyWeekOpen,
+    copyWeekError,
+    openCopyWeek,
+    closeCopyWeek,
+    copyWeek,
   };
 }

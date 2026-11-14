@@ -606,7 +606,7 @@ describe("booking retrieval and cancellation API", () => {
 });
 
 describe("editing a booking", () => {
-  // [REQUIREMENT] Changes to party size are subject to the automatic verification of availability
+  // [REQUIREMENT] MH-06: Changes to party size are subject to the automatic verification of availability
   it("updates the same booking and keeps the assigned table when it fits", async () => {
     const created = await hikerAgent
       .post("/api/bookings")
@@ -642,7 +642,7 @@ describe("editing a booking", () => {
     );
   });
 
-  // [REQUIREMENT] If there are not enough seats, the change is refused and the booking stays as it was.
+  // [REQUIREMENT] MH-06: If there are not enough seats, the change is refused and the booking stays as it was.
   it("preserves the original booking when there is insufficient capacity", async () => {
     const created = await hikerAgent
       .post("/api/bookings")
@@ -673,7 +673,7 @@ describe("editing a booking", () => {
     );
   });
 
-  // [REQUIREMENT] The current seats are released and the tables are assigned
+  // [REQUIREMENT] MH-06: The current seats are released and the tables are assigned
   // again with the MH-01 rules.
   it("reassigns a larger party and releases the original table", async () => {
     const largerTable = await runAsync(
@@ -780,7 +780,7 @@ describe("editing a booking", () => {
     }
   });
 
-  // [REQUIREMENT] Changes are admitted within 48 hours from the date booked.
+  // [REQUIREMENT] MH-06: Changes are admitted within 48 hours from the date booked.
   it("accepts edits at the 48-hour deadline and rejects them after it", async () => {
     // The original meal starts at 18:00 Rome time on 2099-12-31.
     const deadline = Date.parse("2099-12-29T17:00:00.000Z");

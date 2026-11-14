@@ -1,5 +1,5 @@
-import { Resend } from 'resend';
-import { readFile } from 'node:fs/promises';
+import { Resend } from "resend";
+import { readFile } from "node:fs/promises";
 
 /**
  * Sends a prepared booking confirmation email through Resend.
@@ -17,30 +17,34 @@ export async function sendBookingConfirmationEmail(message) {
   // Require both the API key and the sender address before sending.
   if (!apiKey || !from) {
     throw new Error(
-      'RESEND_API_KEY and EMAIL_FROM must be configured to send booking emails.'
+      "RESEND_API_KEY and EMAIL_FROM must be configured to send booking emails.",
     );
   }
 
   // Require a recipient, subject, and nonempty HTML and plain-text bodies.
   if (
     !message ||
-    typeof message.to !== 'string' ||
-    typeof message.subject !== 'string' ||
-    typeof message.html !== 'string' ||
-    typeof message.text !== 'string' ||
+    typeof message.to !== "string" ||
+    typeof message.subject !== "string" ||
+    typeof message.html !== "string" ||
+    typeof message.text !== "string" ||
     !message.to.trim() ||
     !message.subject.trim() ||
     !message.html.trim() ||
     !message.text.trim()
   ) {
     throw new Error(
-      'A recipient, subject, HTML body, and text body are required.'
+      "A recipient, subject, HTML body, and text body are required.",
     );
   }
 
   // Load the logo relative to this module, independently of the working directory.
   const logo = await readFile(
-    new URL('../assets/mountain-hut-email-logo.png', import.meta.url)
+    new URL("../assets/mountain-hut-email-logo.png", import.meta.url),
+  );
+
+  const successCheck = await readFile(
+    new URL("../assets/booking-success-check.png", import.meta.url),
   );
 
   // Create the client using the configuration read for this invocation.
@@ -55,24 +59,27 @@ export async function sendBookingConfirmationEmail(message) {
     text: message.text,
     attachments: [
       {
-        filename: 'mountain-hut-email-logo.png',
+        filename: "mountain-hut-email-logo.png",
         content: logo,
-        contentId: 'mountain-hut-logo',
+        contentId: "mountain-hut-logo",
+      },
+      {
+        filename: "booking-success-check.png",
+        content: successCheck,
+        contentId: "booking-success-check",
       },
     ],
   });
 
   // The SDK may return an error instead of rejecting the promise.
   if (error) {
-    throw new Error(
-      `Resend email failed: ${error.message ?? 'Unknown error'}`
-    );
+    throw new Error(`Resend email failed: ${error.message ?? "Unknown error"}`);
   }
 
   // Require an email ID to confirm that the service accepted the request.
-  if (!data?.id || typeof data.id !== 'string') {
+  if (!data?.id || typeof data.id !== "string") {
     throw new Error(
-      'Resend email failed: response did not include an email ID.'
+      "Resend email failed: response did not include an email ID.",
     );
   }
 

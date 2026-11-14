@@ -257,7 +257,7 @@ export function validateWeeklyScheduleCopy(input) {
     );
   }
 
-  // [REQUIREMENT] It should be possible to replicate the schedule for all the days of a given week into another week
+  // [REQUIREMENT] MH-09: It should be possible to replicate the schedule for all the days of a given week into another week
   // Overlapping weeks would delete source slots while they are being copied.
   if (!areAtLeastOneWeekApart(sourceWeekStart, destinationWeekStart)) {
     throw new Error(

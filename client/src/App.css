@@ -39,10 +39,6 @@
    StatusBadge — components/common/StatusBadge.jsx
    ========================================================================== */
 
-.mh-status-badge-danger {
-  background-color: var(--mh-status-badge-danger-background);
-}
-
 /* ==========================================================================
    LoginForm — components/auth/LoginForm.jsx
    ========================================================================== */
@@ -233,17 +229,6 @@
 .mh-signout-button {
   width: 100%;
   max-width: 300px;
-}
-
-:is(button, .btn, [role="button"]):focus:not(:focus-visible) {
-  outline: none !important;
-  box-shadow: none !important;
-}
-
-:is(button, .btn, [role="button"]):focus-visible {
-  outline: var(--mh-border-width-accent) solid var(--mh-navy) !important;
-  outline-offset: var(--mh-border-width-accent);
-  box-shadow: none !important;
 }
 
 @media (max-width: 767px) {
@@ -760,6 +745,30 @@
   overflow-wrap: anywhere;
 }
 
+.mh-booking-status .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mh-cap-size-6);
+  padding: var(--mh-cap-size-6) var(--mh-cap-size-10);
+  font-size: var(--mh-cap-size-12);
+  font-weight: var(--mh-weight-medium);
+}
+
+.mh-booking-status .text-bg-primary {
+  background-color: var(--mh-booking-status-upcoming-background) !important;
+  color: var(--mh-booking-status-upcoming-color) !important;
+}
+
+.mh-booking-status .text-bg-secondary {
+  background-color: var(--mh-booking-status-past-background) !important;
+  color: var(--mh-booking-status-past-color) !important;
+}
+
+.mh-booking-status .text-bg-danger {
+  background-color: var(--mh-booking-status-cancelled-background) !important;
+  color: var(--mh-booking-status-cancelled-color) !important;
+}
+
 @media (max-width: 575px) {
   .mh-my-bookings .card-body {
     padding: var(--mh-cap-size-20);
@@ -767,6 +776,41 @@
 
   .mh-my-bookings .card dl {
     column-gap: var(--mh-cap-size-16);
+  }
+}
+
+@media (min-width: 992px) {
+  .mh-my-bookings .mh-booking-ticket-column .card-body {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--mh-cap-size-16);
+  }
+
+  .mh-my-bookings .mh-booking-ticket-column .card-body > :first-child {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center !important;
+  }
+
+  .mh-my-bookings .mh-booking-ticket-column .card h3 {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .mh-my-bookings .mh-booking-ticket-column .card dl {
+    grid-template-columns: max-content minmax(0, 1fr);
+    row-gap: var(--mh-cap-size-8);
+  }
+
+  .mh-my-bookings .mh-booking-ticket-column .mh-booking-card-actions {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  .mh-my-bookings .mh-booking-ticket-column .card {
+    max-width: 840px;
+    margin-inline-end: auto;
   }
 }
 
@@ -850,6 +894,18 @@
   border: 0;
 }
 
+.mh-reservation-modal .mh-reservation-header-centered {
+  position: relative;
+  padding-inline: var(--mh-cap-size-56);
+}
+
+.mh-reservation-modal .mh-reservation-header-centered .btn-close {
+  position: absolute;
+  top: var(--mh-cap-size-28);
+  right: var(--mh-cap-size-28);
+  margin: 0;
+}
+
 .mh-reservation-modal .btn-close {
   flex: 0 0 auto;
   padding: var(--mh-cap-size-10);
@@ -884,8 +940,8 @@
 .mh-reservation-email {
   margin: var(--mh-cap-size-18) 0 0;
   padding: var(--mh-cap-size-14) var(--mh-cap-size-16);
-  border-left: var(--mh-cap-size-3) solid var(--mh-reservation-accent);
-  border-radius: 0 var(--mh-cap-size-8) var(--mh-cap-size-8) 0;
+  border: 0;
+  border-radius: var(--mh-cap-size-8);
   background: var(--mh-reservation-email-background);
   font-size: var(--mh-cap-size-14);
   line-height: 1.6;
@@ -971,6 +1027,32 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mh-reservation-detail.mh-reservation-requests {
+  display: flex;
+  align-items: baseline;
+  gap: var(--mh-cap-size-8);
+}
+
+.mh-reservation-detail.mh-reservation-requests dt {
+  flex: 0 0 auto;
+  width: auto;
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+
+.mh-reservation-detail.mh-reservation-requests dd {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 @media (max-width: 380px) {
@@ -1780,7 +1862,6 @@
   background: var(--mh-white-transparent);
 }
 
-.cap-menu-toggle:focus-visible,
 .cap-navigation .cap-nav-item:focus-visible,
 .cap-logout.btn:focus-visible {
   outline: var(--mh-cap-size-3) solid var(--mh-copper);
@@ -1880,6 +1961,14 @@
   margin-top: auto;
   padding-top: var(--mh-cap-size-16);
   border-top: var(--mh-border-width) solid var(--mh-white-transparent);
+}
+
+.cap-sidebar-account .mh-mobile-signout {
+  color: var(--mh-mobile-signout-on-navy);
+}
+
+.cap-sidebar-account .mh-mobile-signout:hover {
+  background: var(--mh-white-transparent);
 }
 
 .cap-sidebar-account .mh-profile .mh-profile-toggle {
@@ -2122,6 +2211,32 @@
   background-color: var(--mh-account-border);
 }
 
+.cap-tables-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.cap-tables-heading > button {
+  white-space: nowrap;
+}
+
+.cap-tables {
+  container: staff-tables / inline-size;
+}
+
+@container staff-tables (max-width: 18rem) {
+  .cap-tables-heading {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cap-tables-heading > button {
+    justify-self: stretch;
+    max-width: 100%;
+    white-space: normal;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cap-table-item .cap-icon-button {
     transition: none;
@@ -2326,8 +2441,9 @@
   }
 
   .cap-slot-column-seats {
-    grid-column: 2;
-    grid-row: 1;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    text-align: left;
   }
 
   .cap-seat-count {
@@ -2335,8 +2451,10 @@
   }
 
   .cap-slot-column-tables {
-    grid-column: 1 / -1;
-    grid-row: 2;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    align-self: start;
   }
 
   .cap-chips > span {
@@ -2362,6 +2480,103 @@
     flex: 0 0 var(--mh-cap-size-44);
     width: var(--mh-cap-size-44);
     height: var(--mh-cap-size-44);
+  }
+}
+
+.cap-schedule-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.cap-schedule-actions {
+  display: flex;
+  gap: var(--mh-cap-size-8);
+}
+
+.cap-schedule-actions > button {
+  white-space: nowrap;
+}
+
+@container time-slots (max-width: 34rem) {
+  .cap-schedule-actions {
+    display: grid;
+    justify-items: end;
+  }
+
+  .cap-schedule-actions > .cap-primary {
+    grid-row: 1;
+  }
+}
+
+@container time-slots (max-width: 18rem) {
+  .cap-schedule-heading {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cap-schedule-actions {
+    justify-items: stretch;
+  }
+}
+
+.cap-slot-seat-total {
+  font-size: var(--mh-cap-size-13);
+  font-weight: var(--mh-weight-medium);
+}
+
+.cap-slot-status .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mh-cap-size-6);
+  padding: var(--mh-cap-size-6) var(--mh-cap-size-10);
+  font-size: var(--mh-cap-size-12);
+  font-weight: var(--mh-weight-medium);
+  white-space: normal;
+  text-align: left;
+}
+
+.cap-slot-status .text-bg-success {
+  background-color: var(--mh-cap-slot-status-assigned-background) !important;
+  color: var(--mh-cap-slot-status-assigned-color) !important;
+}
+
+.cap-slot-status .text-bg-warning {
+  background-color: var(--mh-cap-slot-status-unassigned-background) !important;
+  color: var(--mh-cap-slot-status-unassigned-color) !important;
+}
+.cap-slot-row .cap-slot-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--mh-cap-size-8);
+}
+
+.cap-slot-row .cap-slot-actions .cap-outline {
+  width: 100%;
+  min-width: 0;
+  white-space: normal;
+}
+
+@container time-slots (width > 600px) {
+  .cap-slot-head,
+  .cap-slot-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding-inline: var(--mh-cap-size-12);
+  }
+
+  .cap-slot-head {
+    border-inline: var(--mh-border-width) solid transparent;
+  }
+
+  .cap-slot-head > *,
+  .cap-slot-row > * {
+    width: auto;
+  }
+}
+
+@container time-slots (420px <= width <= 600px) {
+  .cap-slot-row .cap-slot-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -2766,14 +2981,15 @@
   font-size: 26px;
 }
 
-.mh-menu-toggle:focus-visible {
-  outline: var(--mh-cap-size-3) solid var(--mh-copper);
-  outline-offset: var(--mh-cap-size-3);
+.mh-menu-toggle:focus-visible,
+.cap-menu-toggle:focus-visible {
+  outline: 1px solid currentColor;
+  outline-offset: -3px;
+  box-shadow: none;
 }
 
 .offcanvas.mh-mobile-menu.offcanvas-top {
   --bs-offcanvas-height: auto;
-
   inset: 0 0 auto;
   width: 100%;
   height: auto;
@@ -3405,7 +3621,12 @@
   display: none;
 }
 
-@media (min-width: 750.01px) and (max-width: 1250px) {
+button.cap-sidebar-toggle:focus-visible {
+  outline: 2px solid var(--mh-navy) !important;
+  outline-offset: -4px;
+}
+
+@media (min-width: 750.01px) {
   .cap-sidebar-toggle {
     position: fixed;
     top: var(--mh-cap-size-12);
@@ -3426,11 +3647,6 @@
 
   .cap-sidebar-toggle:hover {
     background: var(--mh-cream);
-  }
-
-  .cap-sidebar-toggle:focus-visible {
-    outline: var(--mh-cap-size-3) solid var(--mh-copper);
-    outline-offset: var(--mh-cap-size-3);
   }
 
   .cap-main {
@@ -3663,7 +3879,7 @@
   display: none;
 }
 
-@media (min-width: 750.01px) and (max-width: 1250px) {
+@media (min-width: 750.01px) {
   .cap-app {
     height: var(--mh-viewport-dynamic-height);
     min-height: 0;
@@ -3721,7 +3937,9 @@
     transform: none;
     transition: none;
   }
+}
 
+@media (min-width: 750.01px) and (max-width: 1250px) {
   .cap-app .cap-main > .cap-content {
     display: block;
     flex: 1 1 0;
@@ -3767,4 +3985,251 @@
 
 .mh-staff-login-card > a:hover {
   color: var(--mh-copper);
+}
+
+@media (max-width: 575.98px) {
+  .mh-staff-login-page {
+    padding: var(--mh-space-4);
+  }
+
+  .mh-staff-login-page > .mh-staff-login-card {
+    padding: var(--mh-cap-size-20);
+  }
+}
+
+@media (max-height: 650px) {
+  .mh-staff-login-page.align-items-center {
+    align-items: flex-start !important;
+  }
+}
+
+/* ==========================================================================
+   ScheduleCopyActions — components/capacity/ScheduleCopyActions.jsx
+   ========================================================================== */
+
+.cap-schedule-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  column-gap: var(--mh-cap-size-16);
+}
+
+.cap-schedule-copy-actions {
+  display: grid;
+  gap: var(--mh-cap-size-8);
+  margin-block: var(--mh-cap-size-12);
+}
+
+@media (max-width: 575.98px) {
+  .cap-schedule-copy-actions {
+    width: 100%;
+    margin-top: 0;
+  }
+}
+
+/* ==========================================================================
+   ScheduleCopyConfirmationModal — components/capacity/ScheduleCopyConfirmationModal.jsx
+   ========================================================================== */
+
+:where(#schedule-copy-confirmation-title) {
+  padding-inline: var(--mh-cap-size-24);
+}
+
+.modal-header:has(#schedule-copy-confirmation-title) > .btn-close {
+  position: absolute;
+  top: var(--mh-cap-size-16);
+  right: var(--mh-cap-size-16);
+  margin: 0;
+}
+
+/* ==========================================================================
+   StaffBookingPage — pages/StaffBookingPage.jsx
+   ========================================================================== */
+
+.cap-app .cap-main > .cap-content.staff-booking-content {
+  padding-block-start: var(--mh-cap-size-24);
+  overflow-y: auto;
+}
+
+.cap-panel.staff-booking-panel {
+  flex-shrink: 0;
+  width: 100%;
+  max-width: var(--mh-staff-booking-panel-max-width);
+  min-height: 0;
+  margin-inline: auto;
+}
+
+.staff-hiker-results {
+  max-height: var(--mh-staff-hiker-results-max-height);
+  overflow-y: auto;
+  border: var(--mh-border-width) solid var(--mh-border);
+}
+
+.staff-hiker-results > .list-group-item {
+  border-inline: 0;
+}
+
+.staff-hiker-results > .list-group-item:first-child {
+  border-top: 0;
+}
+
+.staff-hiker-results > .list-group-item:last-child {
+  border-bottom: 0;
+}
+
+.staff-hiker-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: var(--mh-staff-hiker-option-min-height);
+  padding: var(--mh-cap-size-16);
+  border: var(--mh-border-width) solid var(--mh-border);
+  border-radius: var(--mh-cap-size-12);
+  background: var(--mh-white);
+  color: var(--mh-navy);
+  text-align: center;
+  cursor: pointer;
+}
+
+.staff-hiker-option > .bi:not(.staff-hiker-option-check) {
+  font-size: var(--mh-staff-hiker-option-icon-size);
+  line-height: 1;
+}
+
+.staff-hiker-option small {
+  margin-top: var(--mh-cap-size-6);
+}
+
+.staff-hiker-option:hover,
+.staff-hiker-option.is-selected {
+  border-color: var(--mh-staff-hiker-option-accent);
+}
+
+.staff-hiker-option.is-selected {
+  background: var(--mh-staff-hiker-option-selected-bg);
+}
+
+.btn-check:focus-visible + .staff-hiker-option,
+button.staff-hiker-option:focus-visible {
+  outline: 2px solid var(--mh-navy) !important;
+  outline-offset: -4px;
+}
+
+.staff-hiker-option-check {
+  position: absolute;
+  top: var(--mh-cap-size-12);
+  right: var(--mh-cap-size-12);
+  color: var(--mh-staff-hiker-option-accent);
+}
+
+/* ==========================================================================
+   SuccessCheck — components/common/SuccessCheck.jsx
+   ========================================================================== */
+
+.mh-success-check {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: var(--mh-success-check-size);
+  height: var(--mh-success-check-size);
+  border-radius: 50%;
+  background-color: var(--mh-success-check-background);
+  color: var(--mh-success-check-color);
+  font-size: var(--mh-success-check-icon-size);
+  line-height: 1;
+}
+
+/* ==========================================================================
+   ScheduleInfo — components/capacity/ScheduleInfo.jsx
+   ========================================================================== */
+
+.cap-schedule-info-popover {
+  --bs-popover-bg: #151515;
+  --bs-popover-border-color: #151515;
+  --bs-popover-body-color: var(--mh-white);
+}
+
+/* ==========================================================================
+   CancellationMark — components/common/CancellationMark.jsx
+   ========================================================================== */
+
+.mh-cancellation-mark {
+  background-color: var(--mh-cancellation-mark-background);
+  color: var(--mh-cancellation-mark-color);
+}
+
+/* ==========================================================================
+   WarningMark — components/common/WarningMark.jsx
+   ========================================================================== */
+
+.mh-warning-mark {
+  background-color: var(--mh-warning-mark-background);
+  color: var(--mh-copper);
+}
+
+/* ==========================================================================
+   Responsive layout for schedule copy dialogs
+   ========================================================================== */
+
+.cap-schedule-dialog.modal-dialog-scrollable .modal-content {
+  max-height: 100%;
+  min-width: 0;
+}
+
+.cap-schedule-dialog .cap-schedule-modal-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cap-schedule-dialog .modal-header,
+.cap-schedule-dialog .modal-footer {
+  flex-shrink: 0;
+}
+
+.cap-schedule-dialog .modal-body {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 575.98px) {
+  .cap-schedule-dialog.modal-dialog-scrollable {
+    height: calc(100dvh - 1rem);
+    min-height: 0;
+    margin: 0.5rem;
+  }
+
+  .cap-schedule-dialog .modal-header,
+  .cap-schedule-dialog .modal-body,
+  .cap-schedule-dialog .modal-footer {
+    padding: 0.75rem;
+  }
+
+  .cap-schedule-dialog .modal-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .cap-schedule-dialog .modal-footer > button {
+    flex: 1 1 8rem;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+    padding-inline: 0.5rem;
+    white-space: normal;
+  }
+
+  .cap-schedule-dialog .list-group-item > button {
+    max-width: 100%;
+    white-space: normal;
+  }
 }

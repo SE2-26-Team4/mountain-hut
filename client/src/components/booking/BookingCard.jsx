@@ -48,12 +48,23 @@ export default function BookingCard({ booking, status, onCancel, onEdit }) {
     Cancelled: /** @type {const} */ ("danger"),
   }[status];
 
+  const badgeIcon = {
+    Upcoming: "bi-calendar-check",
+    Past: "bi-clock-history",
+    Cancelled: "bi-x-circle-fill",
+  }[status];
+
   return (
     <article className="card h-100">
       <div className="card-body d-flex flex-column">
         <div className="d-flex justify-content-between align-items-start gap-2">
           <h3 className="h5">Booking #{booking.id}</h3>
-          <StatusBadge variant={badgeVariant}>{status}</StatusBadge>
+          <div className="mh-booking-status">
+            <StatusBadge variant={badgeVariant}>
+              <i className={`bi ${badgeIcon}`} aria-hidden="true" />
+              {status}
+            </StatusBadge>
+          </div>
         </div>
 
         <dl className="mb-0">
@@ -79,15 +90,19 @@ export default function BookingCard({ booking, status, onCancel, onEdit }) {
           <dt>Party size</dt>
           <dd>{booking.partySize}</dd>
 
-          <dt>Dietary requirements</dt>
-          <dd className="mh-booking-dietary mb-0">
-            <span
-              className="mh-booking-dietary-text"
-              title={booking.specialRequests || undefined}
-            >
-              {booking.specialRequests || "None"}
-            </span>
-          </dd>
+          {booking.dietaryRequirements?.trim() && (
+            <>
+              <dt>Dietary requirements</dt>
+              <dd>Received</dd>
+            </>
+          )}
+
+          {booking.specialRequests?.trim() && (
+            <>
+              <dt>Special requests</dt>
+              <dd>Received</dd>
+            </>
+          )}
         </dl>
 
         {(onEdit || onCancel) && (
