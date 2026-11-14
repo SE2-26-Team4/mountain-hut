@@ -2365,6 +2365,23 @@
   }
 }
 
+.cap-schedule-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mh-cap-size-8);
+}
+
+@media (max-width: 575.98px) {
+  .cap-schedule-actions {
+    display: grid;
+    width: 100%;
+  }
+
+  .cap-schedule-actions .cap-primary {
+    grid-row: 1;
+  }
+}
+
 /* ==========================================================================
    AutoDismissAlert — components/common/AutoDismissAlert.jsx
    ========================================================================== */
@@ -3767,4 +3784,29 @@
 
 .mh-staff-login-card > a:hover {
   color: var(--mh-copper);
+}
+
+/* ==========================================================================
+   ScheduleCopyActions — components/capacity/ScheduleCopyActions.jsx
+   ========================================================================== */
+
+.cap-schedule-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  column-gap: var(--mh-cap-size-16);
+}
+
+.cap-schedule-copy-actions {
+  display: grid;
+  gap: var(--mh-cap-size-8);
+  margin-block: var(--mh-cap-size-12);
+}
+
+@media (max-width: 575.98px) {
+  .cap-schedule-copy-actions {
+    width: 100%;
+    margin-top: 0;
+  }
 }
