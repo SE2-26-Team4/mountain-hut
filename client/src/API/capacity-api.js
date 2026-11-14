@@ -175,8 +175,20 @@ async function saveMealSlotTables(slotId, tableIds) {
   return data.capacity;
 }
 
+/**
+ * @param {{ sourceWeekStart: string, destinationWeekStart: string }} dates
+ * @returns {Promise<{ mealSlots: ConfiguredMealSlot[] }>}
+ */
+async function copyWeeklySchedule(dates) {
+  return request("/capacity/meal-slots/copy-week", {
+    method: "POST",
+    body: JSON.stringify(dates),
+  });
+}
+
 const CapacityAPI = {
   getConfiguration,
+  copyWeeklySchedule,
   createMealSlot,
   updateMealSlot,
   createDiningTable,
