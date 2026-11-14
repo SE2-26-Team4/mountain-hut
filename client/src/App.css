@@ -1361,13 +1361,17 @@
 
 .cap-previous-configuration {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--mh-cap-size-12);
   margin-bottom: var(--mh-cap-size-16);
   padding: var(--mh-cap-size-12);
-  border: 1px solid var(--mh-copper);
   border-radius: var(--mh-cap-size-12);
-  background: var(--mh-cream);
+}
+
+.cap-schedule-info-popover {
+  --bs-popover-bg: var(--mh-popover-bg);
+  --bs-popover-border-color: var(--mh-popover-bg);
+  --bs-popover-body-color: var(--mh-white);
 }
 
 .cap-previous-configuration > div {
@@ -1382,19 +1386,78 @@
   font-size: var(--mh-cap-size-12);
 }
 
-.cap-previous-configuration .cap-primary {
-  min-width: max-content;
+.cap-previous-configuration > .flex-grow-1 {
+  min-width: 0;
 }
 
-@media (max-width: 600px) {
-  .cap-previous-configuration {
-    align-items: flex-start;
-    flex-wrap: wrap;
-  }
+.cap-reuse-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--mh-cap-size-8);
+  margin-block: var(--mh-cap-size-4);
+}
 
-  .cap-previous-configuration .cap-primary {
-    margin-left: var(--mh-cap-size-42);
-  }
+.cap-reuse-match {
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.cap-reuse-controls > .cap-primary {
+  margin-inline-start: auto;
+  max-width: 100%;
+  white-space: normal;
+}
+
+.cap-reuse-controls > .cap-primary:disabled {
+  background: var(--mh-white);
+  border-color: var(--mh-border);
+  color: var(--cap-muted);
+  box-shadow: inset 0 0 0 var(--mh-border-width) var(--mh-border);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.cap-reuse-skipped > summary {
+  cursor: pointer;
+  width: fit-content;
+  max-width: 100%;
+  color: var(--bs-warning-text-emphasis);
+  font-size: var(--mh-cap-size-12);
+}
+
+.cap-reuse-skipped-link {
+  text-decoration: underline;
+  text-underline-offset: var(--mh-reuse-skipped-link-underline-offset);
+}
+
+.cap-previous-configuration .cap-reuse-skipped-link {
+  color: inherit;
+}
+
+.cap-reuse-skipped > summary:focus,
+.cap-reuse-skipped-list:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.cap-reuse-skipped > summary:focus-visible,
+.cap-reuse-skipped-list:focus-visible {
+  outline: var(--mh-border-width-accent) solid var(--mh-navy);
+  outline-offset: var(--mh-border-width-accent);
+}
+
+.cap-reuse-skipped-list {
+  max-height: var(--mh-reuse-skipped-list-max-height);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  color: var(--bs-warning-text-emphasis);
+  font-size: var(--mh-cap-size-12);
+}
+
+.cap-reuse-skipped-list > li + li {
+  margin-top: var(--mh-cap-size-8);
 }
 
 .cap-modal-subtitle {

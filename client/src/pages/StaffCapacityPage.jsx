@@ -139,6 +139,12 @@ function StaffCapacityContent({ user, onLogout }) {
             onToggleAll={staff.toggleAllTableAssignments}
             isSuggestedConfiguration={staff.isSuggestedConfiguration}
             previousConfigurationSlot={staff.previousConfigurationSlot}
+            canOfferReuse={staff.canOfferReuse}
+            reuseMatch={staff.reuseMatch}
+            onReuseMatchChange={staff.setReuseMatch}
+            reuseOrder={staff.reuseOrder}
+            onReuseOrderChange={staff.setReuseOrder}
+            reusableTableCount={staff.reusableTableCount}
             onReuseConfiguration={staff.reusePreviousConfiguration}
             onUndoReuse={staff.undoReuseConfiguration}
             onSave={staff.saveAssignments}

@@ -390,6 +390,13 @@
 
   /* WarningMark — components/common/WarningMark.jsx */
   --mh-warning-mark-background: #fbdcc8;
+
+  /* Background and border color for help popovers. */
+  --mh-popover-bg: #151515;
+
+  /* Skipped tables in the table assignment modal. */
+  --mh-reuse-skipped-list-max-height: 10rem;
+  --mh-reuse-skipped-link-underline-offset: 2px;
 }
 
 /* ==========================================================================
