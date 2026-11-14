@@ -12,6 +12,7 @@ import SuccessCheck from "../common/SuccessCheck.jsx";
  * @property {string} endTime
  * @property {number} partySize
  * @property {boolean} emailSent
+ * @property {string | null} [emailRecipient]
  * @property {string} [dietaryRequirements]
  * @property {string} [specialRequests]
  */
@@ -43,6 +44,27 @@ export default function BookingConfirmationModal({
       )
     : "";
 
+  const emailUnavailable = reservation?.emailRecipient === null;
+  const emailFailed = Boolean(
+    reservation && !reservation.emailSent && !emailUnavailable,
+  );
+
+  let emailMessage = "";
+
+  if (reservation) {
+    if (emailUnavailable) {
+      emailMessage =
+        "No confirmation email was sent because no email address was provided.";
+    } else if (!reservation.emailSent) {
+      emailMessage = `Your booking is ${action}, but the confirmation email could not be sent. Please keep your reservation number.`;
+    } else if (reservation.emailRecipient) {
+      emailMessage = `A confirmation email was sent to ${reservation.emailRecipient}.`;
+    } else {
+      emailMessage =
+        "A confirmation email has been sent to your email address. Please check your inbox or spam folder.";
+    }
+  }
+
   return (
     <Modal
       show={Boolean(reservation)}
@@ -73,18 +95,18 @@ export default function BookingConfirmationModal({
           <>
             <div className="mh-reservation-intro">
               <p className="mh-reservation-description">
-                We look forward to welcoming you to Mountain Hut.
+                {reservation.emailRecipient === undefined
+                  ? "We look forward to welcoming you to Mountain Hut."
+                  : "The reservation has been saved."}
               </p>
 
               <p
                 className={`mh-reservation-email${
-                  reservation.emailSent ? "" : " mh-reservation-email-warning"
+                  emailFailed ? " mh-reservation-email-warning" : ""
                 }`}
                 role="status"
               >
-                {reservation.emailSent
-                  ? "A confirmation email has been sent to your email address. Please check your inbox or spam folder."
-                  : `Your booking is ${action}, but the confirmation email could not be sent. Please keep your reservation number.`}
+                {emailMessage}
               </p>
             </div>
 
