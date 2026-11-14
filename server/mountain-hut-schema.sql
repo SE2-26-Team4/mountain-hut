@@ -68,8 +68,7 @@ CREATE TABLE bookings (
   booking_date TEXT NOT NULL,
   slot_id INTEGER NOT NULL REFERENCES meal_slots(id),
   party_size INTEGER NOT NULL CHECK (party_size > 0),
-  dietary_requirements TEXT NOT NULL DEFAULT ''
-    CHECK (length(dietary_requirements) <= 1000),
+  dietary_requirements TEXT NOT NULL DEFAULT '',
   special_requests TEXT NOT NULL DEFAULT ''
     CHECK (length(special_requests) <= 1000),
   status TEXT NOT NULL DEFAULT 'confirmed'
