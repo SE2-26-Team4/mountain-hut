@@ -108,7 +108,7 @@
  */
 
 /**
- * Hiker profile as seen by staff. Temporary hikers have no email.
+ * Hiker profile as seen by staff. Temporary hikers can have an email address but cannot sign in.
  *
  * @typedef {Object} HikerDTO
  * @property {number} id

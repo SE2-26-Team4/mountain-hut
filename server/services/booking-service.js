@@ -432,7 +432,7 @@ async function prepareNewHiker(input) {
     }
 
     case "temporary": {
-      // Only a name and an optional phone: no email, no web access.
+      // A temporary hiker has a name, optional contact details, and no web access.
       const fullName = requireText(
         input.fullName,
         "Full name",
@@ -443,7 +443,7 @@ async function prepareNewHiker(input) {
       return {
         newHiker: {
           fullName,
-          email: null,
+          email: input.email === undefined ? null : normalizeEmail(input.email),
           phone: phone === null ? null : normalizePhone(phone),
           notes: null,
           emergencyContact: null,

@@ -173,7 +173,7 @@ const saveBooking = asyncRoute(async (req, res) => {
     ? await createBookingForHiker(bookingData, bookingId)
     : await createBookingForHiker(bookingData);
 
-  // [REQUIREMENT] When a change has been done the change to the reservation should be notified by email.
+  // [REQUIREMENT] MH-06: When a change has been done the change to the reservation should be notified by email.
   const emailSent = await sendBookingConfirmation(user, booking, isEdit);
 
   return res.status(isEdit ? 200 : 201).json({ booking, emailSent });
@@ -309,7 +309,7 @@ router.delete(
 /* STAFF BOOKINGS */
 
 // Find hikers, including temporary ones, by name, email or phone.
-// [REQUIREMENT] The hiker can be already present in the system
+// [REQUIREMENT] MH-07: The hiker can be already present in the system
 // (can be matched by name, phone or email).
 router.get(
   "/staff/hikers",
@@ -324,7 +324,7 @@ router.get(
 );
 
 // Register a new full or temporary hiker without creating a booking.
-// [REQUIREMENT] If the hiker is missing, it is possible to enter the full details
+// [REQUIREMENT] MH-07: If the hiker is missing, it is possible to enter the full details
 // and create a regular hiker profile that can later use the system web interface,
 // or quickly provide minimal info (name + optional phone), leading to a temporary
 // hiker that is not entitled to login and operate via web.
@@ -333,7 +333,7 @@ router.post(
   requireStaff,
   asyncRoute(async (req, res) => {
     // The service validates the hiker type and fields.
-    // [REQUIREMENT] If a full hiker account is created, the password is randomly
+    // [REQUIREMENT] MH-07: If a full hiker account is created, the password is randomly
     // generated, it can be communicated to the hiker e.g. verbally.
     // It is returned only in this response, so that staff can communicate it.
     const registration = await registerHikerByStaff(req.body);
@@ -343,9 +343,9 @@ router.post(
 );
 
 // Create a booking entered by staff for an existing, new or temporary hiker.
-// [REQUIREMENT] As an employee I want to enter a reservation for a hiker,
+// [REQUIREMENT] MH-07: As an employee I want to enter a reservation for a hiker,
 // so that I can accept reservations via other channels than web.
-// [REQUIREMENT] The procedure must allow to either quickly enter name and possibly
+// [REQUIREMENT] MH-07: The procedure must allow to either quickly enter name and possibly
 // phone or enter the full details of the hiker, in addition to the reservation details.
 router.post(
   "/staff/bookings",
@@ -353,6 +353,7 @@ router.post(
   asyncRoute(async (req, res) => {
     const {
       hiker,
+      confirmationEmail,
       bookingDate,
       slotId,
       partySize,
@@ -360,13 +361,35 @@ router.post(
       specialRequests,
     } = req.body ?? {};
 
+    let temporaryRecipient = null;
+
+    if (confirmationEmail !== undefined) {
+      const email =
+        typeof confirmationEmail === "string" ? confirmationEmail.trim() : "";
+
+      if (
+        hiker?.type !== "temporary" ||
+        email.length > 254 ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+      ) {
+        throw new BookingError(
+          "INVALID_HIKER",
+          "Enter a valid confirmation email for the temporary hiker.",
+        );
+      }
+
+      temporaryRecipient = email;
+    }
+
     // The service validates the request; the DAO creates the hiker (if new)
     // and the booking in one transaction, reusing the availability checks
     // and table allocation.
-    // [REQUIREMENT] There is only one time constraint for employee-made
+    // [REQUIREMENT] MH-07: There is only one time constraint for employee-made
     // reservations: they cannot be made after the beginning of the time slot.
     const result = await createBookingByStaff({
-      hiker,
+      hiker: temporaryRecipient
+        ? { ...hiker, email: temporaryRecipient }
+        : hiker,
       bookingDate,
       slotId,
       partySize,
@@ -374,13 +397,15 @@ router.post(
       specialRequests,
     });
 
-    // Send the confirmation to hikers with an email; temporary hikers have none.
+    // Send the booking confirmation when the hiker has an email address.
+    const emailRecipient = result.hiker.email;
+
     const emailSent = await sendBookingConfirmation(
-      { full_name: result.hiker.fullName, email: result.hiker.email },
+      { full_name: result.hiker.fullName, email: emailRecipient },
       result.booking,
     );
 
-    return res.status(201).json({ ...result, emailSent });
+    return res.status(201).json({ ...result, emailSent, emailRecipient });
   }),
 );
 

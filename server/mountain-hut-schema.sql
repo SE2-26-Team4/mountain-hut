@@ -2,8 +2,8 @@ PRAGMA foreign_keys = ON;
 
 BEGIN TRANSACTION;
 
--- Temporary hikers are created by staff with a name and an optional
--- phone. They have no email and no password, so they can never log in.
+-- Staff can create temporary hikers with a name, optional phone,
+-- and optional email. Temporary hikers have no password and cannot log in.
 CREATE TABLE users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   full_name TEXT NOT NULL CHECK (length(trim(full_name)) > 0),
@@ -25,7 +25,6 @@ CREATE TABLE users (
       AND email IS NOT NULL
       AND password_hash IS NOT NULL)
     OR (is_temporary = 1
-      AND email IS NULL
       AND password_hash IS NULL
       AND role = 'hiker')
   )

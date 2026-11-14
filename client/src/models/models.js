@@ -108,7 +108,7 @@
  */
 
 /**
- * Hiker profile as seen by staff. Temporary hikers have no email.
+ * Hiker profile as seen by staff. Temporary hikers can have an email address but cannot sign in.
  *
  * @typedef {Object} HikerDTO
  * @property {number} id
@@ -143,7 +143,8 @@
 
 /**
  * @typedef {CreateBookingRequestDTO & {
- *   hiker: StaffHikerInputDTO
+ *   hiker: StaffHikerInputDTO,
+ *   confirmationEmail?: string
  * }} CreateStaffBookingRequestDTO
  */
 
@@ -159,7 +160,8 @@
 /**
  * @typedef {StaffHikerRegistrationDTO & {
  *   booking: BookingDTO,
- *   emailSent: boolean
+ *   emailSent: boolean,
+ *   emailRecipient: string | null
  * }} StaffBookingResultDTO
  */
 

@@ -1,4 +1,4 @@
-import { allAsync, getAsync } from '../db.js';
+import { allAsync, getAsync } from "../db.js";
 
 /**
  * Database account record used to verify login credentials.
@@ -68,7 +68,7 @@ function toHikerDTO(row) {
  * @returns {string}
  */
 function escapeLikePattern(value) {
-  return value.replace(/[\\%_]/g, '\\$&');
+  return value.replace(/[\\%_]/g, "\\$&");
 }
 
 /* READ */
@@ -80,10 +80,13 @@ function escapeLikePattern(value) {
  * @returns {Promise<AuthenticationUserRow | undefined>}
  */
 export function getUserByEmail(email) {
+  // [REQUIREMENT] MH-07: Temporary hikers cannot sign in, even if they
+  // have an email address for booking confirmations.
   return getAsync(
     `SELECT id, full_name, email, password_hash, role
      FROM users
-     WHERE email = ? COLLATE NOCASE`,
+     WHERE email = ? COLLATE NOCASE
+     AND is_temporary = 0`,
     [email],
   );
 }
@@ -118,7 +121,7 @@ export async function searchHikers(term, limit = 20) {
   // Phones are stored without separators, so compare digits only and skip
   // phone matching for terms without digits (e.g. a name).
   const phonePattern = /\d/.test(term)
-    ? `%${escapeLikePattern(term.replace(/[\s\-().]/g, ''))}%`
+    ? `%${escapeLikePattern(term.replace(/[\s\-().]/g, ""))}%`
     : null;
 
   /** @type {HikerRow[]} */
@@ -174,7 +177,7 @@ export async function getHikerById(queries, id) {
  */
 export async function isEmailRegistered(queries, email) {
   const row = await queries.getAsync(
-    'SELECT id FROM users WHERE email = ? COLLATE NOCASE',
+    "SELECT id FROM users WHERE email = ? COLLATE NOCASE",
     [email],
   );
 
@@ -215,7 +218,5 @@ export async function createHiker(queries, hiker) {
   );
 
   // Read the profile back within the same transaction.
-  return /** @type {HikerDTO} */ (
-    await getHikerById(queries, result.lastID)
-  );
+  return /** @type {HikerDTO} */ (await getHikerById(queries, result.lastID));
 }
