@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
-import CapacityAPI from '../API/capacity-api.js';
+import CapacityAPI from "../API/capacity-api.js";
 
 /**
  * API data types used by the capacity configuration.
@@ -15,17 +15,17 @@ import CapacityAPI from '../API/capacity-api.js';
 // Default values for creating or resetting a meal-slot form.
 /** @type {MealSlotInputDTO & { isActive: boolean }} */
 const emptySlotForm = {
-  slotDate: '',
-  name: '',
-  startTime: '',
-  endTime: '',
+  slotDate: "",
+  name: "",
+  startTime: "",
+  endTime: "",
   isActive: true,
 };
 
 // Keep the seat count as text while the user edits the table form.
 const emptyTableForm = {
-  name: '',
-  seatCount: '',
+  name: "",
+  seatCount: "",
   isActive: true,
 };
 
@@ -38,33 +38,30 @@ const emptyTableForm = {
 function getErrorMessage(error) {
   return error instanceof Error
     ? error.message
-    : 'An unexpected error occurred.';
+    : "An unexpected error occurred.";
 }
 
 /**
  * Returns today's calendar date in the hut's time zone.
  */
 function getTodayInHutTimeZone() {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/Rome',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Rome",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).formatToParts(new Date());
 
   /** @param {Intl.DateTimeFormatPartTypes} type */
-  const value = (type) =>
-    parts.find((part) => part.type === type)?.value;
+  const value = (type) => parts.find((part) => part.type === type)?.value;
 
-  return `${value('year')}-${value('month')}-${value('day')}`;
+  return `${value("year")}-${value("month")}-${value("day")}`;
 }
 
 // Manage staff capacity data, forms, modal visibility, and table assignments.
 export default function useStaffCapacity() {
   // Start with today's date in the hut's time zone.
-  const [selectedDate, setSelectedDate] = useState(
-    getTodayInHutTimeZone
-  );
+  const [selectedDate, setSelectedDate] = useState(getTodayInHutTimeZone);
 
   // Store configured meal slots and reusable dining tables.
   const [mealSlots, setMealSlots] = useState(
@@ -76,11 +73,18 @@ export default function useStaffCapacity() {
   );
 
   // Track the slot and table selection used by the assignment modal.
-  const [selectedSlotId, setSelectedSlotId] = useState('');
+  const [selectedSlotId, setSelectedSlotId] = useState("");
 
   const [selectedTableIds, setSelectedTableIds] = useState(
     /** @type {number[]} */ ([]),
   );
+
+  const [isSuggestedConfiguration, setIsSuggestedConfiguration] =
+    useState(false);
+  const [selectionBeforeReuse, setSelectionBeforeReuse] = useState(
+    /** @type {number[] | null} */ (null),
+  );
+  const [assignmentForNewSlot, setAssignmentForNewSlot] = useState(false);
 
   // Store the values currently displayed in the configuration forms.
   const [slotForm, setSlotForm] = useState(emptySlotForm);
@@ -98,12 +102,11 @@ export default function useStaffCapacity() {
   // Control the visibility of the slot, table, and assignment modals.
   const [isSlotModalOpen, setIsSlotModalOpen] = useState(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
-  const [isAssignmentModalOpen, setIsAssignmentModalOpen] =
-    useState(false);
+  const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
 
   // Track messages and pending load or save operations.
-  const [errorMessage, setErrorMessage] = useState('');
-  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState("");
+  const [feedbackMessage, setFeedbackMessage] = useState("");
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -113,8 +116,7 @@ export default function useStaffCapacity() {
     .filter((slot) => slot.slotDate === selectedDate)
     .sort(
       (first, second) =>
-        first.startTime.localeCompare(second.startTime) ||
-        first.id - second.id
+        first.startTime.localeCompare(second.startTime) || first.id - second.id,
     );
 
   // Resolve the slot currently selected for table assignment.
@@ -132,26 +134,27 @@ export default function useStaffCapacity() {
   function getTableUnavailableReason(table) {
     // Inactive tables cannot contribute bookable seats.
     if (!table.isActive) {
-      return 'Inactive table';
+      return "Inactive table";
     }
 
     // Overlap checks apply only when the selected slot is active.
     if (!selectedSlot || !selectedSlot.isActive) {
-      return '';
+      return "";
     }
 
     // Find another active slot using the same table at overlapping times.
-    const conflictingSlot = mealSlots.find((slot) =>
-      slot.id !== selectedSlot.id &&
-      slot.slotDate === selectedSlot.slotDate &&
-      slot.isActive &&
-      slot.startTime < selectedSlot.endTime &&
-      slot.endTime > selectedSlot.startTime &&
-      slot.tableIds.includes(table.id)
+    const conflictingSlot = mealSlots.find(
+      (slot) =>
+        slot.id !== selectedSlot.id &&
+        slot.slotDate === selectedSlot.slotDate &&
+        slot.isActive &&
+        slot.startTime < selectedSlot.endTime &&
+        slot.endTime > selectedSlot.startTime &&
+        slot.tableIds.includes(table.id),
     );
 
     if (!conflictingSlot) {
-      return '';
+      return "";
     }
 
     // Include the conflicting service and time range in the explanation.
@@ -161,6 +164,84 @@ export default function useStaffCapacity() {
     );
   }
 
+  const [reuseMatchOverride, setReuseMatch] = useState(
+    /** @type {"same-time" | "any-time" | "any-slot" | null} */ (null),
+  );
+
+  const [reuseOrder, setReuseOrder] = useState(
+    /** @type {"newest" | "oldest"} */ ("newest"),
+  );
+
+  // Offer reuse only when the destination has no assigned active tables.
+  // Search earlier slots by service date and start time, newest first.
+  // Only tables available for the destination slot can be reused.
+  const canOfferReuse = Boolean(
+    selectedSlot &&
+    !diningTables.some(
+      (table) => table.isActive && selectedSlot.tableIds.includes(table.id),
+    ),
+  );
+  const previousSlots =
+    selectedSlot && canOfferReuse
+      ? mealSlots
+          .filter(
+            (slot) =>
+              slot.tableIds.length > 0 &&
+              `${slot.slotDate}T${slot.startTime}` <
+                `${selectedSlot.slotDate}T${selectedSlot.startTime}`,
+          )
+          .sort(
+            (first, second) =>
+              second.slotDate.localeCompare(first.slotDate) ||
+              second.startTime.localeCompare(first.startTime) ||
+              second.id - first.id,
+          )
+      : [];
+
+  const availableTableIds = new Set(
+    diningTables
+      .filter((table) => !getTableUnavailableReason(table))
+      .map((table) => table.id),
+  );
+
+  const reusableConfigurations = previousSlots
+    .map((slot) => ({
+      slot,
+      tableIds: slot.tableIds.filter((id) => availableTableIds.has(id)),
+    }))
+    .filter(({ tableIds }) => tableIds.length > 0);
+
+  const matchingName = selectedSlot?.name.trim().toLowerCase();
+  const sameNameConfigurations = reusableConfigurations.filter(
+    ({ slot }) => slot.name.trim().toLowerCase() === matchingName,
+  );
+
+  const configurationsByMatch = {
+    "same-time": sameNameConfigurations.filter(
+      ({ slot }) =>
+        slot.startTime === selectedSlot?.startTime &&
+        slot.endTime === selectedSlot?.endTime,
+    ),
+    "any-time": sameNameConfigurations,
+    "any-slot": reusableConfigurations,
+  };
+
+  const reuseMatch =
+    reuseMatchOverride ??
+    (configurationsByMatch["same-time"].length > 0
+      ? "same-time"
+      : configurationsByMatch["any-time"].length > 0
+        ? "any-time"
+        : "any-slot");
+
+  const matchingConfigurations = configurationsByMatch[reuseMatch];
+  const configuration =
+    reuseOrder === "oldest"
+      ? matchingConfigurations.at(-1)
+      : matchingConfigurations[0];
+
+  const previousConfigurationSlot = configuration?.slot ?? null;
+  const reusableTableCount = configuration?.tableIds.length ?? 0;
   // Synchronize the table selection when the selected slot object changes.
   const [previousSelectedSlot, setPreviousSelectedSlot] =
     useState(selectedSlot);
@@ -211,9 +292,8 @@ export default function useStaffCapacity() {
   const getSlotCapacity = (slot) =>
     diningTables.reduce(
       (total, table) =>
-        slot.tableIds.some(
-          (id) => String(id) === String(table.id),
-        ) && table.isActive
+        slot.tableIds.some((id) => String(id) === String(table.id)) &&
+        table.isActive
           ? total + table.seatCount
           : total,
       0,
@@ -225,10 +305,7 @@ export default function useStaffCapacity() {
 
     CapacityAPI.getConfiguration()
       .then(
-        ({
-          mealSlots: loadedMealSlots,
-          diningTables: loadedDiningTables,
-        }) => {
+        ({ mealSlots: loadedMealSlots, diningTables: loadedDiningTables }) => {
           if (!isMounted) return;
 
           setMealSlots(loadedMealSlots);
@@ -236,9 +313,7 @@ export default function useStaffCapacity() {
 
           // Select the first loaded slot when configuration is available.
           setSelectedSlotId(
-            loadedMealSlots.length > 0
-              ? String(loadedMealSlots[0].id)
-              : '',
+            loadedMealSlots.length > 0 ? String(loadedMealSlots[0].id) : "",
           );
         },
       )
@@ -268,7 +343,7 @@ export default function useStaffCapacity() {
 
     setSlotForm((current) => ({
       ...current,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   }
 
@@ -282,7 +357,7 @@ export default function useStaffCapacity() {
 
     setTableForm((current) => ({
       ...current,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   }
 
@@ -295,7 +370,7 @@ export default function useStaffCapacity() {
       slotDate: selectedDate,
     });
 
-    setErrorMessage('');
+    setErrorMessage("");
     setIsSlotModalOpen(true);
   }
 
@@ -303,7 +378,7 @@ export default function useStaffCapacity() {
   function openNewTableForm() {
     setEditingTableId(null);
     setTableForm(emptyTableForm);
-    setErrorMessage('');
+    setErrorMessage("");
     setIsTableModalOpen(true);
   }
 
@@ -323,7 +398,7 @@ export default function useStaffCapacity() {
       isActive: slot.isActive,
     });
 
-    setErrorMessage('');
+    setErrorMessage("");
     setIsSlotModalOpen(true);
   }
 
@@ -341,7 +416,7 @@ export default function useStaffCapacity() {
       isActive: table.isActive,
     });
 
-    setErrorMessage('');
+    setErrorMessage("");
     setIsTableModalOpen(true);
   }
 
@@ -353,8 +428,13 @@ export default function useStaffCapacity() {
   function openAssignmentModal(slot) {
     setSelectedSlotId(String(slot.id));
     setSelectedTableIds(slot.tableIds);
-    setErrorMessage('');
-    setFeedbackMessage('');
+    setIsSuggestedConfiguration(false);
+    setSelectionBeforeReuse(null);
+    setReuseMatch(null);
+    setReuseOrder("newest");
+    setAssignmentForNewSlot(false);
+    setErrorMessage("");
+    setFeedbackMessage("");
     setIsAssignmentModalOpen(true);
   }
 
@@ -366,12 +446,12 @@ export default function useStaffCapacity() {
   async function handleSlotSubmit(event) {
     event.preventDefault();
 
-    setErrorMessage('');
-    setFeedbackMessage('');
+    setErrorMessage("");
+    setFeedbackMessage("");
 
     // Require a service name before contacting the server.
     if (!slotForm.name.trim()) {
-      setErrorMessage('Enter a name for the meal slot.');
+      setErrorMessage("Enter a name for the meal slot.");
 
       return;
     }
@@ -382,7 +462,7 @@ export default function useStaffCapacity() {
       !slotForm.endTime ||
       slotForm.endTime <= slotForm.startTime
     ) {
-      setErrorMessage('Choose a valid start time and a later end time.');
+      setErrorMessage("Choose a valid start time and a later end time.");
 
       return;
     }
@@ -414,11 +494,10 @@ export default function useStaffCapacity() {
           ),
         );
 
-        setFeedbackMessage('Meal slot updated successfully.');
+        setFeedbackMessage("Meal slot updated successfully.");
       } else {
-        // Create a slot with no table assignments and select it.
-        const createdMealSlot =
-          await CapacityAPI.createMealSlot(mealSlotData);
+        // Create a slot first, then let the employee confirm its table assignment.
+        const createdMealSlot = await CapacityAPI.createMealSlot(mealSlotData);
 
         /** @type {ConfiguredMealSlot} */
         const newMealSlot = {
@@ -428,13 +507,22 @@ export default function useStaffCapacity() {
 
         setMealSlots((current) => [...current, newMealSlot]);
         setSelectedSlotId(String(newMealSlot.id));
-        setFeedbackMessage('Meal slot added successfully.');
+        setSelectedTableIds([]);
+        setIsSuggestedConfiguration(false);
+        setSelectionBeforeReuse(null);
+        setReuseMatch(null);
+        setReuseOrder("newest");
+        setAssignmentForNewSlot(true);
+        setFeedbackMessage("Meal slot added successfully.");
       }
 
       // Close and reset the form only after a successful save.
       setIsSlotModalOpen(false);
       setEditingSlotId(null);
       setSlotForm(emptySlotForm);
+      if (editingSlotId === null) {
+        setIsAssignmentModalOpen(true);
+      }
     } catch (error) {
       // Keep the form open so the user can correct or retry the request.
       setErrorMessage(getErrorMessage(error));
@@ -451,20 +539,20 @@ export default function useStaffCapacity() {
   async function handleTableSubmit(event) {
     event.preventDefault();
 
-    setErrorMessage('');
-    setFeedbackMessage('');
+    setErrorMessage("");
+    setFeedbackMessage("");
 
     // Convert the input text to a number before validating the seat count.
     const seatCount = Number(tableForm.seatCount);
 
     if (!tableForm.name.trim()) {
-      setErrorMessage('Enter a name for the dining table.');
+      setErrorMessage("Enter a name for the dining table.");
 
       return;
     }
 
     if (!Number.isInteger(seatCount) || seatCount <= 0) {
-      setErrorMessage('Seat count must be a positive whole number.');
+      setErrorMessage("Seat count must be a positive whole number.");
 
       return;
     }
@@ -493,14 +581,14 @@ export default function useStaffCapacity() {
           ),
         );
 
-        setFeedbackMessage('Dining table updated successfully.');
+        setFeedbackMessage("Dining table updated successfully.");
       } else {
         // Add the newly created table to the reusable table list.
         const createdDiningTable =
           await CapacityAPI.createDiningTable(diningTableData);
 
         setDiningTables((current) => [...current, createdDiningTable]);
-        setFeedbackMessage('Dining table added successfully.');
+        setFeedbackMessage("Dining table added successfully.");
       }
 
       // Close and reset the form only after a successful save.
@@ -528,17 +616,60 @@ export default function useStaffCapacity() {
     );
   }
 
+  /**
+   * Select or clear all tables currently shown in the assignment list.
+   *
+   * @param {number[]} tableIds
+   * @param {boolean} selectAll
+   */
+  function toggleAllTableAssignments(tableIds, selectAll) {
+    setSelectedTableIds((current) => {
+      if (!selectAll) {
+        return current.filter(
+          (id) => !tableIds.some((tableId) => String(tableId) === String(id)),
+        );
+      }
+
+      return [
+        ...current,
+        ...tableIds.filter(
+          (tableId) => !current.some((id) => String(id) === String(tableId)),
+        ),
+      ];
+    });
+  }
+
+  // Copy the previous configuration only into the unsaved modal selection.
+  function reusePreviousConfiguration() {
+    if (isSaving || !configuration) return;
+
+    setSelectionBeforeReuse(selectedTableIds);
+    setSelectedTableIds(configuration.tableIds);
+    setIsSuggestedConfiguration(true);
+    setErrorMessage("");
+  }
+
+  // Restore the selection that was visible before reusing a configuration.
+  function undoReuseConfiguration() {
+    if (selectionBeforeReuse) {
+      setSelectedTableIds(selectionBeforeReuse);
+    }
+
+    setSelectionBeforeReuse(null);
+    setIsSuggestedConfiguration(false);
+  }
+
   // Save the selected tables as the complete assignment for the chosen slot.
   async function saveAssignments() {
     // Require a selected slot before submitting table assignments.
     if (!selectedSlot) {
-      setErrorMessage('Choose a meal service before assigning tables.');
+      setErrorMessage("Choose a meal service before assigning tables.");
 
       return;
     }
 
-    setErrorMessage('');
-    setFeedbackMessage('');
+    setErrorMessage("");
+    setFeedbackMessage("");
     setIsSaving(true);
 
     try {
@@ -559,8 +690,10 @@ export default function useStaffCapacity() {
       );
 
       setSelectedTableIds(savedTableIds);
-      setFeedbackMessage('Table assignments saved successfully.');
+      setFeedbackMessage("Table assignments saved successfully.");
       setIsAssignmentModalOpen(false);
+      setIsSuggestedConfiguration(false);
+      setSelectionBeforeReuse(null);
     } catch (error) {
       // Keep the modal open when assignments cannot be saved.
       setErrorMessage(getErrorMessage(error));
@@ -579,14 +712,17 @@ export default function useStaffCapacity() {
     if (isSaving || !value) return;
 
     setSelectedDate(value);
-    setSelectedSlotId('');
+    setSelectedSlotId("");
     setSelectedTableIds([]);
     setEditingSlotId(null);
     setSlotForm(emptySlotForm);
     setIsSlotModalOpen(false);
     setIsAssignmentModalOpen(false);
-    setErrorMessage('');
-    setFeedbackMessage('');
+    setIsSuggestedConfiguration(false);
+    setSelectionBeforeReuse(null);
+    setAssignmentForNewSlot(false);
+    setErrorMessage("");
+    setFeedbackMessage("");
   }
 
   // Expose configuration data, derived values, forms, and actions to components.
@@ -621,6 +757,17 @@ export default function useStaffCapacity() {
     updateSlotField,
     updateTableField,
     openNewSlotForm,
+    isSuggestedConfiguration,
+    previousConfigurationSlot,
+    canOfferReuse,
+    reuseMatch,
+    setReuseMatch,
+    reuseOrder,
+    setReuseOrder,
+    reusableTableCount,
+    assignmentForNewSlot,
+    reusePreviousConfiguration,
+    undoReuseConfiguration,
     openNewTableForm,
     startEditingSlot,
     startEditingTable,
@@ -628,9 +775,15 @@ export default function useStaffCapacity() {
     handleSlotSubmit,
     handleTableSubmit,
     toggleTableAssignment,
+    toggleAllTableAssignments,
     saveAssignments,
     closeSlotModal: () => setIsSlotModalOpen(false),
     closeTableModal: () => setIsTableModalOpen(false),
-    closeAssignmentModal: () => setIsAssignmentModalOpen(false),
+    closeAssignmentModal: () => {
+      setIsAssignmentModalOpen(false);
+      setIsSuggestedConfiguration(false);
+      setSelectionBeforeReuse(null);
+      setAssignmentForNewSlot(false);
+    },
   };
 }
