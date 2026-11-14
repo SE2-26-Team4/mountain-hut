@@ -235,17 +235,6 @@
   max-width: 300px;
 }
 
-:is(button, .btn, [role="button"]):focus:not(:focus-visible) {
-  outline: none !important;
-  box-shadow: none !important;
-}
-
-:is(button, .btn, [role="button"]):focus-visible {
-  outline: var(--mh-border-width-accent) solid var(--mh-navy) !important;
-  outline-offset: var(--mh-border-width-accent);
-  box-shadow: none !important;
-}
-
 @media (max-width: 767px) {
   .mh-auth-heading {
     margin-top: var(--mh-space-4);
@@ -3832,4 +3821,43 @@
     width: 100%;
     margin-top: 0;
   }
+}
+
+/* ==========================================================================
+   ScheduleCopyConfirmationModal — components/capacity/ScheduleCopyConfirmationModal.jsx
+   ========================================================================== */
+
+:where(#schedule-copy-confirmation-title) {
+  padding-inline: var(--mh-cap-size-24);
+}
+
+.modal-header:has(#schedule-copy-confirmation-title) > .btn-close {
+  position: absolute;
+  top: var(--mh-cap-size-16);
+  right: var(--mh-cap-size-16);
+  margin: 0;
+}
+
+:where(
+  .modal-header:has(#schedule-copy-confirmation-title) .mh-cancellation-mark
+) {
+  display: inline-grid;
+  place-items: center;
+  width: 3.75rem;
+  height: 3.75rem;
+  border-radius: 50%;
+  background: #fce8e8;
+  color: #9b2525;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+/* ==========================================================================
+   ScheduleInfo — components/capacity/ScheduleInfo.jsx
+   ========================================================================== */
+
+.cap-schedule-info-popover {
+  --bs-popover-bg: #151515;
+  --bs-popover-border-color: #151515;
+  --bs-popover-body-color: var(--mh-white);
 }
