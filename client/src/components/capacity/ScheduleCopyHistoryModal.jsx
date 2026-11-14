@@ -66,7 +66,7 @@ export default function ScheduleCopyHistoryModal({ onHide, onAddSchedule }) {
       show
       centered
       scrollable
-      fullscreen="sm-down"
+      dialogClassName="cap-schedule-dialog"
       onHide={onHide}
       aria-labelledby="schedule-copy-history-title"
     >

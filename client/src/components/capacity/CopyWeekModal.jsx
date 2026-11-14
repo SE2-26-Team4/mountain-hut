@@ -65,13 +65,14 @@ export default function CopyWeekModal({ date, saving, error, onHide, onCopy }) {
       show
       centered
       scrollable
+      dialogClassName="cap-schedule-dialog"
       onHide={saving ? undefined : onHide}
       backdrop={saving ? "static" : true}
       keyboard={!saving}
       aria-labelledby="copy-week-title"
     >
       <Form
-        className="d-flex flex-column overflow-hidden"
+        className="cap-schedule-modal-form"
         onSubmit={(event) => {
           event.preventDefault();
           if (canCopy) void onCopy(source, destination);
@@ -85,8 +86,6 @@ export default function CopyWeekModal({ date, saving, error, onHide, onCopy }) {
           <p className="text-secondary">
             Copy meal slots and table assignments to another week.
           </p>
-
-          {error && <Alert variant="danger">{error}</Alert>}
 
           <fieldset disabled={saving}>
             <Row className="g-3">
@@ -145,6 +144,8 @@ export default function CopyWeekModal({ date, saving, error, onHide, onCopy }) {
               onChange={setRule}
             />
           </fieldset>
+
+          {error && <Alert variant="danger">{error}</Alert>}
 
           {preview && (
             <div className="bg-light rounded-3 p-3 mt-3" aria-live="polite">

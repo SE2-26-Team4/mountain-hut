@@ -4129,3 +4129,65 @@ button.staff-hiker-option:focus-visible {
   background-color: var(--mh-warning-mark-background);
   color: var(--mh-copper);
 }
+
+/* ==========================================================================
+   Responsive layout for schedule copy dialogs
+   ========================================================================== */
+
+.cap-schedule-dialog.modal-dialog-scrollable .modal-content {
+  max-height: 100%;
+  min-width: 0;
+}
+
+.cap-schedule-dialog .cap-schedule-modal-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cap-schedule-dialog .modal-header,
+.cap-schedule-dialog .modal-footer {
+  flex-shrink: 0;
+}
+
+.cap-schedule-dialog .modal-body {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 575.98px) {
+  .cap-schedule-dialog.modal-dialog-scrollable {
+    height: calc(100dvh - 1rem);
+    min-height: 0;
+    margin: 0.5rem;
+  }
+
+  .cap-schedule-dialog .modal-header,
+  .cap-schedule-dialog .modal-body,
+  .cap-schedule-dialog .modal-footer {
+    padding: 0.75rem;
+  }
+
+  .cap-schedule-dialog .modal-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .cap-schedule-dialog .modal-footer > button {
+    flex: 1 1 8rem;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+    padding-inline: 0.5rem;
+    white-space: normal;
+  }
+
+  .cap-schedule-dialog .list-group-item > button {
+    max-width: 100%;
+    white-space: normal;
+  }
+}

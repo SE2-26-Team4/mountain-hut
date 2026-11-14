@@ -39,6 +39,8 @@ export default function ScheduleCopyConfirmationModal({
     <Modal
       show
       centered
+      scrollable
+      dialogClassName="cap-schedule-dialog"
       onHide={onHide}
       aria-labelledby="schedule-copy-confirmation-title"
     >
