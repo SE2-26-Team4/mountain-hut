@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Form, Modal } from "react-bootstrap";
+import { useRef, useState } from "react";
+import { Col, Form, Modal, Row } from "react-bootstrap";
 
 import SuccessCheck from "../common/SuccessCheck.jsx";
 
@@ -24,15 +24,19 @@ export default function NewHikerModal({
   onContinue,
 }) {
   const [newHikerDraft, setNewHikerDraft] = useState({
-    fullName: "",
+    firstName: "",
+    lastName: "",
     email: "",
     phone: "",
   });
+
+  const firstNameRef = useRef(/** @type {HTMLInputElement | null} */ (null));
 
   return (
     <Modal
       show={show}
       onHide={onHide}
+      onEntered={() => firstNameRef.current?.focus()}
       centered
       aria-labelledby="register-hiker-title"
     >
@@ -76,24 +80,47 @@ export default function NewHikerModal({
           </Modal.Header>
 
           <Modal.Body>
-            <Form.Group className="mb-3" controlId="staff-new-hiker-name">
-              <Form.Label>Full name</Form.Label>
-              <Form.Control
-                autoComplete="name"
-                value={newHikerDraft.fullName}
-                onChange={(event) =>
-                  setNewHikerDraft({
-                    ...newHikerDraft,
-                    fullName: event.target.value,
-                  })
-                }
-              />
-            </Form.Group>
+            <Row className="g-3 mb-3">
+              <Col xs={12} sm={6}>
+                <Form.Group controlId="staff-new-hiker-first-name">
+                  <Form.Label>First name</Form.Label>
+                  <Form.Control
+                    ref={firstNameRef}
+                    autoComplete="given-name"
+                    value={newHikerDraft.firstName}
+                    required
+                    onChange={(event) =>
+                      setNewHikerDraft({
+                        ...newHikerDraft,
+                        firstName: event.target.value,
+                      })
+                    }
+                  />
+                </Form.Group>
+              </Col>
+
+              <Col xs={12} sm={6}>
+                <Form.Group controlId="staff-new-hiker-last-name">
+                  <Form.Label>Last name (optional)</Form.Label>
+                  <Form.Control
+                    autoComplete="family-name"
+                    value={newHikerDraft.lastName}
+                    onChange={(event) =>
+                      setNewHikerDraft({
+                        ...newHikerDraft,
+                        lastName: event.target.value,
+                      })
+                    }
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
 
             <Form.Group className="mb-3" controlId="staff-new-hiker-email">
               <Form.Label>Email</Form.Label>
               <Form.Control
                 type="email"
+                required
                 autoComplete="email"
                 value={newHikerDraft.email}
                 onChange={(event) =>
@@ -125,7 +152,31 @@ export default function NewHikerModal({
             <button type="button" className="cap-outline" onClick={onHide}>
               Cancel
             </button>
+            {/* TODO: Feat — New Hiker First Login
 
+                This modal already has two views: "Register a new hiker" and
+                "Hiker account created". Connect the existing views as follows:
+
+                1. Wire Create account to a submit handler. Require a non-blank
+                first name and a valid email. Trim firstName and lastName, then
+                join the non-empty parts with a space to build fullName.
+                Send fullName, email, and optional phone through
+                BookingAPI.createHiker in client/src/API/booking-api.js
+                with type: "new".
+                Show "Creating account…" and disable submission while it runs.
+                If account creation fails, keep the form open with its values.
+
+                3. In client/src/components/staff-booking/StaffBookingForm.jsx,
+                pass onContinue so the "Continue to booking" button selects the
+                new hiker in Existing and preserves the booking details.
+                Keep the button enabled once the account is created, even if
+                sending the password email fails. Clear the registration result
+                when the modal closes.
+
+                The first-login password change is already implemented on
+                origin/feature/new-hiker-login. See
+                client/src/components/auth/ChangePasswordForm.jsx and
+                server/routes/auth-routes.js on that branch. */}
             <button type="button" className="cap-primary" disabled>
               Create account
             </button>
