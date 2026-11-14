@@ -1,8 +1,6 @@
 const DAY_MS = 86_400_000;
 
-// Proposed limits for one custom repeat: up to 52 weeks or 12 calendar months
-// from the destination start date. Confirm these limits with the backend team.
-export const MAX_REPEAT_WEEKS = 52;
+// Proposed frontend preview limit. Confirm it with the backend team.
 export const MAX_REPEAT_MONTHS = 12;
 
 const dateFormatter = new Intl.DateTimeFormat("en-GB", {
@@ -71,4 +69,76 @@ export function formatScheduleDate(value) {
 /** @param {string} start @param {string} end */
 export function formatScheduleRange(start, end) {
   return dateFormatter.formatRange(parseDate(start), parseDate(end));
+}
+
+/**
+ * @param {string} destination
+ * @param {{ repeat: string, interval: string, end: string,
+ *   endDate: string, copies: string, months: string }} rule
+ */
+export function previewScheduleCopies(destination, rule) {
+  if (!isCalendarDate(destination)) return null;
+
+  if (rule.repeat === "once") {
+    return {
+      weeks: [
+        formatScheduleRange(destination, addCalendarDays(destination, 6)),
+      ],
+      total: 1,
+    };
+  }
+
+  const interval =
+    rule.repeat === "custom"
+      ? Number(rule.interval)
+      : rule.repeat === "biweekly"
+        ? 2
+        : 1;
+
+  const daysBetween = interval * 7;
+  if (!Number.isSafeInteger(daysBetween) || daysBetween < 7) return null;
+
+  let total = Infinity;
+
+  if (rule.end === "copies") {
+    total = Number(rule.copies);
+    if (!Number.isSafeInteger(total) || total < 1) return null;
+  } else if (rule.end === "date" || rule.end === "months") {
+    let lastStart = rule.endDate;
+
+    if (rule.end === "months") {
+      const months = Number(rule.months);
+      if (
+        !Number.isInteger(months) ||
+        months < 1 ||
+        months > MAX_REPEAT_MONTHS
+      ) {
+        return null;
+      }
+
+      lastStart = addCalendarDays(addCalendarMonths(destination, months), -1);
+    }
+
+    if (!isCalendarDate(lastStart) || lastStart < destination) return null;
+
+    const days =
+      (parseDate(lastStart).getTime() - parseDate(destination).getTime()) /
+      DAY_MS;
+    total = Math.floor(days / daysBetween) + 1;
+  }
+
+  const weeks = [];
+  const firstStart = parseDate(destination).getTime();
+
+  for (let index = 0; index < Math.min(total, 4); index += 1) {
+    const start = new Date(firstStart + index * daysBetween * DAY_MS);
+    const end = new Date(start.getTime() + 6 * DAY_MS);
+    if (!Number.isFinite(end.getTime()) || end.getUTCFullYear() > 9999) {
+      return null;
+    }
+
+    weeks.push(dateFormatter.formatRange(start, end));
+  }
+
+  return { weeks, total };
 }
