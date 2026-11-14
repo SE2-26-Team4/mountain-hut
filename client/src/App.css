@@ -3939,20 +3939,18 @@ button.cap-sidebar-toggle:focus-visible {
 }
 
 .staff-hiker-option:hover,
-.btn-check:checked + .staff-hiker-option,
-.staff-hiker-option[aria-expanded="true"] {
+.staff-hiker-option.is-selected {
   border-color: var(--mh-staff-hiker-option-accent);
 }
 
-.btn-check:checked + .staff-hiker-option,
-.staff-hiker-option[aria-expanded="true"] {
+.staff-hiker-option.is-selected {
   background: var(--mh-staff-hiker-option-selected-bg);
 }
 
 .btn-check:focus-visible + .staff-hiker-option,
-.staff-hiker-option:focus-visible {
-  outline: 2px solid var(--mh-staff-hiker-option-accent);
-  outline-offset: 2px;
+button.staff-hiker-option:focus-visible {
+  outline: 2px solid var(--mh-navy) !important;
+  outline-offset: -4px;
 }
 
 .staff-hiker-option-check {

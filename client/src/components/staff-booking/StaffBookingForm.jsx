@@ -236,10 +236,13 @@ export default function StaffBookingForm({ onCancel }) {
                   {value === "new" ? (
                     <button
                       type="button"
-                      className="staff-hiker-option"
+                      className={`staff-hiker-option${isSelected ? " is-selected" : ""}`}
                       aria-haspopup="dialog"
                       aria-expanded={showNewHiker}
-                      onClick={() => setShowNewHiker(true)}
+                      onClick={(event) => {
+                        event.currentTarget.focus();
+                        setShowNewHiker(true);
+                      }}
                     >
                       {content}
                     </button>
