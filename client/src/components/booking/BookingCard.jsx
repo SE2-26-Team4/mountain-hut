@@ -90,31 +90,17 @@ export default function BookingCard({ booking, status, onCancel, onEdit }) {
           <dt>Party size</dt>
           <dd>{booking.partySize}</dd>
 
-          {booking.dietaryRequirements && (
+          {booking.dietaryRequirements?.trim() && (
             <>
               <dt>Dietary requirements</dt>
-              <dd className="mh-booking-dietary mb-0">
-                <span
-                  className="mh-booking-dietary-text"
-                  title={booking.dietaryRequirements}
-                >
-                  {booking.dietaryRequirements}
-                </span>
-              </dd>
+              <dd>Received</dd>
             </>
           )}
 
-          {booking.specialRequests && (
+          {booking.specialRequests?.trim() && (
             <>
               <dt>Special requests</dt>
-              <dd className="mh-booking-dietary mb-0">
-                <span
-                  className="mh-booking-dietary-text"
-                  title={booking.specialRequests}
-                >
-                  {booking.specialRequests}
-                </span>
-              </dd>
+              <dd>Received</dd>
             </>
           )}
         </dl>
