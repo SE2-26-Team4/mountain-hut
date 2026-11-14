@@ -128,7 +128,7 @@ async function saveBooking(
     );
   }
 
-  // [REQUIREMENT] Changes are admitted within 48 hours from the date booked.
+  // [REQUIREMENT] MH-06: Changes are admitted within 48 hours from the date booked.
   if (
     originalBooking &&
     Date.now() >
@@ -272,7 +272,7 @@ async function saveBooking(
     );
   }
 
-  // [REQUIREMENT] Changes to party size are subject to the automatic verification of availability.
+  // [REQUIREMENT] MH-06: Changes to party size are subject to the automatic verification of availability.
   // Calculate free seats for active tables assigned to this slot.
   // Only confirmed bookings for the same date and slot occupy seats.
   /** @type {{ tableId: number, availableSeats: number }[]} */
@@ -308,7 +308,7 @@ async function saveBooking(
     0,
   );
 
-  // [REQUIREMENT] When a hiker increases the party size and the party no longer
+  // [REQUIREMENT] MH-06: When a hiker increases the party size and the party no longer
   // fits at the tables already assigned, it should be treated as a new booking.
   // The current seats are released and the tables are assigned again with the
   // MH-01 rules.
@@ -354,7 +354,7 @@ async function saveBooking(
       if (maximumSeats >= partySize) break;
     }
 
-    // [REQUIREMENT] If there are not enough seats, the change is refused and
+    // [REQUIREMENT] MH-06: If there are not enough seats, the change is refused and
     // the booking stays as it was.
     if (maximumSeats < partySize) {
       throw new BookingError(
