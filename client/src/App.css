@@ -139,7 +139,7 @@
 .mh-auth-card .form-control:-webkit-autofill:focus,
 .mh-auth-card .form-control:-webkit-autofill:active {
   -webkit-text-fill-color: var(--mh-glass-text);
-  -webkit-box-shadow: inset 0 0 0 1000px #fff;
+  -webkit-box-shadow: inset 0 0 0 var(--mh-auth-autofill-shadow-spread) var(--mh-white);
   caret-color: var(--mh-glass-text);
 }
 
@@ -228,7 +228,7 @@
 
 .mh-signout-button {
   width: 100%;
-  max-width: 300px;
+  max-width: var(--mh-signout-button-max-width);
 }
 
 :is(button, .btn, [role="button"]):focus:not(:focus-visible) {
@@ -435,7 +435,7 @@
 
   .mh-login-dialog-visual {
     flex: 0 0 auto;
-    height: 170px;
+    height: var(--mh-login-dialog-visual-height);
   }
 
   .mh-login-dialog-caption {
@@ -820,7 +820,7 @@
   }
 
   .mh-my-bookings .mh-booking-ticket-column .card {
-    max-width: 840px;
+    max-width: var(--mh-booking-ticket-max-width);
     margin-inline-end: auto;
   }
 }
@@ -936,7 +936,7 @@
   flex: 1;
   min-width: 0;
   margin: 0;
-  font-size: 26px;
+  font-size: var(--mh-reservation-title-font-size);
   line-height: 1.3;
   font-weight: 600;
 }
@@ -1006,7 +1006,7 @@
   margin: 0;
   width: var(--mh-cap-size-200);
   max-width: 100%;
-  min-height: 50px;
+  min-height: var(--mh-reservation-done-min-height);
   padding: var(--mh-cap-size-12) var(--mh-cap-size-32);
   border-radius: var(--mh-radius-pill);
   justify-content: center;
@@ -1190,7 +1190,7 @@
 }
 
 .mh-booking-countdown {
-  font-size: 0.75rem;
+  font-size: var(--mh-booking-countdown-font-size);
   font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
@@ -1236,7 +1236,7 @@
 
 @media (min-width: 576px) and (max-width: 1199.98px) {
   .mh-booking-action .mh-booking-search-button {
-    max-width: 22rem;
+    max-width: var(--mh-booking-search-button-max-width);
   }
 }
 
@@ -1635,7 +1635,7 @@
 .cap-assign-dialog .modal-content {
   display: flex;
   flex-direction: column;
-  max-height: 90dvh;
+  max-height: var(--mh-assign-dialog-max-height);
   overflow: hidden;
 }
 
@@ -1657,7 +1657,7 @@
 .cap-assign-dialog .cap-selected-panel {
   display: flex;
   flex-direction: column;
-  height: min(52dvh, 34rem);
+  height: var(--mh-assign-selected-panel-height);
   min-height: 0;
   min-width: 0;
   overflow: hidden;
@@ -1691,20 +1691,20 @@
 }
 
 .cap-assign-dialog .cap-list-count {
-  padding-top: 0.5rem;
+  padding-top: var(--mh-space-2);
 }
 
 .cap-assign-dialog .cap-selected-total {
   position: static;
   flex-shrink: 0;
-  padding-top: 0.75rem;
-  margin-top: 0.75rem !important;
+  padding-top: var(--mh-space-3);
+  margin-top: var(--mh-space-3) !important;
 }
 
 @media (max-width: 750px) {
   .cap-assign-dialog .cap-assign-picker,
   .cap-assign-dialog .cap-selected-panel {
-    height: min(48dvh, 28rem);
+    height: var(--mh-assign-selected-panel-mobile-height);
     min-height: 0;
   }
 }
@@ -1722,8 +1722,8 @@
 }
 
 .cap-date-field {
-  flex: 0 1 220px;
-  width: 220px;
+  flex: 0 1 var(--mh-cap-date-field-width);
+  width: var(--mh-cap-date-field-width);
   max-width: 100%;
   min-width: 0;
   min-height: var(--mh-cap-size-58);
@@ -1783,9 +1783,9 @@
 .cap-datebar .cap-circle-button,
 .cap-date-field {
   transition:
-    background-color 150ms ease,
-    border-color 150ms ease,
-    box-shadow 150ms ease;
+    background-color var(--mh-cap-control-transition-duration) ease,
+    border-color var(--mh-cap-control-transition-duration) ease,
+    box-shadow var(--mh-cap-control-transition-duration) ease;
 }
 
 .cap-datebar .cap-circle-button:hover:not(:disabled),
@@ -1822,8 +1822,8 @@
   }
 
   .cap-date-field {
-    flex: 1 1 160px;
-    max-width: 220px;
+    flex: 1 1 var(--mh-cap-date-field-mobile-basis);
+    max-width: var(--mh-cap-date-field-width);
   }
 }
 
@@ -1998,14 +1998,14 @@
   color: var(--mh-white);
   border: 0;
   border-radius: 0 0 var(--mh-cap-size-22) var(--mh-cap-size-22);
-  box-shadow: 0 var(--mh-cap-size-16) var(--mh-cap-size-40) rgb(0 0 0 / 22%);
+  box-shadow: 0 var(--mh-cap-size-16) var(--mh-cap-size-40) var(--mh-mobile-menu-shadow-color);
 }
 
 .cap-mobile-menu .offcanvas-header {
   flex: 0 0 auto;
   min-height: var(--mh-cap-size-64);
   padding: var(--mh-cap-size-12) var(--mh-cap-size-18);
-  border-bottom: var(--mh-border-width) solid rgb(255 255 255 / 16%);
+  border-bottom: var(--mh-border-width) solid var(--mh-staff-mobile-menu-header-border-color);
 }
 
 .cap-mobile-menu .offcanvas-title {
@@ -2136,8 +2136,8 @@
 }
 
 .cap-sidebar-account .mh-profile .mh-profile-menu {
-  min-width: min(260px, calc(100vw - var(--mh-cap-size-64)));
-  max-width: calc(100vw - var(--mh-cap-size-64));
+  min-width: min(var(--mh-mobile-profile-menu-width), calc(var(--mh-viewport-width) - var(--mh-cap-size-64)));
+  max-width: calc(var(--mh-viewport-width) - var(--mh-cap-size-64));
   overflow-wrap: anywhere;
 }
 
@@ -2306,8 +2306,8 @@
 
 .cap-table-item .cap-icon-button {
   transition:
-    background-color 150ms ease,
-    border-color 150ms ease;
+    background-color var(--mh-cap-control-transition-duration) ease,
+    border-color var(--mh-cap-control-transition-duration) ease;
 }
 
 .cap-table-item .cap-icon-button:hover:not(:disabled) {
@@ -2440,9 +2440,9 @@
 .cap-slot-actions .cap-outline,
 .cap-slot-actions .cap-icon-button {
   transition:
-    background-color 150ms ease,
-    border-color 150ms ease,
-    box-shadow 150ms ease;
+    background-color var(--mh-cap-control-transition-duration) ease,
+    border-color var(--mh-cap-control-transition-duration) ease,
+    box-shadow var(--mh-cap-control-transition-duration) ease;
 }
 
 .cap-slot-actions .cap-outline:hover:not(:disabled),
@@ -3029,7 +3029,7 @@
   border-radius: var(--mh-cap-size-10);
   background: transparent;
   color: inherit;
-  font-size: 26px;
+  font-size: var(--mh-mobile-menu-toggle-font-size);
 }
 
 .mh-menu-toggle:focus-visible {
@@ -3048,7 +3048,7 @@
   border-radius: 0 0 var(--mh-cap-size-22) var(--mh-cap-size-22);
   background: var(--mh-white);
   color: var(--mh-navy);
-  box-shadow: 0 var(--mh-cap-size-16) var(--mh-cap-size-40) rgb(0 0 0 / 22%);
+  box-shadow: 0 var(--mh-cap-size-16) var(--mh-cap-size-40) var(--mh-mobile-menu-shadow-color);
 }
 
 .mh-mobile-menu .offcanvas-header {
@@ -3149,8 +3149,8 @@
 }
 
 .mh-mobile-account .mh-profile .mh-profile-menu {
-  min-width: min(260px, calc(100vw - var(--mh-cap-size-40)));
-  max-width: calc(100vw - var(--mh-cap-size-40));
+  min-width: min(var(--mh-mobile-profile-menu-width), calc(var(--mh-viewport-width) - var(--mh-cap-size-40)));
+  max-width: calc(var(--mh-viewport-width) - var(--mh-cap-size-40));
   overflow-wrap: anywhere;
 }
 
@@ -3213,7 +3213,7 @@
 
   .mh-site-header .mh-site-brand span {
     font-size: var(--mh-cap-size-12);
-    letter-spacing: 1.5px;
+    letter-spacing: var(--mh-mobile-site-brand-letter-spacing);
   }
 }
 
@@ -3493,8 +3493,8 @@
 @media (max-width: 767px) {
   .mh-reserve-hero {
     height: auto;
-    min-height: 440px;
-    padding: 140px 0 var(--mh-cap-size-48);
+    min-height: var(--mh-mobile-reserve-hero-min-height);
+    padding: var(--mh-mobile-reserve-hero-padding-top) 0 var(--mh-cap-size-48);
   }
 
   .mh-reserve-picture {
@@ -3522,7 +3522,7 @@
   }
 
   .mh-hero-content h1 {
-    font-size: clamp(var(--mh-cap-size-28), 7vw, var(--mh-cap-size-36));
+    font-size: clamp(var(--mh-cap-size-28), var(--mh-mobile-hero-heading-fluid-size), var(--mh-cap-size-36));
   }
 
   .mh-hero-subtitle {
@@ -3659,8 +3659,8 @@
 }
 
 .cap-sidebar-column {
-  flex: 0 0 232px;
-  width: 232px;
+  flex: 0 0 var(--mh-staff-sidebar-width);
+  width: var(--mh-staff-sidebar-width);
 }
 
 .cap-main {
@@ -3672,15 +3672,15 @@
 }
 
 button.cap-sidebar-toggle:focus-visible {
-  outline: 2px solid var(--mh-navy) !important;
-  outline-offset: -4px;
+  outline: var(--mh-border-width-accent) solid var(--mh-navy) !important;
+  outline-offset: var(--mh-staff-control-focus-offset);
 }
 
 @media (min-width: 750.01px) {
   .cap-sidebar-toggle {
     position: fixed;
     top: var(--mh-cap-size-12);
-    left: 244px;
+    left: calc(var(--mh-staff-sidebar-width) + var(--mh-cap-size-12));
     z-index: 1030;
     display: inline-flex;
     align-items: center;
@@ -3692,7 +3692,7 @@ button.cap-sidebar-toggle:focus-visible {
     border-radius: var(--mh-cap-size-12);
     background: var(--mh-white);
     color: var(--mh-navy);
-    box-shadow: 0 var(--mh-cap-size-3) var(--mh-cap-size-12) rgb(0 0 0 / 10%);
+    box-shadow: 0 var(--mh-cap-size-3) var(--mh-cap-size-12) var(--mh-staff-sidebar-toggle-shadow-color);
   }
 
   .cap-sidebar-toggle:hover {
@@ -3700,24 +3700,24 @@ button.cap-sidebar-toggle:focus-visible {
   }
 
   .cap-main {
-    padding-top: 68px;
+    padding-top: var(--mh-staff-sidebar-toolbar-height);
   }
 
   .cap-sidebar-column {
-    flex: 0 0 232px;
-    width: 232px;
+    flex: 0 0 var(--mh-staff-sidebar-width);
+    width: var(--mh-staff-sidebar-width);
     min-width: 0;
     overflow: hidden;
     transition:
-      flex-basis 250ms ease,
-      width 250ms ease;
+      flex-basis var(--mh-staff-sidebar-transition-duration) ease,
+      width var(--mh-staff-sidebar-transition-duration) ease;
   }
 
   .cap-sidebar-column .cap-sidebar {
-    width: 232px;
+    width: var(--mh-staff-sidebar-width);
     transition:
-      transform 250ms ease,
-      opacity 250ms ease;
+      transform var(--mh-staff-sidebar-transition-duration) ease,
+      opacity var(--mh-staff-sidebar-transition-duration) ease;
   }
 
   .cap-sidebar-collapsed .cap-sidebar-column {
@@ -3725,9 +3725,9 @@ button.cap-sidebar-toggle:focus-visible {
     width: 0;
     visibility: hidden;
     transition:
-      flex-basis 250ms ease,
-      width 250ms ease,
-      visibility 0s 250ms;
+      flex-basis var(--mh-staff-sidebar-transition-duration) ease,
+      width var(--mh-staff-sidebar-transition-duration) ease,
+      visibility 0s var(--mh-staff-sidebar-transition-duration);
   }
 
   .cap-sidebar-collapsed .cap-sidebar {
@@ -3736,7 +3736,7 @@ button.cap-sidebar-toggle:focus-visible {
   }
 
   .cap-sidebar-toggle {
-    transition: left 250ms ease;
+    transition: left var(--mh-staff-sidebar-transition-duration) ease;
   }
 
   .cap-sidebar-collapsed .cap-sidebar-toggle {
@@ -3906,7 +3906,7 @@ button.cap-sidebar-toggle:focus-visible {
   .cap-tables-footer,
   .cap-slots-footer {
     margin-top: auto;
-    padding-top: 1rem;
+    padding-top: var(--mh-space-4);
     flex-shrink: 0;
   }
 }
@@ -3920,7 +3920,7 @@ button.cap-sidebar-toggle:focus-visible {
 
   .cap-tables > .cap-tables-footer {
     margin-top: auto;
-    padding-top: 1rem;
+    padding-top: var(--mh-space-4);
     flex-shrink: 0;
   }
 }
@@ -4110,8 +4110,8 @@ button.cap-sidebar-toggle:focus-visible {
 
 .btn-check:focus-visible + .staff-hiker-option,
 button.staff-hiker-option:focus-visible {
-  outline: 2px solid var(--mh-navy) !important;
-  outline-offset: -4px;
+  outline: var(--mh-border-width-accent) solid var(--mh-navy) !important;
+  outline-offset: var(--mh-staff-control-focus-offset);
 }
 
 .staff-hiker-option-check {

@@ -397,6 +397,45 @@
   /* Skipped tables in the table assignment modal. */
   --mh-reuse-skipped-list-max-height: 10rem;
   --mh-reuse-skipped-link-underline-offset: 2px;
+
+  /* Authentication controls and login dialog. */
+  --mh-auth-autofill-shadow-spread: 1000px;
+  --mh-signout-button-max-width: 300px;
+  --mh-login-dialog-visual-height: 170px;
+
+  /* Booking cards, reservation confirmation and booking form. */
+  --mh-booking-ticket-max-width: 840px;
+  --mh-reservation-title-font-size: 26px;
+  --mh-reservation-done-min-height: 50px;
+  --mh-booking-countdown-font-size: 0.75rem;
+  --mh-booking-search-button-max-width: 22rem;
+
+  /* Assign tables modal and staff date selector. */
+  --mh-assign-dialog-max-height: 90dvh;
+  --mh-assign-selected-panel-height: min(52dvh, 34rem);
+  --mh-assign-selected-panel-mobile-height: min(48dvh, 28rem);
+  --mh-cap-date-field-width: 220px;
+  --mh-cap-date-field-mobile-basis: 160px;
+  --mh-cap-control-transition-duration: 150ms;
+
+  /* Mobile navigation and profile menus. */
+  --mh-mobile-menu-shadow-color: rgb(0 0 0 / 22%);
+  --mh-staff-mobile-menu-header-border-color: rgb(255 255 255 / 16%);
+  --mh-mobile-profile-menu-width: 260px;
+  --mh-mobile-menu-toggle-font-size: 26px;
+  --mh-mobile-site-brand-letter-spacing: 1.5px;
+
+  /* Mobile reservation hero. */
+  --mh-mobile-reserve-hero-min-height: 440px;
+  --mh-mobile-reserve-hero-padding-top: 140px;
+  --mh-mobile-hero-heading-fluid-size: 7vw;
+
+  /* Staff sidebar layout, collapse transition and control focus. */
+  --mh-staff-sidebar-width: 232px;
+  --mh-staff-sidebar-transition-duration: 250ms;
+  --mh-staff-sidebar-toolbar-height: 68px;
+  --mh-staff-sidebar-toggle-shadow-color: rgb(0 0 0 / 10%);
+  --mh-staff-control-focus-offset: -4px;
 }
 
 /* ==========================================================================
