@@ -648,6 +648,17 @@
   opacity: var(--mh-booking-disabled-opacity);
 }
 
+button.mh-add-dietary-requirement:focus:not(:focus-visible) {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+button.mh-add-dietary-requirement:focus-visible {
+  outline: var(--mh-border-width) solid var(--mh-navy) !important;
+  outline-offset: calc(-1 * var(--mh-border-width-accent));
+  box-shadow: none !important;
+}
+
 @media (min-width: 991.01px) {
   .mh-availability-confirmation-bottom {
     flex-wrap: nowrap;

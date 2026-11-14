@@ -19,12 +19,11 @@ export function buildSpecialRequests(specialRequests, hasFoodAllergies) {
 
   return `${prefix}${requirements.slice(0, remainingLength)}`.trim();
 }
-
 /**
+ * @typedef {{ description: string, hasAllergies: boolean }} DietaryRequirement
  * @typedef {{
- *   showDietary: boolean,
- *   dietary: string,
- *   hasAllergies: boolean,
+ *   dietaryAnswer: "yes" | "no" | null,
+ *   dietaryRequirements: DietaryRequirement[],
  *   special: string,
  * }} BookingRequests
  */
@@ -34,66 +33,138 @@ const SPECIAL_HEADING = "Special requests:";
 
 /** @returns {BookingRequests} */
 export function emptyBookingRequests() {
-  return { showDietary: false, dietary: "", hasAllergies: false, special: "" };
+  return { dietaryAnswer: null, dietaryRequirements: [], special: "" };
 }
 
 /** @param {BookingRequests} requests */
 export function formatBookingRequests(requests) {
-  const dietary = requests.showDietary ? requests.dietary.trim() : "";
-  const allergies = requests.showDietary && requests.hasAllergies;
-  const special = requests.special.trim();
+  const { dietaryRequirements, specialRequests } =
+    toBookingRequestFields(requests);
 
   return [
-    allergies ? FOOD_ALLERGY_REQUEST : "",
-    dietary ? `${DIETARY_HEADING}\n${dietary}` : "",
-    special ? `${SPECIAL_HEADING}\n${special}` : "",
+    dietaryRequirements ? `${DIETARY_HEADING}\n${dietaryRequirements}` : "",
+    specialRequests ? `${SPECIAL_HEADING}\n${specialRequests}` : "",
   ]
     .filter(Boolean)
     .join("\n\n");
 }
 
-/** @param {string} [saved] */
-export function readBookingRequests(saved = "") {
-  const [firstLine, ...remainingLines] = saved.split("\n");
+/**
+ * @param {string} [savedSpecial]
+ * @param {string} [savedDietary]
+ * @returns {BookingRequests}
+ */
+export function readBookingRequests(savedSpecial = "", savedDietary = "") {
+  if (savedDietary) {
+    try {
+      const entries = JSON.parse(savedDietary);
+      if (
+        Array.isArray(entries) &&
+        entries.every(
+          (entry) =>
+            typeof entry?.description === "string" &&
+            typeof entry?.hasAllergies === "boolean",
+        )
+      ) {
+        return {
+          dietaryAnswer: entries.length > 0 ? "yes" : "no",
+          dietaryRequirements: entries,
+          special: savedSpecial,
+        };
+      }
+    } catch {
+      // Keep the original text editable if the saved list cannot be read.
+    }
+  }
+
+  if (savedDietary) {
+    return {
+      dietaryAnswer: "yes",
+      dietaryRequirements: [{ description: savedDietary, hasAllergies: false }],
+      special: savedSpecial,
+    };
+  }
+
+  const [firstLine, ...remainingLines] = savedSpecial.split("\n");
   const hasAllergies = firstLine === FOOD_ALLERGY_REQUEST;
-  const text = hasAllergies ? remainingLines.join("\n").trimStart() : saved;
-  const requests = { ...emptyBookingRequests(), hasAllergies };
+  const text = hasAllergies
+    ? remainingLines.join("\n").trimStart()
+    : savedSpecial;
+
+  let description = "";
+  let special = "";
 
   if (text.startsWith(`${DIETARY_HEADING}\n`)) {
     const body = text.slice(DIETARY_HEADING.length + 1);
     const separator = `\n\n${SPECIAL_HEADING}\n`;
     const splitAt = body.indexOf(separator);
 
-    requests.dietary = splitAt < 0 ? body : body.slice(0, splitAt);
-    requests.special =
-      splitAt < 0 ? "" : body.slice(splitAt + separator.length);
+    description = splitAt < 0 ? body : body.slice(0, splitAt);
+    special = splitAt < 0 ? "" : body.slice(splitAt + separator.length);
   } else if (text.startsWith(`${SPECIAL_HEADING}\n`)) {
-    requests.special = text.slice(SPECIAL_HEADING.length + 1);
+    special = text.slice(SPECIAL_HEADING.length + 1);
   } else if (hasAllergies) {
-    requests.dietary = text;
+    description = text;
   } else {
-    requests.special = text;
+    special = text;
   }
 
-  requests.showDietary = hasAllergies || Boolean(requests.dietary);
-  return requests;
+  return {
+    dietaryAnswer: description || hasAllergies ? "yes" : "no",
+    dietaryRequirements:
+      description || hasAllergies ? [{ description, hasAllergies }] : [],
+    special,
+  };
 }
 
 /** @param {BookingRequests} requests */
 export function toBookingRequestFields(requests) {
+  const entries = (
+    requests.dietaryAnswer === "yes" ? requests.dietaryRequirements : []
+  )
+    .map(({ description, hasAllergies }) => ({
+      description: description.trim(),
+      hasAllergies,
+    }))
+    .filter(({ description, hasAllergies }) => description || hasAllergies);
+
   return {
-    dietaryRequirements: requests.showDietary ? requests.dietary.trim() : "",
+    dietaryRequirements: entries.length ? JSON.stringify(entries) : "",
     specialRequests: requests.special.trim(),
   };
 }
 
 /** @param {BookingRequests} requests */
-export function bookingRequestsTooLong(requests) {
-  const { dietaryRequirements, specialRequests } =
-    toBookingRequestFields(requests);
+export function hasUndescribedAllergy(requests) {
+  return requests.dietaryRequirements.some(
+    ({ description, hasAllergies }) => hasAllergies && !description.trim(),
+  );
+}
+
+/**
+ * @param {BookingRequests} requests
+ * @param {number} partySize
+ */
+export function dietaryRequirementsIncomplete(requests, partySize) {
+  if (requests.dietaryAnswer === null) return true;
+  if (requests.dietaryAnswer === "no") return false;
 
   return (
-    dietaryRequirements.length > MAX_SPECIAL_REQUEST_LENGTH ||
-    specialRequests.length > MAX_SPECIAL_REQUEST_LENGTH
+    requests.dietaryRequirements.length > partySize ||
+    !requests.dietaryRequirements.some(({ description }) =>
+      description.trim(),
+    ) ||
+    hasUndescribedAllergy(requests)
+  );
+}
+
+/** @param {BookingRequests} requests */
+export function bookingRequestsTooLong(requests) {
+  return (
+    requests.special.length > MAX_SPECIAL_REQUEST_LENGTH ||
+    (requests.dietaryAnswer === "yes" &&
+      requests.dietaryRequirements.some(
+        ({ description }) => description.length > MAX_SPECIAL_REQUEST_LENGTH,
+      ))
   );
 }

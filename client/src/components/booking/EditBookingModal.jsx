@@ -4,6 +4,7 @@ import { Button, Form, Modal } from "react-bootstrap";
 import BookingAPI from "../../API/booking-api.js";
 import {
   bookingRequestsTooLong,
+  dietaryRequirementsIncomplete,
   readBookingRequests,
   toBookingRequestFields,
 } from "../../utils/booking-requirements.js";
@@ -21,18 +22,9 @@ export default function EditBookingModal({ booking, onClose, onSaved }) {
   const [bookingDate, setBookingDate] = useState(booking.bookingDate);
   const [slotId, setSlotId] = useState(String(booking.slotId));
   const [partySize, setPartySize] = useState(String(booking.partySize));
-  const [requests, setRequests] = useState(() => {
-    if (booking.dietaryRequirements) {
-      return {
-        showDietary: true,
-        dietary: booking.dietaryRequirements,
-        hasAllergies: false,
-        special: booking.specialRequests ?? "",
-      };
-    }
-
-    return readBookingRequests(booking.specialRequests);
-  });
+  const [requests, setRequests] = useState(() =>
+    readBookingRequests(booking.specialRequests, booking.dietaryRequirements),
+  );
   const [mealSlots, setMealSlots] = useState(
     /** @type {import("../../models/models.js").MealSlotDTO[]} */ ([]),
   );
@@ -42,7 +34,11 @@ export default function EditBookingModal({ booking, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [openedAt] = useState(() => Date.now());
 
-  const requestsTooLong = bookingRequestsTooLong(requests);
+  const cannotSave =
+    saving ||
+    !slotId ||
+    bookingRequestsTooLong(requests) ||
+    dietaryRequirementsIncomplete(requests, Number(partySize));
 
   useEffect(() => {
     let active = true;
@@ -78,7 +74,7 @@ export default function EditBookingModal({ booking, onClose, onSaved }) {
   /** @param {import("react").SubmitEvent<HTMLFormElement>} event */
   async function handleSubmit(event) {
     event.preventDefault();
-    if (saving || !slotId || requestsTooLong) return;
+    if (cannotSave) return;
 
     setSaving(true);
     setSaveError("");
@@ -226,11 +222,7 @@ export default function EditBookingModal({ booking, onClose, onSaved }) {
           >
             Cancel
           </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={saving || !slotId || requestsTooLong}
-          >
+          <Button type="submit" variant="primary" disabled={cannotSave}>
             {saving ? "Saving…" : "Save changes"}
           </Button>
         </Modal.Footer>
