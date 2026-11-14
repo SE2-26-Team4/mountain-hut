@@ -3987,6 +3987,22 @@ button.cap-sidebar-toggle:focus-visible {
   color: var(--mh-copper);
 }
 
+@media (max-width: 575.98px) {
+  .mh-staff-login-page {
+    padding: var(--mh-space-4);
+  }
+
+  .mh-staff-login-page > .mh-staff-login-card {
+    padding: var(--mh-cap-size-20);
+  }
+}
+
+@media (max-height: 650px) {
+  .mh-staff-login-page.align-items-center {
+    align-items: flex-start !important;
+  }
+}
+
 /* ==========================================================================
    ScheduleCopyActions — components/capacity/ScheduleCopyActions.jsx
    ========================================================================== */
