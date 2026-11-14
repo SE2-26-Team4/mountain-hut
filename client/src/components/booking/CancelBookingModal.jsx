@@ -1,8 +1,9 @@
-import { Modal, Spinner } from 'react-bootstrap';
+import { Button, Modal, Spinner } from "react-bootstrap";
 
-import { formatCount } from '../../utils/formatCount.js';
-import { formatBookingDate } from '../../utils/formatBookingDate.js';
-import Alert from '../common/AutoDismissAlert.jsx';
+import { formatCount } from "../../utils/formatCount.js";
+import { formatBookingDate } from "../../utils/formatBookingDate.js";
+import Alert from "../common/AutoDismissAlert.jsx";
+import CancellationMark from "../common/CancellationMark.jsx";
 
 /**
  * @typedef {import('../../models/models.js').BookingDTO} BookingDTO
@@ -29,7 +30,6 @@ export default function CancelBookingModal({
   onHide,
   onExited,
 }) {
-  // Keep the modal open until the request has finished.
   const handleHide = () => {
     if (!isCancelling) onHide();
   };
@@ -39,81 +39,81 @@ export default function CancelBookingModal({
       show={show}
       onHide={handleHide}
       onExited={onExited}
-      backdrop={isCancelling ? 'static' : true}
+      backdrop={isCancelling ? "static" : true}
       keyboard={!isCancelling}
       centered
+      contentClassName="mh-reservation-modal"
       aria-labelledby="cancel-booking-title"
     >
-      <Modal.Header closeButton={!isCancelling}>
-        <Modal.Title id="cancel-booking-title">
-          Cancel booking?
-        </Modal.Title>
+      <Modal.Header
+        closeButton={!isCancelling}
+        className="mh-reservation-header mh-reservation-header-centered"
+      >
+        <div className="flex-grow-1 text-center">
+          <CancellationMark />
+
+          <Modal.Title
+            id="cancel-booking-title"
+            className="mh-reservation-title mt-3"
+          >
+            {booking ? `Cancel booking #${booking.id}?` : "Cancel booking?"}
+          </Modal.Title>
+        </div>
       </Modal.Header>
 
       <Modal.Body>
         {errorMessage && (
-          <Alert variant="danger">
+          <Alert variant="danger" timeout={5000}>
             {errorMessage}
           </Alert>
         )}
 
         {booking && (
           <>
-            <p>
-              You are about to cancel booking #{booking.id}.
-            </p>
+            <dl className="mb-3">
+              <dt className="fw-normal">Date</dt>
+              <dd>{formatBookingDate(booking.bookingDate)}</dd>
 
-            <dl className="bg-light rounded-3 px-3 py-3 mb-3">
-              <dt className="small text-secondary fw-normal">Date</dt>
-              <dd className="fw-semibold">
-                {formatBookingDate(booking.bookingDate)}
-              </dd>
-
-              <dt className="small text-secondary fw-normal">Party size</dt>
-              <dd className="fw-semibold mb-0">
-                {formatCount(booking.partySize, 'guest')}
+              <dt className="fw-normal">Party size</dt>
+              <dd className="mb-0">
+                {formatCount(booking.partySize, "guest")}
               </dd>
             </dl>
 
             <p className="text-secondary mb-0">
-              Your seats will be released for other guests. This action
-              cannot be undone.
+              Your seats will be released for other guests. This action cannot
+              be undone.
             </p>
           </>
         )}
       </Modal.Body>
 
-      <Modal.Footer className="mh-cancel-booking-footer">
-        {/* Plain buttons keep Bootstrap's state colors off the theme. */}
-        <button
+      <Modal.Footer className="justify-content-end">
+        <Button
           type="button"
-          className="mh-primary-button"
+          variant="outline-secondary"
           onClick={handleHide}
           disabled={isCancelling}
         >
           Keep booking
-        </button>
-
-        <button
+        </Button>
+        <Button
           type="button"
-          className="mh-cancel-booking-button"
+          variant="danger"
           onClick={onConfirm}
           disabled={isCancelling || !booking}
         >
-          {isCancelling ? (
-            <>
-              <Spinner
-                as="span"
-                animation="border"
-                size="sm"
-                aria-hidden="true"
-              />
-              Cancelling…
-            </>
-          ) : (
-            'Cancel booking'
+          {isCancelling && (
+            <Spinner
+              as="span"
+              animation="border"
+              size="sm"
+              className="me-2"
+              aria-hidden="true"
+            />
           )}
-        </button>
+          {isCancelling ? "Cancelling…" : "Cancel booking"}
+        </Button>
       </Modal.Footer>
     </Modal>
   );

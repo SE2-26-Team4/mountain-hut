@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
-import { Alert } from 'react-bootstrap';
-import { Link, Route, Routes, useLocation } from 'react-router-dom';
+import { useEffect } from "react";
+import { Alert } from "react-bootstrap";
+import { Link, Route, Routes, useLocation } from "react-router-dom";
 
 import { AuthProvider } from './contexts/AuthContext.jsx';
 import { useAuthLogic } from './hooks/useAuthLogic.js';
@@ -11,6 +11,7 @@ import StaffCapacityPage from './pages/StaffCapacityPage.jsx';
 import MyBookingsPage from './pages/MyBookingsPage.jsx';
 import StaffAccessNotice from './components/auth/StaffAccessNotice.jsx';
 import ChangePasswordForm from './components/auth/ChangePasswordForm.jsx';
+import StaffBookingPage from "./pages/StaffBookingPage.jsx";
 
 /**
  * @param {Object} props
@@ -44,12 +45,12 @@ function App() {
   const { pathname } = useLocation();
 
   const isStaff =
-    auth.user?.role === 'employee' ||
-    auth.user?.role === 'warden';
+    auth.user?.role === "employee" || auth.user?.role === "warden";
 
   const isStaffPage =
-    pathname === '/staff/capacity' ||
-    pathname === '/staff/login';
+    pathname === "/staff/capacity" ||
+    pathname === "/staff/bookings" ||
+    pathname === "/staff/login";
 
   if (auth.isLoading) {
     return <main role="status">Loading Mountain Hut…</main>;
@@ -83,28 +84,30 @@ function App() {
       {isStaff && !isStaffPage ? (
         <StaffAccessNotice />
       ) : (
-      <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Routes>
+          <Route path="/" element={<HomePage />} />
 
-        <Route path="/menu" element={<MenuPage />} />
+          <Route path="/menu" element={<MenuPage />} />
 
-        <Route path="/staff/login" element={<StaffLoginPage />} />
+          <Route path="/staff/login" element={<StaffLoginPage />} />
 
-        <Route path="/staff/capacity" element={<StaffCapacityPage />} />
+          <Route path="/staff/capacity" element={<StaffCapacityPage />} />
 
-        <Route path="/my-bookings" element={<MyBookingsPage />} />
+          <Route path="/staff/bookings" element={<StaffBookingPage />} />
 
-        <Route
-          path="*"
-          element={
-            <main>
-              <h1>Page not found</h1>
+          <Route path="/my-bookings" element={<MyBookingsPage />} />
 
-              <Link to="/">Return to home</Link>
-            </main>
-          }
-        />
-      </Routes>
+          <Route
+            path="*"
+            element={
+              <main>
+                <h1>Page not found</h1>
+
+                <Link to="/">Return to home</Link>
+              </main>
+            }
+          />
+        </Routes>
       )}
     </AuthProvider>
   );

@@ -1,12 +1,12 @@
-import { Button, Col, Form, Row, Spinner } from 'react-bootstrap';
+import { Button, Col, Row, Spinner } from "react-bootstrap";
+import { Link } from "react-router-dom";
 
-import {
-  FOOD_ALLERGY_REQUEST,
-  MAX_SPECIAL_REQUEST_LENGTH,
-} from '../../utils/booking-requirements.js';
+import SuccessCheck from "../common/SuccessCheck.jsx";
+import WarningMark from "../common/WarningMark.jsx";
+import BookingRequestFields from "./BookingRequestFields.jsx";
 
 /**
- * @typedef {ReturnType<typeof import('../../hooks/useBookingLogic.js').default>} BookingState
+ * @typedef {ReturnType<typeof import("../../hooks/useBookingLogic.js").default>} BookingState
  */
 
 /**
@@ -14,9 +14,10 @@ import {
  * @param {BookingState} props.booking
  * @param {boolean} props.isAuthenticated
  */
-function BookingAvailability({ booking, isAuthenticated }) {
+export default function BookingAvailability({ booking, isAuthenticated }) {
   const {
     availability,
+    alreadyBooked,
     formattedBookingDate,
     selectedMealSlot,
     requestedPartySize,
@@ -24,21 +25,19 @@ function BookingAvailability({ booking, isAuthenticated }) {
     isBooking,
     handleReserve,
     isBookingWindowClosed,
-    specialRequests,
-    changeSpecialRequests,
-    hasFoodAllergies,
-    changeFoodAllergies,
+    requests,
+    setRequests,
+    requestsTooLong,
   } = booking;
 
   if (!availability) return null;
 
   const guestLabel = `${requestedPartySize} ${
-    requestedPartySize === 1 ? 'guest' : 'guests'
+    requestedPartySize === 1 ? "guest" : "guests"
   }`;
-
-  const mealLabel = selectedMealSlot?.name || 'Selected service';
-
-  const canBook = canAccommodateParty && !isBookingWindowClosed;
+  const mealLabel = selectedMealSlot?.name || "Selected service";
+  const canBook =
+    canAccommodateParty && !isBookingWindowClosed && !alreadyBooked;
 
   return (
     <section
@@ -50,49 +49,46 @@ function BookingAvailability({ booking, isAuthenticated }) {
         <div
           className={`mh-availability-status d-flex align-items-center ${
             canBook
-              ? 'mh-availability-status-success'
-              : 'mh-availability-status-unavailable'
+              ? "mh-availability-status-success"
+              : "mh-availability-status-unavailable"
           }`}
           role="status"
         >
-          <span
-            className="mh-availability-status-icon d-flex align-items-center justify-content-center"
-            aria-hidden="true"
-          >
-            {canBook ? (
-              <i className="bi bi-check-lg" />
-            ) : (
-              '!'
-            )}
-          </span>
+          {canBook ? <SuccessCheck /> : <WarningMark />}
 
           <div className="mh-availability-status-content">
             <h2 id="availability-title">
-              {isBookingWindowClosed
-                ? 'Bookings are closed'
-                : canAccommodateParty
-                  ? 'A table is available'
-                  : 'No tables available'}
+              {alreadyBooked
+                ? "You already have a booking"
+                : isBookingWindowClosed
+                  ? "Bookings are closed"
+                  : canAccommodateParty
+                    ? "A table is available"
+                    : "No tables available"}
             </h2>
 
             <p className="mb-0">
-              {isBookingWindowClosed ? (
+              {alreadyBooked ? (
+                <>
+                  You already have a confirmed booking for this meal slot on{" "}
+                  <strong>{formattedBookingDate}</strong>. You can view it in{" "}
+                  <Link to="/my-bookings">My Bookings</Link>.
+                </>
+              ) : isBookingWindowClosed ? (
                 <>
                   Bookings close two hours before the meal service starts.
                   Please choose another date or service.
                 </>
               ) : canAccommodateParty ? (
                 <>
-                  We can welcome {guestLabel} for{' '}
-                  {mealLabel.toLowerCase()} on{' '}
+                  We can welcome {guestLabel} for {mealLabel.toLowerCase()} on{" "}
                   <strong>{formattedBookingDate}</strong>.
                 </>
               ) : (
                 <>
-                  Unfortunately, we cannot accommodate{' '}
-                  {guestLabel} for {mealLabel.toLowerCase()}{' '}
-                  on {formattedBookingDate}. Please try another
-                  date, meal service, or party size.
+                  Unfortunately, we cannot accommodate {guestLabel} for{" "}
+                  {mealLabel.toLowerCase()} on {formattedBookingDate}. Please
+                  try another date, meal service, or party size.
                 </>
               )}
             </p>
@@ -100,63 +96,17 @@ function BookingAvailability({ booking, isAuthenticated }) {
         </div>
 
         {canBook && (
-          <Form.Group
-            className="px-3 px-md-4 py-3"
-          >
-            <Row className="g-3 align-items-start">
-              <Col xs={12} md={9}>
-                <Form.Group controlId="booking-special-requests">
-                  <Form.Label>
-                    Dietary requirements or other special requests
-                    (optional)
-                  </Form.Label>
-
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    maxLength={
-                      hasFoodAllergies
-                        ? MAX_SPECIAL_REQUEST_LENGTH -
-                          FOOD_ALLERGY_REQUEST.length -
-                          1
-                        : MAX_SPECIAL_REQUEST_LENGTH
-                    }
-                    value={specialRequests}
-                    onChange={(event) =>
-                      changeSpecialRequests(event.target.value)
-                    }
-                    disabled={isBooking}
-                    placeholder="For example: intolerances or dietary requirements for your group."
-                    aria-describedby="booking-special-requests-help"
-                  />
-                </Form.Group>
-              </Col>
-
-              <Col xs={12} md={3} className="pt-md-4">
-                <Form.Check
-                  id="booking-food-allergies"
-                  type="checkbox"
-                  label="I have a food allergy"
-                  checked={hasFoodAllergies}
-                  onChange={(event) =>
-                    changeFoodAllergies(event.target.checked)
-                  }
-                  disabled={isBooking}
-                />
-              </Col>
-            </Row>
-
-            <Form.Text
-              id="booking-special-requests-help"
-              className="text-muted"
-            >
-              Maximum 1,000 characters total. Selecting the allergy
-              checkbox is included in your booking details.
-            </Form.Text>
-          </Form.Group>
+          <div className="px-3 px-md-4 py-3">
+            <BookingRequestFields
+              requests={requests}
+              onChange={setRequests}
+              partySize={requestedPartySize}
+              disabled={isBooking}
+            />
+          </div>
         )}
 
-        {canAccommodateParty && (
+        {canAccommodateParty && !alreadyBooked && (
           <Row className="g-0 align-items-center mh-availability-confirmation-bottom">
             <Col xs={12} className="mh-availability-details">
               <Row className="g-0 align-items-center mh-availability-confirmation-info">
@@ -173,10 +123,7 @@ function BookingAvailability({ booking, isAuthenticated }) {
                   </span>
 
                   <div className="d-flex flex-column">
-                    <span className="mh-availability-info-label">
-                      Date
-                    </span>
-
+                    <span className="mh-availability-info-label">Date</span>
                     <strong>{formattedBookingDate}</strong>
                   </div>
                 </Col>
@@ -200,7 +147,6 @@ function BookingAvailability({ booking, isAuthenticated }) {
 
                     <strong>
                       {mealLabel}
-
                       <span className="d-block">
                         {availability.startTime}–{availability.endTime}
                       </span>
@@ -221,10 +167,7 @@ function BookingAvailability({ booking, isAuthenticated }) {
                   </span>
 
                   <div className="d-flex flex-column">
-                    <span className="mh-availability-info-label">
-                      Guests
-                    </span>
-
+                    <span className="mh-availability-info-label">Guests</span>
                     <strong>{guestLabel}</strong>
                   </div>
                 </Col>
@@ -234,35 +177,30 @@ function BookingAvailability({ booking, isAuthenticated }) {
             <Col xs={12} className="mh-availability-actions">
               {!isAuthenticated && !isBookingWindowClosed && (
                 <p className="text-secondary small mb-2">
-                  Sign in to confirm your reservation.
-                  Your selection will be saved.
+                  Sign in to confirm your reservation. Your selection will be
+                  saved.
                 </p>
               )}
 
               <Button
                 className="mh-booking-confirm-button d-flex align-items-center justify-content-between w-100"
                 type="button"
-                disabled={isBooking || isBookingWindowClosed}
+                disabled={isBooking || isBookingWindowClosed || requestsTooLong}
                 onClick={handleReserve}
               >
                 {isBooking ? (
                   <>
-                    <Spinner
-                      size="sm"
-                      animation="border"
-                      aria-hidden="true"
-                    />
-
+                    <Spinner size="sm" animation="border" aria-hidden="true" />
                     <span>Confirming…</span>
                   </>
                 ) : (
                   <>
                     <span>
                       {isBookingWindowClosed
-                        ? 'Bookings closed'
+                        ? "Bookings closed"
                         : isAuthenticated
-                          ? 'Confirm reservation'
-                          : 'Sign in to continue'}
+                          ? "Confirm reservation"
+                          : "Sign in to continue"}
                     </span>
 
                     <span aria-hidden="true">→</span>
@@ -276,5 +214,3 @@ function BookingAvailability({ booking, isAuthenticated }) {
     </section>
   );
 }
-
-export default BookingAvailability;

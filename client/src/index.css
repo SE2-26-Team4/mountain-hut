@@ -2,10 +2,11 @@
 
 :root {
   /* Shared typography */
-  --mh-font-sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
-  --mh-text-xs: .7rem;
-  --mh-text-sm: .8rem;
-  --mh-text-md: .9rem;
+  --mh-font-sans:
+    -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  --mh-text-xs: 0.7rem;
+  --mh-text-sm: 0.8rem;
+  --mh-text-md: 0.9rem;
   --mh-text-base: 1rem;
   --mh-text-lg: 1.2rem;
   --mh-text-xl: 1.5rem;
@@ -17,9 +18,9 @@
   --mh-line-tight: 1.1;
   --mh-line-normal: 1.5;
   --mh-line-relaxed: 1.7;
-  --mh-tracking-tight: -.04em;
-  --mh-tracking-wide: .12em;
-  --mh-tracking-brand: .25em;
+  --mh-tracking-tight: -0.04em;
+  --mh-tracking-wide: 0.12em;
+  --mh-tracking-brand: 0.25em;
 
   /* Shared palette, layout and effects */
   --mh-navy: #14283a;
@@ -37,15 +38,15 @@
   --mh-content-width: 90rem;
   --mh-page-padding: clamp(1.25rem, 4.5vw, 4rem);
   --mh-loading-height: 60vh;
-  --mh-disabled-opacity: .65;
-  --mh-shadow-card: 0 .75rem 2.5rem rgb(20 40 58 / 8%);
-  --mh-focus-ring: 0 0 0 .2rem rgb(198 83 27 / 15%);
+  --mh-disabled-opacity: 0.65;
+  --mh-shadow-card: 0 0.75rem 2.5rem rgb(20 40 58 / 8%);
+  --mh-focus-ring: 0 0 0 0.2rem rgb(198 83 27 / 15%);
   --mh-transition: 160ms ease;
 
   /* Spacing, borders and geometry */
-  --mh-space-1: .25rem;
-  --mh-space-2: .5rem;
-  --mh-space-3: .75rem;
+  --mh-space-1: 0.25rem;
+  --mh-space-2: 0.5rem;
+  --mh-space-3: 0.75rem;
   --mh-space-4: 1rem;
   --mh-space-5: 1.25rem;
   --mh-space-6: 1.5rem;
@@ -55,7 +56,7 @@
   --mh-border-width: 1px;
   --mh-border-width-accent: 2px;
   --mh-svg-stroke-width: 2;
-  --mh-radius-md: .5rem;
+  --mh-radius-md: 0.5rem;
   --mh-radius-xl: 1.25rem;
   --mh-radius-pill: 999px;
   --mh-radius-circle: 50%;
@@ -69,23 +70,23 @@
   --mh-glass-overlay-padding: 1.5rem;
   --mh-glass-panel-padding: clamp(2.5rem, 4vw, 3.5rem);
   --mh-glass-caption-padding: clamp(3rem, 5vw, 4.5rem);
-  --mh-glass-brand-gap: .4rem;
+  --mh-glass-brand-gap: 0.4rem;
   --mh-glass-photo-gap: 1.25rem;
   --mh-glass-photo-margin: 2.5rem;
   --mh-glass-photo-text-width: 22rem;
   --mh-glass-heading-top: 2rem;
   --mh-glass-input-height: 3.25rem;
-  --mh-glass-input-radius: .65rem;
+  --mh-glass-input-radius: 0.65rem;
   --mh-glass-input-padding-left: 2.9rem;
   --mh-glass-input-padding-right: 4.5rem;
   --mh-glass-icon-size: 1.2rem;
-  --mh-glass-icon-left: .9rem;
-  --mh-glass-toggle-right: .9rem;
+  --mh-glass-icon-left: 0.9rem;
+  --mh-glass-toggle-right: 0.9rem;
   --mh-glass-close-offset: 1.25rem;
   --mh-glass-close-size: 2rem;
   --mh-glass-mobile-photo-height: 14rem;
   --mh-glass-blur: 1.75rem;
-  --mh-glass-overlay-blur: .6rem;
+  --mh-glass-overlay-blur: 0.6rem;
   --mh-glass-overlay: rgb(8 17 29 / 55%);
   --mh-glass-border: rgb(255 255 255 / 28%);
   --mh-glass-text: #fff;
@@ -95,8 +96,18 @@
   --mh-glass-input-background: rgb(255 255 255 / 9%);
   --mh-glass-input-focus-background: rgb(255 255 255 / 15%);
   --mh-glass-input-border: rgb(255 255 255 / 22%);
-  --mh-glass-panel-gradient: linear-gradient(145deg, rgb(45 55 85 / 55%), rgb(82 57 79 / 45%) 48%, rgb(26 36 54 / 62%));
-  --mh-glass-photo-overlay: linear-gradient(180deg, rgb(8 20 35 / 35%), rgb(8 20 35 / 5%) 55%, rgb(8 20 35 / 20%));
+  --mh-glass-panel-gradient: linear-gradient(
+    145deg,
+    rgb(45 55 85 / 55%),
+    rgb(82 57 79 / 45%) 48%,
+    rgb(26 36 54 / 62%)
+  );
+  --mh-glass-photo-overlay: linear-gradient(
+    180deg,
+    rgb(8 20 35 / 35%),
+    rgb(8 20 35 / 5%) 55%,
+    rgb(8 20 35 / 20%)
+  );
   --mh-glass-shadow: 0 1.5rem 5rem rgb(0 0 0 / 30%);
   --mh-login-panel-padding-x: clamp(2.5rem, 4vw, 4rem);
   --mh-login-panel-padding-y: clamp(2.5rem, 4vw, 3.5rem);
@@ -109,7 +120,12 @@
   --mh-dine-hero-title-size: clamp(2.8rem, 5.2vw, 5rem);
   --mh-dine-hero-subtitle-size: clamp(1.2rem, 2vw, 1.75rem);
   --mh-dine-hero-text: rgb(255 255 255 / 85%);
-  --mh-dine-hero-overlay: linear-gradient(90deg, rgb(9 23 40 / 72%) 0%, rgb(9 23 40 / 25%) 58%, rgb(9 23 40 / 8%) 100%);
+  --mh-dine-hero-overlay: linear-gradient(
+    90deg,
+    rgb(9 23 40 / 72%) 0%,
+    rgb(9 23 40 / 25%) 58%,
+    rgb(9 23 40 / 8%) 100%
+  );
   --mh-dine-booking-overlap: 4rem;
   --mh-dine-booking-radius: 1.5rem;
   --mh-dine-feature-icon-size: 3.8rem;
@@ -163,7 +179,7 @@
   --mh-cap-size-350: 350px;
   --mh-cap-size-500: 500px;
   --mh-cap-size-700: 700px;
-  --mh-cap-size-neg--7: -.7px;
+  --mh-cap-size-neg--7: -0.7px;
   --mh-cap-size-47: 47px;
   --mh-cap-size-46: 46px;
   --mh-cap-size-43: 43px;
@@ -194,7 +210,12 @@
   --mh-auth-brand-mobile-width: 115px;
 
   /* LoginModal — components/auth/LoginModal.jsx */
-  --mh-login-photo-gradient: linear-gradient( 90deg, rgba(15, 32, 46, 0.65) 0%, rgba(15, 32, 46, 0.40) 55%, rgba(15, 32, 46, 0.08) 100% );
+  --mh-login-photo-gradient: linear-gradient(
+    90deg,
+    rgba(15, 32, 46, 0.65) 0%,
+    rgba(15, 32, 46, 0.4) 55%,
+    rgba(15, 32, 46, 0.08) 100%
+  );
   --mh-login-caption-layer: 1;
   --mh-login-close-layer: 5;
   --mh-login-visual-flex: 0 0 60%;
@@ -205,7 +226,11 @@
   /* BookingAvailability — components/booking/BookingAvailability.jsx */
   --mh-availability-shadow: 0 16px 50px rgba(20, 38, 53, 0.06);
   --mh-availability-status-height: 94px;
-  --mh-availability-success-background: linear-gradient(110deg, #f4faf6, #f8fbf8);
+  --mh-availability-success-background: linear-gradient(
+    110deg,
+    #f4faf6,
+    #f8fbf8
+  );
   --mh-availability-unavailable-background: #fff5f1;
   --mh-availability-status-icon-flex: 0 0 50px;
   --mh-availability-status-icon-size: 50px;
@@ -229,6 +254,12 @@
   --mh-booking-card-title-size: 1.05rem;
   --mh-booking-card-label-color: #737b86;
   --mh-booking-card-value-size: 0.95rem;
+  --mh-booking-status-upcoming-background: #e7f1ff;
+  --mh-booking-status-upcoming-color: #174a8b;
+  --mh-booking-status-past-background: #edf0f3;
+  --mh-booking-status-past-color: #475569;
+  --mh-booking-status-cancelled-background: #fce8e8;
+  --mh-booking-status-cancelled-color: #9b2525;
 
   /* HomePage and shared geometry — pages/HomePage.jsx, components/capacity/ */
   --mh-cap-assign-picker-flex: 1.5 1 0;
@@ -281,7 +312,8 @@
   --mh-viewport-width: 100vw;
   --mh-profile-menu-border: rgba(35, 52, 65, 0.08);
   --mh-profile-menu-background: rgba(255, 255, 255, 0.96);
-  --mh-profile-menu-shadow: 0 16px 40px rgba(20, 30, 40, 0.13), 0 2px 6px rgba(20, 30, 40, 0.04);
+  --mh-profile-menu-shadow:
+    0 16px 40px rgba(20, 30, 40, 0.13), 0 2px 6px rgba(20, 30, 40, 0.04);
   --mh-profile-menu-muted: #727780;
   --mh-profile-item-hover-background: #eef0f2;
   --mh-profile-item-active-background: #e5e8eb;
@@ -296,11 +328,15 @@
   --mh-site-account-border: rgba(255, 255, 255, 0.25);
   --mh-site-hero-header-layer: 10;
   --mh-site-hero-nav-muted: rgba(255, 255, 255, 0.7);
+  --mh-mobile-signout-on-navy: #ff8580;
 
   /* MyBookingsPage — pages/MyBookingsPage.jsx */
   --mh-my-bookings-width: 1160px;
   --mh-my-bookings-title-size: clamp(1.8rem, 3vw, 2.4rem);
   --mh-my-bookings-heading-tracking: -0.02em;
+  --mh-my-bookings-action-size: 44px;
+  --mh-my-bookings-dietary-line-height: 1.4;
+  --mh-status-badge-danger-background: #d00000;
 
   /* StaffLoginPage — pages/StaffLoginPage.jsx */
   --mh-viewport-dynamic-height: 100dvh;
@@ -313,7 +349,11 @@
   --mh-reservation-text: #172c38;
   --mh-reservation-muted: #596873;
   --mh-reservation-accent: #cc551c;
-  --mh-reservation-email-background: #f4f1eb;
+  --mh-reservation-email-background: color-mix(
+    in srgb,
+    var(--mh-copper) 8%,
+    var(--mh-white)
+  );
   --mh-reservation-warning-background: #fff4e5;
   --mh-reservation-border: #e4e5e3;
   --mh-reservation-divider: #eceeeb;
@@ -326,6 +366,27 @@
   --mh-signin-hover-background: #a84b12;
   --mh-mobile-menu-backdrop: #091521;
   --mh-login-close-background: rgb(255 255 255 / 90%);
+
+  /* StaffBookingPage — pages/StaffBookingPage.jsx */
+  --mh-staff-booking-panel-max-width: 1100px;
+  --mh-staff-hiker-results-max-height: 18rem;
+  --mh-staff-hiker-option-selected-bg: #e8efff;
+  --mh-staff-hiker-option-accent: #175cd3;
+  --mh-staff-hiker-option-min-height: 8.5rem;
+  --mh-staff-hiker-option-icon-size: 1.75rem;
+
+  /* SuccessCheck — components/common/SuccessCheck.jsx */
+  --mh-success-check-background: #dff5e3;
+  --mh-success-check-color: #187a38;
+  --mh-success-check-size: 3.75rem;
+  --mh-success-check-icon-size: 2rem;
+
+  /* CancellationMark — components/common/CancellationMark.jsx */
+  --mh-cancellation-mark-background: #fce8e8;
+  --mh-cancellation-mark-color: #9b2525;
+
+  /* WarningMark — components/common/WarningMark.jsx */
+  --mh-warning-mark-background: #fbdcc8;
 }
 
 /* ==========================================================================
