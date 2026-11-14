@@ -779,6 +779,41 @@
   }
 }
 
+@media (min-width: 992px) {
+  .mh-my-bookings .mh-booking-ticket-column .card-body {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--mh-cap-size-16);
+  }
+
+  .mh-my-bookings .mh-booking-ticket-column .card-body > :first-child {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center !important;
+  }
+
+  .mh-my-bookings .mh-booking-ticket-column .card h3 {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .mh-my-bookings .mh-booking-ticket-column .card dl {
+    grid-template-columns: max-content minmax(0, 1fr);
+    row-gap: var(--mh-cap-size-8);
+  }
+
+  .mh-my-bookings .mh-booking-ticket-column .mh-booking-card-actions {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  .mh-my-bookings .mh-booking-ticket-column .card {
+    max-width: 840px;
+    margin-inline-end: auto;
+  }
+}
+
 /* ==========================================================================
    CancelBookingModal — components/booking/CancelBookingModal.jsx, BookingCard.jsx
    ========================================================================== */
@@ -859,6 +894,18 @@
   border: 0;
 }
 
+.mh-reservation-modal .mh-reservation-header-centered {
+  position: relative;
+  padding-inline: var(--mh-cap-size-56);
+}
+
+.mh-reservation-modal .mh-reservation-header-centered .btn-close {
+  position: absolute;
+  top: var(--mh-cap-size-28);
+  right: var(--mh-cap-size-28);
+  margin: 0;
+}
+
 .mh-reservation-modal .btn-close {
   flex: 0 0 auto;
   padding: var(--mh-cap-size-10);
@@ -893,8 +940,8 @@
 .mh-reservation-email {
   margin: var(--mh-cap-size-18) 0 0;
   padding: var(--mh-cap-size-14) var(--mh-cap-size-16);
-  border-left: var(--mh-cap-size-3) solid var(--mh-reservation-accent);
-  border-radius: 0 var(--mh-cap-size-8) var(--mh-cap-size-8) 0;
+  border: 0;
+  border-radius: var(--mh-cap-size-8);
   background: var(--mh-reservation-email-background);
   font-size: var(--mh-cap-size-14);
   line-height: 1.6;
@@ -980,6 +1027,32 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mh-reservation-detail.mh-reservation-requests {
+  display: flex;
+  align-items: baseline;
+  gap: var(--mh-cap-size-8);
+}
+
+.mh-reservation-detail.mh-reservation-requests dt {
+  flex: 0 0 auto;
+  width: auto;
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+
+.mh-reservation-detail.mh-reservation-requests dd {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 @media (max-width: 380px) {
@@ -1889,6 +1962,14 @@
   margin-top: auto;
   padding-top: var(--mh-cap-size-16);
   border-top: var(--mh-border-width) solid var(--mh-white-transparent);
+}
+
+.cap-sidebar-account .mh-mobile-signout {
+  color: var(--mh-mobile-signout-on-navy);
+}
+
+.cap-sidebar-account .mh-mobile-signout:hover {
+  background: var(--mh-white-transparent);
 }
 
 .cap-sidebar-account .mh-profile .mh-profile-toggle {
@@ -3514,7 +3595,12 @@
   display: none;
 }
 
-@media (min-width: 750.01px) and (max-width: 1250px) {
+button.cap-sidebar-toggle:focus-visible {
+  outline: 2px solid var(--mh-navy) !important;
+  outline-offset: -4px;
+}
+
+@media (min-width: 750.01px) {
   .cap-sidebar-toggle {
     position: fixed;
     top: var(--mh-cap-size-12);
@@ -3535,11 +3621,6 @@
 
   .cap-sidebar-toggle:hover {
     background: var(--mh-cream);
-  }
-
-  .cap-sidebar-toggle:focus-visible {
-    outline: var(--mh-cap-size-3) solid var(--mh-copper);
-    outline-offset: var(--mh-cap-size-3);
   }
 
   .cap-main {
@@ -3772,7 +3853,7 @@
   display: none;
 }
 
-@media (min-width: 750.01px) and (max-width: 1250px) {
+@media (min-width: 750.01px) {
   .cap-app {
     height: var(--mh-viewport-dynamic-height);
     min-height: 0;
@@ -3830,7 +3911,9 @@
     transform: none;
     transition: none;
   }
+}
 
+@media (min-width: 750.01px) and (max-width: 1250px) {
   .cap-app .cap-main > .cap-content {
     display: block;
     flex: 1 1 0;
@@ -3918,17 +4001,104 @@
   margin: 0;
 }
 
-:where(
-  .modal-header:has(#schedule-copy-confirmation-title) .mh-cancellation-mark
-) {
+/* ==========================================================================
+   StaffBookingPage — pages/StaffBookingPage.jsx
+   ========================================================================== */
+
+.cap-app .cap-main > .cap-content.staff-booking-content {
+  padding-block-start: var(--mh-cap-size-24);
+  overflow-y: auto;
+}
+
+.cap-panel.staff-booking-panel {
+  flex-shrink: 0;
+  width: 100%;
+  max-width: var(--mh-staff-booking-panel-max-width);
+  min-height: 0;
+  margin-inline: auto;
+}
+
+.staff-hiker-results {
+  max-height: var(--mh-staff-hiker-results-max-height);
+  overflow-y: auto;
+  border: var(--mh-border-width) solid var(--mh-border);
+}
+
+.staff-hiker-results > .list-group-item {
+  border-inline: 0;
+}
+
+.staff-hiker-results > .list-group-item:first-child {
+  border-top: 0;
+}
+
+.staff-hiker-results > .list-group-item:last-child {
+  border-bottom: 0;
+}
+
+.staff-hiker-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: var(--mh-staff-hiker-option-min-height);
+  padding: var(--mh-cap-size-16);
+  border: var(--mh-border-width) solid var(--mh-border);
+  border-radius: var(--mh-cap-size-12);
+  background: var(--mh-white);
+  color: var(--mh-navy);
+  text-align: center;
+  cursor: pointer;
+}
+
+.staff-hiker-option > .bi:not(.staff-hiker-option-check) {
+  font-size: var(--mh-staff-hiker-option-icon-size);
+  line-height: 1;
+}
+
+.staff-hiker-option small {
+  margin-top: var(--mh-cap-size-6);
+}
+
+.staff-hiker-option:hover,
+.staff-hiker-option.is-selected {
+  border-color: var(--mh-staff-hiker-option-accent);
+}
+
+.staff-hiker-option.is-selected {
+  background: var(--mh-staff-hiker-option-selected-bg);
+}
+
+.btn-check:focus-visible + .staff-hiker-option,
+button.staff-hiker-option:focus-visible {
+  outline: 2px solid var(--mh-navy) !important;
+  outline-offset: -4px;
+}
+
+.staff-hiker-option-check {
+  position: absolute;
+  top: var(--mh-cap-size-12);
+  right: var(--mh-cap-size-12);
+  color: var(--mh-staff-hiker-option-accent);
+}
+
+/* ==========================================================================
+   SuccessCheck — components/common/SuccessCheck.jsx
+   ========================================================================== */
+
+.mh-success-check {
   display: inline-grid;
+  flex-shrink: 0;
   place-items: center;
-  width: 3.75rem;
-  height: 3.75rem;
+  width: var(--mh-success-check-size);
+  height: var(--mh-success-check-size);
   border-radius: 50%;
-  background: #fce8e8;
-  color: #9b2525;
-  font-size: 2rem;
+  background-color: var(--mh-success-check-background);
+  color: var(--mh-success-check-color);
+  font-size: var(--mh-success-check-icon-size);
   line-height: 1;
 }
 
@@ -3940,4 +4110,22 @@
   --bs-popover-bg: #151515;
   --bs-popover-border-color: #151515;
   --bs-popover-body-color: var(--mh-white);
+}
+
+/* ==========================================================================
+   CancellationMark — components/common/CancellationMark.jsx
+   ========================================================================== */
+
+.mh-cancellation-mark {
+  background-color: var(--mh-cancellation-mark-background);
+  color: var(--mh-cancellation-mark-color);
+}
+
+/* ==========================================================================
+   WarningMark — components/common/WarningMark.jsx
+   ========================================================================== */
+
+.mh-warning-mark {
+  background-color: var(--mh-warning-mark-background);
+  color: var(--mh-copper);
 }
