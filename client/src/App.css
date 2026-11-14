@@ -3510,7 +3510,12 @@
   display: none;
 }
 
-@media (min-width: 750.01px) and (max-width: 1250px) {
+button.cap-sidebar-toggle:focus-visible {
+  outline: 2px solid var(--mh-navy) !important;
+  outline-offset: -4px;
+}
+
+@media (min-width: 750.01px) {
   .cap-sidebar-toggle {
     position: fixed;
     top: var(--mh-cap-size-12);
@@ -3531,11 +3536,6 @@
 
   .cap-sidebar-toggle:hover {
     background: var(--mh-cream);
-  }
-
-  .cap-sidebar-toggle:focus-visible {
-    outline: var(--mh-cap-size-3) solid var(--mh-copper);
-    outline-offset: var(--mh-cap-size-3);
   }
 
   .cap-main {
@@ -3768,7 +3768,7 @@
   display: none;
 }
 
-@media (min-width: 750.01px) and (max-width: 1250px) {
+@media (min-width: 750.01px) {
   .cap-app {
     height: var(--mh-viewport-dynamic-height);
     min-height: 0;
@@ -3826,7 +3826,9 @@
     transform: none;
     transition: none;
   }
+}
 
+@media (min-width: 750.01px) and (max-width: 1250px) {
   .cap-app .cap-main > .cap-content {
     display: block;
     flex: 1 1 0;
