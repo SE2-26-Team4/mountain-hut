@@ -2315,8 +2315,9 @@
   }
 
   .cap-slot-column-seats {
-    grid-column: 2;
-    grid-row: 1;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    text-align: left;
   }
 
   .cap-seat-count {
@@ -2324,8 +2325,10 @@
   }
 
   .cap-slot-column-tables {
-    grid-column: 1 / -1;
-    grid-row: 2;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    align-self: start;
   }
 
   .cap-chips > span {
@@ -2354,10 +2357,6 @@
   }
 }
 
-.cap-slots {
-  container: staff-time-slots / inline-size;
-}
-
 .cap-schedule-heading {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -2373,7 +2372,7 @@
   white-space: nowrap;
 }
 
-@container staff-time-slots (max-width: 34rem) {
+@container time-slots (max-width: 34rem) {
   .cap-schedule-actions {
     display: grid;
     justify-items: end;
@@ -2384,13 +2383,74 @@
   }
 }
 
-@container staff-time-slots (max-width: 18rem) {
+@container time-slots (max-width: 18rem) {
   .cap-schedule-heading {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .cap-schedule-actions {
     justify-items: stretch;
+  }
+}
+
+.cap-slot-seat-total {
+  font-size: var(--mh-cap-size-13);
+  font-weight: var(--mh-weight-medium);
+}
+
+.cap-slot-status .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mh-cap-size-6);
+  padding: var(--mh-cap-size-6) var(--mh-cap-size-10);
+  font-size: var(--mh-cap-size-12);
+  font-weight: var(--mh-weight-medium);
+  white-space: normal;
+  text-align: left;
+}
+
+.cap-slot-status .text-bg-success {
+  background-color: var(--mh-cap-slot-status-assigned-background) !important;
+  color: var(--mh-cap-slot-status-assigned-color) !important;
+}
+
+.cap-slot-status .text-bg-warning {
+  background-color: var(--mh-cap-slot-status-unassigned-background) !important;
+  color: var(--mh-cap-slot-status-unassigned-color) !important;
+}
+.cap-slot-row .cap-slot-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--mh-cap-size-8);
+}
+
+.cap-slot-row .cap-slot-actions .cap-outline {
+  width: 100%;
+  min-width: 0;
+  white-space: normal;
+}
+
+@container time-slots (width > 600px) {
+  .cap-slot-head,
+  .cap-slot-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding-inline: var(--mh-cap-size-12);
+  }
+
+  .cap-slot-head {
+    border-inline: var(--mh-border-width) solid transparent;
+  }
+
+  .cap-slot-head > *,
+  .cap-slot-row > * {
+    width: auto;
+  }
+}
+
+@container time-slots (420px <= width <= 600px) {
+  .cap-slot-row .cap-slot-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

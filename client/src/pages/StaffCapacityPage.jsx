@@ -130,7 +130,6 @@ function StaffCapacityContent({ user, onLogout }) {
                   tables={staff.diningTables}
                   onAdd={staff.openNewSlotForm}
                   onCopyWeek={staff.openCopyWeek}
-                  onEdit={staff.startEditingSlot}
                   onAssign={staff.openAssignmentModal}
                 />
               </Col>

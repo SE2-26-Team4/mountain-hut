@@ -278,6 +278,10 @@
   --mh-cap-slot-tables-compact-ratio: 1.5;
   --mh-cap-slot-seats-compact-ratio: 0.6;
   --mh-cap-slot-actions-compact-ratio: 1.5;
+  --mh-cap-slot-status-assigned-background: #e2f4e7;
+  --mh-cap-slot-status-assigned-color: #17643a;
+  --mh-cap-slot-status-unassigned-background: #fff0dc;
+  --mh-cap-slot-status-unassigned-color: #8a4600;
 
   /* AutoDismissAlert — components/common/AutoDismissAlert.jsx */
   --mh-floating-alert-transform: translateX(-50%);
