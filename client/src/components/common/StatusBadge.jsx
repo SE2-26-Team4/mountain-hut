@@ -5,15 +5,7 @@
  * }} props
  */
 export default function StatusBadge({ children, variant = "secondary" }) {
-  const isDanger = variant === "danger";
-
   return (
-    <span
-      className={`badge rounded-pill ${
-        isDanger ? "text-white mh-status-badge-danger" : `text-bg-${variant}`
-      }`}
-    >
-      {children}
-    </span>
+    <span className={`badge rounded-pill text-bg-${variant}`}>{children}</span>
   );
 }
