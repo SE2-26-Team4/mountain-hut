@@ -91,7 +91,7 @@ function StaffCapacityContent({ user, onLogout }) {
               disabled={staff.isLoading || staff.isSaving}
             />
 
-            <ScheduleCopyActions />
+            <ScheduleCopyActions onAddSchedule={staff.openCopyWeek} />
           </div>
 
           {staff.errorMessage &&
