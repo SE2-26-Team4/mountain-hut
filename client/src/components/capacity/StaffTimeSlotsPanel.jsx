@@ -181,8 +181,22 @@ export default function StaffTimeSlotsPanel({
                 <button
                   id={`modify-time-slot-tables-${slot.id}`}
                   type="button"
-                  className="cap-outline"
-                  onClick={() => onAssign(slot)}
+                  className={`cap-outline${hasTables ? " opacity-50" : ""}`}
+                  aria-disabled={hasTables ? true : undefined}
+                  aria-describedby={
+                    editNoticeTarget?.id ===
+                    `modify-time-slot-tables-${slot.id}`
+                      ? "edit-time-slot-notice"
+                      : undefined
+                  }
+                  onClick={(event) => {
+                    if (hasTables) {
+                      setEditNoticeTarget(event.currentTarget);
+                      return;
+                    }
+
+                    onAssign(slot);
+                  }}
                 >
                   {hasTables ? "Manage tables" : "Assign tables"}
                 </button>
