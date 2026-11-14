@@ -26,10 +26,9 @@ export default function StaffTimeSlotsPanel({
 
   return (
     <section className="cap-panel cap-slots">
-      <div className="cap-panel-heading d-flex flex-wrap align-items-start justify-content-between gap-3">
+      <div className="cap-panel-heading cap-schedule-heading">
         <div>
           <h2>Time slots</h2>
-
           <p>Set the available tables for each time slot.</p>
         </div>
 

@@ -2365,20 +2365,43 @@
   }
 }
 
+.cap-slots {
+  container: staff-time-slots / inline-size;
+}
+
+.cap-schedule-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
 .cap-schedule-actions {
   display: flex;
-  flex-wrap: wrap;
   gap: var(--mh-cap-size-8);
 }
 
-@media (max-width: 575.98px) {
+.cap-schedule-actions > button {
+  white-space: nowrap;
+}
+
+@container staff-time-slots (max-width: 34rem) {
   .cap-schedule-actions {
     display: grid;
-    width: 100%;
+    justify-items: end;
   }
 
-  .cap-schedule-actions .cap-primary {
+  .cap-schedule-actions > .cap-primary {
     grid-row: 1;
+  }
+}
+
+@container staff-time-slots (max-width: 18rem) {
+  .cap-schedule-heading {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cap-schedule-actions {
+    justify-items: stretch;
   }
 }
 
