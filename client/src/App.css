@@ -1411,12 +1411,11 @@
 }
 
 .cap-reuse-controls > .cap-primary:disabled {
-  background: var(--mh-white);
-  border-color: var(--mh-border);
-  color: var(--cap-muted);
-  box-shadow: inset 0 0 0 var(--mh-border-width) var(--mh-border);
+  background: var(--cap-orange);
+  border-color: var(--cap-orange);
+  color: var(--mh-white);
   cursor: not-allowed;
-  opacity: 1;
+  opacity: var(--mh-booking-disabled-opacity);
 }
 
 .cap-reuse-skipped > summary {
