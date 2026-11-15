@@ -12,6 +12,7 @@
  * @typedef {Object} PartyRequirement
  * @property {boolean} hasAllergies
  * @property {string} description
+ * @property {string} [label]
  */
 
 /**
@@ -281,10 +282,11 @@ export function buildBookingConfirmationEmail(input) {
     textLines.push(
       "",
       "Party requirements:",
-      ...requirements.map(
-        (requirement) =>
-          `- ${requirement.hasAllergies ? "[ALLERGIES] " : ""}${requirement.description.trim()}`,
-      ),
+      ...requirements.map((requirement) => {
+        const label = requirement.label ? `${requirement.label}\n  ` : "";
+        const allergy = requirement.hasAllergies ? "[FOOD ALLERGY] " : "";
+        return `- ${label}${allergy}${requirement.description.trim()}`;
+      }),
     );
 
     const requirementRows = requirements
@@ -299,11 +301,13 @@ export function buildBookingConfirmationEmail(input) {
           (firstLine === "Dietary requirements:" ||
             firstLine === "Special requests:");
 
-        const label = hasSectionLabel
-          ? firstLine
-          : index === 0
-            ? "Party requirements:"
-            : "";
+        const label =
+          requirement.label ??
+          (hasSectionLabel
+            ? firstLine
+            : index === 0
+              ? "Party requirements:"
+              : "");
 
         const value = hasSectionLabel
           ? description.slice(lineBreak + 1).trim()
@@ -316,7 +320,7 @@ export function buildBookingConfirmationEmail(input) {
           <tr>
             <td style="padding:12px 16px;${divider}text-align:left;vertical-align:top;font-size:14px;line-height:1.6;color:#172c38;overflow-wrap:anywhere;word-wrap:break-word;">
               ${label ? `<div style="margin-bottom:4px;color:#596873;font-weight:400;">${escapeHtml(label)}</div>` : ""}
-              ${requirement.hasAllergies ? "<strong>[ALLERGIES]</strong> " : ""}
+              ${requirement.hasAllergies ? "<strong>[FOOD ALLERGY]</strong>" : ""}
               ${safeValue}
             </td>
           </tr>

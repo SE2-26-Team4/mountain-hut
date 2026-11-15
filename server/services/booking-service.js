@@ -274,16 +274,64 @@ function validateBookingDetails(
       "Special requests must be a string of at most 1000 characters.",
     );
   }
-
   if (
     dietaryRequirements !== undefined &&
-    (typeof dietaryRequirements !== "string" ||
-      dietaryRequirements.length > 1000)
+    typeof dietaryRequirements !== "string"
+  ) {
+    throw new BookingError(
+      "INVALID_BOOKING",
+      "Dietary requirements must be a string.",
+    );
+  }
+
+  const dietaryText = dietaryRequirements?.trim();
+
+  if (
+    dietaryText &&
+    !dietaryText.startsWith("[") &&
+    dietaryText.length > 1000
   ) {
     throw new BookingError(
       "INVALID_BOOKING",
       "Dietary requirements must be a string of at most 1000 characters.",
     );
+  }
+
+  // Validate the per-guest list while accepting existing plain-text requirements.
+  if (dietaryText?.startsWith("[")) {
+    let entries;
+
+    try {
+      entries = JSON.parse(dietaryText);
+    } catch {
+      throw new BookingError(
+        "INVALID_BOOKING",
+        "Dietary requirements must contain a valid list.",
+      );
+    }
+
+    if (
+      !Array.isArray(entries) ||
+      entries.some(
+        (entry) =>
+          typeof entry?.description !== "string" ||
+          !entry.description.trim() ||
+          entry.description.length > 1000 ||
+          typeof entry.hasAllergies !== "boolean",
+      )
+    ) {
+      throw new BookingError(
+        "INVALID_BOOKING",
+        "Each dietary requirement needs a description and an allergy flag.",
+      );
+    }
+
+    if (entries.length > partySize) {
+      throw new BookingError(
+        "INVALID_BOOKING",
+        "You can add at most one dietary requirement per guest.",
+      );
+    }
   }
 }
 

@@ -1,7 +1,7 @@
 import { useId } from "react";
-import { Form } from "react-bootstrap";
+import { Button, Form } from "react-bootstrap";
 
-import { bookingRequestsTooLong } from "../../utils/booking-requirements.js";
+import { MAX_SPECIAL_REQUEST_LENGTH } from "../../utils/booking-requirements.js";
 
 /**
  * @param {{
@@ -20,66 +20,198 @@ export default function BookingRequestFields({
   disabled = false,
 }) {
   const id = useId();
-  const subject = staff
-    ? partySize === 1
-      ? "The hiker has"
-      : "Someone in the party has"
-    : partySize === 1
-      ? "I have"
-      : "Someone in my party has";
-  const tooLong = bookingRequestsTooLong(requests);
+  const { dietaryRequirements, special } = requests;
+
+  /**
+   * @param {number} index
+   * @param {Partial<import("../../utils/booking-requirements.js").DietaryRequirement>} changes
+   */
+  function updateRequirement(index, changes) {
+    onChange({
+      ...requests,
+      dietaryRequirements: dietaryRequirements.map((entry, position) =>
+        position === index ? { ...entry, ...changes } : entry,
+      ),
+    });
+  }
 
   return (
     <div className="d-grid gap-3">
-      <Form.Check
-        id={`${id}-dietary-toggle`}
-        type="checkbox"
-        label={`${subject} food allergies, intolerances, or other dietary requirements`}
-        checked={requests.showDietary}
-        disabled={disabled}
-        onChange={(event) =>
-          onChange({ ...requests, showDietary: event.target.checked })
-        }
-      />
+      <fieldset className="d-grid gap-3" disabled={disabled}>
+        <legend className="h6 mb-0">
+          {partySize === 1
+            ? staff
+              ? "Does the hiker have any food allergies, intolerances, or other dietary requirements?"
+              : "Do you have any food allergies, intolerances, or other dietary requirements?"
+            : "Does anyone in the party have any food allergies, intolerances, or other dietary requirements?"}
+          {" (required)"}
+        </legend>
 
-      {requests.showDietary && (
-        <>
-          <Form.Group controlId={`${id}-dietary`}>
-            <Form.Label>Dietary requirements</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={2}
-              value={requests.dietary}
-              disabled={disabled}
-              aria-describedby={`${id}-dietary-help`}
-              placeholder={
-                partySize === 1
-                  ? staff
-                    ? "E.g. The hiker needs a vegetarian meal."
-                    : "E.g. I need a vegetarian meal."
-                  : "E.g. 1 guest with a peanut allergy and 2 guests who need vegetarian meals."
-              }
-              onChange={(event) =>
-                onChange({ ...requests, dietary: event.target.value })
-              }
-            />
-            <Form.Text id={`${id}-dietary-help`}>
-              {partySize === 1
+        <div>
+          <Form.Check
+            id={`${id}-dietary-no`}
+            name={`${id}-dietary-answer`}
+            type="radio"
+            label={
+              partySize === 1
                 ? staff
-                  ? "Please describe the hiker’s dietary requirements."
-                  : "Please describe your dietary requirements."
-                : "Please describe the dietary requirements and tell us how many guests each one applies to."}
+                  ? "No, the hiker has no dietary requirements."
+                  : "No, I have no dietary requirements."
+                : "No, no one in the party has any dietary requirements."
+            }
+            checked={requests.dietaryAnswer === "no"}
+            required
+            onChange={() => onChange({ ...requests, dietaryAnswer: "no" })}
+          />
+          <Form.Check
+            id={`${id}-dietary-yes`}
+            name={`${id}-dietary-answer`}
+            type="radio"
+            label={
+              partySize === 1
+                ? staff
+                  ? "Yes, the hiker has one or more dietary requirements."
+                  : "Yes, I have one or more dietary requirements."
+                : "Yes, someone in the party has a dietary requirement."
+            }
+            checked={requests.dietaryAnswer === "yes"}
+            required
+            onChange={() =>
+              onChange({
+                ...requests,
+                dietaryAnswer: "yes",
+                dietaryRequirements: dietaryRequirements.length
+                  ? dietaryRequirements
+                  : [{ description: "", hasAllergies: false }],
+              })
+            }
+          />
+        </div>
+        {requests.dietaryAnswer === "yes" && (
+          <>
+            <Form.Text>
+              {partySize === 1
+                ? "Complete the dietary requirement below."
+                : `Complete at least one dietary requirement. You can add up to ${partySize} entries, one per guest.`}
             </Form.Text>
-          </Form.Group>
-        </>
-      )}
+
+            {dietaryRequirements.length > partySize && (
+              <p className="text-danger small mb-0" role="alert">
+                Remove the extra entries to match the number of guests.
+              </p>
+            )}
+
+            {dietaryRequirements.map((requirement, index) => {
+              const descriptionId = `${id}-dietary-${index}`;
+              const errorId = `${descriptionId}-error`;
+              const missingDescription =
+                requirement.hasAllergies && !requirement.description.trim();
+
+              return (
+                <fieldset
+                  key={index}
+                  className="border rounded-3 p-3 d-grid gap-2"
+                >
+                  <legend className="h6 mb-0">Guest {index + 1}</legend>
+
+                  <Form.Group controlId={descriptionId}>
+                    <Form.Label>Description</Form.Label>
+                    <Form.Control
+                      as="textarea"
+                      rows={2}
+                      maxLength={MAX_SPECIAL_REQUEST_LENGTH}
+                      value={requirement.description}
+                      placeholder={
+                        partySize === 1
+                          ? "E.g. Vegetarian meal"
+                          : "E.g. 2 guests need vegetarian meals"
+                      }
+                      isInvalid={missingDescription}
+                      aria-describedby={
+                        missingDescription ? errorId : undefined
+                      }
+                      onChange={(event) =>
+                        updateRequirement(index, {
+                          description: event.target.value,
+                        })
+                      }
+                    />
+                    {requirement.description.length >=
+                      MAX_SPECIAL_REQUEST_LENGTH && (
+                      <Form.Text className="text-danger">
+                        This description has reached the 1,000-character limit.
+                      </Form.Text>
+                    )}
+                    {missingDescription && (
+                      <Form.Control.Feedback id={errorId} type="invalid">
+                        Describe the food allergy before confirming the booking.
+                      </Form.Control.Feedback>
+                    )}
+                  </Form.Group>
+
+                  <Form.Check
+                    id={`${id}-allergy-${index}`}
+                    type="checkbox"
+                    label="This requirement involves a food allergy"
+                    checked={requirement.hasAllergies}
+                    onChange={(event) =>
+                      updateRequirement(index, {
+                        hasAllergies: event.target.checked,
+                      })
+                    }
+                  />
+
+                  <div>
+                    <Button
+                      type="button"
+                      variant="outline-secondary"
+                      size="sm"
+                      aria-label={`Remove dietary requirement ${index + 1}`}
+                      onClick={() =>
+                        onChange({
+                          ...requests,
+                          dietaryRequirements: dietaryRequirements.filter(
+                            (_, position) => position !== index,
+                          ),
+                        })
+                      }
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </fieldset>
+              );
+            })}
+
+            <div>
+              <Button
+                type="button"
+                variant="outline-secondary"
+                disabled={disabled || dietaryRequirements.length >= partySize}
+                onClick={() =>
+                  onChange({
+                    ...requests,
+                    dietaryRequirements: [
+                      ...dietaryRequirements,
+                      { description: "", hasAllergies: false },
+                    ],
+                  })
+                }
+              >
+                Add dietary requirement
+              </Button>
+            </div>
+          </>
+        )}
+      </fieldset>
 
       <Form.Group controlId={`${id}-special`}>
         <Form.Label>Special requests (optional)</Form.Label>
         <Form.Control
           as="textarea"
           rows={2}
-          value={requests.special}
+          maxLength={MAX_SPECIAL_REQUEST_LENGTH}
+          value={special}
           disabled={disabled}
           aria-describedby={`${id}-special-help`}
           placeholder={
@@ -95,17 +227,19 @@ export default function BookingRequestFields({
             onChange({ ...requests, special: event.target.value })
           }
         />
-        <Form.Text id={`${id}-special-help`}>
-          Let us know if there’s anything else we should know about your
-          booking.
+        <Form.Text
+          id={`${id}-special-help`}
+          className={
+            special.length >= MAX_SPECIAL_REQUEST_LENGTH
+              ? "text-danger"
+              : undefined
+          }
+        >
+          {special.length >= MAX_SPECIAL_REQUEST_LENGTH
+            ? "Special requests have reached the 1,000-character limit."
+            : "Let us know if there’s anything else we should know about your booking."}
         </Form.Text>
       </Form.Group>
-
-      {tooLong && (
-        <p className="text-danger small mb-0" role="alert">
-          Shorten the requests to stay within the 1,000-character limit.
-        </p>
-      )}
     </div>
   );
 }

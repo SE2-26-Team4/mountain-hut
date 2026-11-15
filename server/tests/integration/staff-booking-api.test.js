@@ -524,6 +524,80 @@ describe("POST /api/staff/bookings", () => {
     }
   });
 
+  it("stores separate dietary entries and flags only the allergy in the email", async () => {
+    const dietaryRequirements = JSON.stringify([
+      { description: "Peanut allergy", hasAllergies: true },
+      { description: "Vegetarian meal", hasAllergies: false },
+    ]);
+
+    const response = await employeeAgent.post("/api/staff/bookings").send(
+      staffBooking(temporaryHikerInput(), {
+        partySize: 2,
+        confirmationEmail: `staff-api-dietary-${uniqueSuffix}@example.com`,
+        dietaryRequirements,
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(response.body.booking.dietaryRequirements).toBe(dietaryRequirements);
+    expect(response.body.emailSent).toBe(true);
+    expect(emailMocks.send).toHaveBeenCalledTimes(1);
+
+    const [message] = emailMocks.send.mock.calls[0];
+    expect(message.text).toContain("[FOOD ALLERGY] Peanut allergy");
+    expect(message.text).toContain("Vegetarian meal");
+    expect(message.text).not.toContain("[FOOD ALLERGY] Vegetarian meal");
+    expect(message.html).toMatch(
+      /<strong>\[FOOD ALLERGY\]<\/strong>\s+Peanut allergy/,
+    );
+    expect(message.html).toContain("Vegetarian meal");
+    expect(message.html.match(/\[FOOD ALLERGY\]/g)).toHaveLength(1);
+  });
+
+  it.each([
+    ["malformed JSON", "[", "Dietary requirements must contain a valid list."],
+    [
+      "a missing description",
+      JSON.stringify([{ hasAllergies: true }]),
+      "Each dietary requirement needs a description and an allergy flag.",
+    ],
+    [
+      "a blank description",
+      JSON.stringify([{ description: " ", hasAllergies: true }]),
+      "Each dietary requirement needs a description and an allergy flag.",
+    ],
+    [
+      "a missing allergy flag",
+      JSON.stringify([{ description: "Vegetarian meal" }]),
+      "Each dietary requirement needs a description and an allergy flag.",
+    ],
+    [
+      "more entries than guests",
+      JSON.stringify([
+        { description: "Peanut allergy", hasAllergies: true },
+        { description: "Vegetarian meal", hasAllergies: false },
+      ]),
+      "You can add at most one dietary requirement per guest.",
+    ],
+  ])(
+    "rejects dietary requirements with %s",
+    async (_label, dietaryRequirements, message) => {
+      const response = await employeeAgent.post("/api/staff/bookings").send(
+        staffBooking(temporaryHikerInput(), {
+          partySize: 1,
+          dietaryRequirements,
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toMatchObject({
+        code: "INVALID_BOOKING",
+        message,
+      });
+      expect(emailMocks.send).not.toHaveBeenCalled();
+    },
+  );
+
   it.each([
     ["a non-string address", 42],
     ["an address with invalid syntax", "not-an-email"],

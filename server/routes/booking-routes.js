@@ -22,6 +22,39 @@ import {
  * @typedef {import('../models/models.js').BookingDTO} BookingDTO
  */
 
+/** @param {string} [saved] */
+function dietaryRequirementsForEmail(saved = "") {
+  if (!saved) return [];
+
+  try {
+    const entries = JSON.parse(saved);
+
+    if (
+      Array.isArray(entries) &&
+      entries.every(
+        (entry) =>
+          typeof entry?.description === "string" &&
+          typeof entry?.hasAllergies === "boolean",
+      )
+    ) {
+      return entries.map(({ description, hasAllergies }, index) => ({
+        description,
+        hasAllergies,
+        label: `Dietary requirement · Guest ${index + 1}`,
+      }));
+    }
+  } catch {
+    // Fall back to the stored text if the list cannot be parsed.
+  }
+
+  return [
+    {
+      hasAllergies: false,
+      description: `Dietary requirements:\n${saved}`,
+    },
+  ];
+}
+
 // Group booking endpoints and their error handler in a dedicated router.
 const router = express.Router();
 
@@ -87,14 +120,7 @@ async function sendBookingConfirmation(hiker, booking, isEdit = false) {
       mealSlot,
       tables: tables.filter((table) => allocatedTableIds.has(table.id)),
       requirements: [
-        ...(booking.dietaryRequirements
-          ? [
-              {
-                hasAllergies: false,
-                description: `Dietary requirements:\n${booking.dietaryRequirements}`,
-              },
-            ]
-          : []),
+        ...dietaryRequirementsForEmail(booking.dietaryRequirements),
         ...(booking.specialRequests
           ? [
               {

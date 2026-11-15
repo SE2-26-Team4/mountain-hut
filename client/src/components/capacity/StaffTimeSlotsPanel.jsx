@@ -181,7 +181,7 @@ export default function StaffTimeSlotsPanel({
                       }
                       aria-hidden="true"
                     />
-                    {hasTables ? "Tables assigned" : "No tables assigned"}
+                    {hasTables ? "Assigned" : "Not assigned"}
                   </StatusBadge>
                 </div>
               </Col>
@@ -207,7 +207,7 @@ export default function StaffTimeSlotsPanel({
                     onAssign(slot);
                   }}
                 >
-                  {hasTables ? "Modify tables" : "Assign tables"}
+                  {hasTables ? "Manage tables" : "Assign tables"}
                 </button>
 
                 <button

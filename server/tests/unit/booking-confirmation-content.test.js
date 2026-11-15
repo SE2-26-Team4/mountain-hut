@@ -135,7 +135,7 @@ describe('booking confirmation email content', () => {
       });
 
       expect(email.text).toContain('Party requirements:');
-      expect(email.text).toContain('- [ALLERGIES] 1 vegan, peanut allergy');
+      expect(email.text).toContain('- [FOOD ALLERGY] 1 vegan, peanut allergy');
       expect(email.text).toContain('- 2 vegetarians');
 
       // Normalize HTML markup and whitespace before checking visible content.
@@ -145,10 +145,10 @@ describe('booking confirmation email content', () => {
         .trim();
 
       expect(htmlText).toContain('Party requirements:');
-      expect(htmlText).toContain('[ALLERGIES] 1 vegan, peanut allergy');
+      expect(htmlText).toContain('[FOOD ALLERGY] 1 vegan, peanut allergy');
       expect(htmlText).toContain('2 vegetarians');
 
-      expect(email.html).toContain('<strong>[ALLERGIES]</strong>');
+      expect(email.html).toContain('<strong>[FOOD ALLERGY]</strong>');
     });
 
   // Missing recipient, allocation, service, or requirement data must be rejected.

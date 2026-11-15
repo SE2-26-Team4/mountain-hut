@@ -6,6 +6,7 @@ import {
   bookingRequestsTooLong,
   emptyBookingRequests,
   toBookingRequestFields,
+  dietaryRequirementsIncomplete,
 } from "../utils/booking-requirements.js";
 
 /**
@@ -160,6 +161,9 @@ export default function useBookingLogic({ user, onRequireLogin }) {
   const [errorMessage, setErrorMessage] = useState("");
   const [requests, setRequests] = useState(emptyBookingRequests);
   const requestsTooLong = bookingRequestsTooLong(requests);
+  const requestsInvalid =
+    requestsTooLong ||
+    dietaryRequirementsIncomplete(requests, Number(partySize));
 
   // Keep a clock value that triggers countdown updates.
   const [currentTime, setCurrentTime] = useState(() => Date.now());
@@ -430,7 +434,7 @@ export default function useBookingLogic({ user, onRequireLogin }) {
   // Submit a booking after rechecking authentication, availability, and time.
   async function handleReserve() {
     if (alreadyBooked) return;
-    if (requestsTooLong) return;
+    if (requestsInvalid) return;
     // Block duplicate submissions immediately, before React updates state.
     if (bookingInProgressRef.current) return;
 
@@ -599,7 +603,7 @@ export default function useBookingLogic({ user, onRequireLogin }) {
     partySize,
     requests,
     setRequests,
-    requestsTooLong,
+    requestsInvalid,
     availability,
     confirmedReservation,
     closeReservationConfirmation,

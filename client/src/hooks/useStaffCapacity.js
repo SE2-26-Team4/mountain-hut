@@ -80,6 +80,13 @@ export default function useStaffCapacity() {
     /** @type {number[]} */ ([]),
   );
 
+  const [isSuggestedConfiguration, setIsSuggestedConfiguration] =
+    useState(false);
+  const [selectionBeforeReuse, setSelectionBeforeReuse] = useState(
+    /** @type {number[] | null} */ (null),
+  );
+  const [assignmentForNewSlot, setAssignmentForNewSlot] = useState(false);
+
   // Store the values currently displayed in the configuration forms.
   const [slotForm, setSlotForm] = useState(emptySlotForm);
   const [tableForm, setTableForm] = useState(emptyTableForm);
@@ -160,6 +167,84 @@ export default function useStaffCapacity() {
     );
   }
 
+  const [reuseMatchOverride, setReuseMatch] = useState(
+    /** @type {"same-time" | "any-time" | "any-slot" | null} */ (null),
+  );
+
+  const [reuseOrder, setReuseOrder] = useState(
+    /** @type {"newest" | "oldest"} */ ("newest"),
+  );
+
+  // Offer reuse only when the destination has no assigned active tables.
+  // Search earlier slots by service date and start time, newest first.
+  // Only tables available for the destination slot can be reused.
+  const canOfferReuse = Boolean(
+    selectedSlot &&
+    !diningTables.some(
+      (table) => table.isActive && selectedSlot.tableIds.includes(table.id),
+    ),
+  );
+  const previousSlots =
+    selectedSlot && canOfferReuse
+      ? mealSlots
+          .filter(
+            (slot) =>
+              slot.tableIds.length > 0 &&
+              `${slot.slotDate}T${slot.startTime}` <
+                `${selectedSlot.slotDate}T${selectedSlot.startTime}`,
+          )
+          .sort(
+            (first, second) =>
+              second.slotDate.localeCompare(first.slotDate) ||
+              second.startTime.localeCompare(first.startTime) ||
+              second.id - first.id,
+          )
+      : [];
+
+  const availableTableIds = new Set(
+    diningTables
+      .filter((table) => !getTableUnavailableReason(table))
+      .map((table) => table.id),
+  );
+
+  const reusableConfigurations = previousSlots
+    .map((slot) => ({
+      slot,
+      tableIds: slot.tableIds.filter((id) => availableTableIds.has(id)),
+    }))
+    .filter(({ tableIds }) => tableIds.length > 0);
+
+  const matchingName = selectedSlot?.name.trim().toLowerCase();
+  const sameNameConfigurations = reusableConfigurations.filter(
+    ({ slot }) => slot.name.trim().toLowerCase() === matchingName,
+  );
+
+  const configurationsByMatch = {
+    "same-time": sameNameConfigurations.filter(
+      ({ slot }) =>
+        slot.startTime === selectedSlot?.startTime &&
+        slot.endTime === selectedSlot?.endTime,
+    ),
+    "any-time": sameNameConfigurations,
+    "any-slot": reusableConfigurations,
+  };
+
+  const reuseMatch =
+    reuseMatchOverride ??
+    (configurationsByMatch["same-time"].length > 0
+      ? "same-time"
+      : configurationsByMatch["any-time"].length > 0
+        ? "any-time"
+        : "any-slot");
+
+  const matchingConfigurations = configurationsByMatch[reuseMatch];
+  const configuration =
+    reuseOrder === "oldest"
+      ? matchingConfigurations.at(-1)
+      : matchingConfigurations[0];
+
+  const previousConfigurationSlot = configuration?.slot ?? null;
+  const reusableTableCount = configuration?.tableIds.length ?? 0;
   // Synchronize the table selection when the selected slot object changes.
   const [previousSelectedSlot, setPreviousSelectedSlot] =
     useState(selectedSlot);
@@ -346,6 +431,11 @@ export default function useStaffCapacity() {
   function openAssignmentModal(slot) {
     setSelectedSlotId(String(slot.id));
     setSelectedTableIds(slot.tableIds);
+    setIsSuggestedConfiguration(false);
+    setSelectionBeforeReuse(null);
+    setReuseMatch(null);
+    setReuseOrder("newest");
+    setAssignmentForNewSlot(false);
     setErrorMessage("");
     setFeedbackMessage("");
     setIsAssignmentModalOpen(true);
@@ -409,7 +499,7 @@ export default function useStaffCapacity() {
 
         setFeedbackMessage("Meal slot updated successfully.");
       } else {
-        // Create a slot with no table assignments and select it.
+        // Create a slot first, then let the employee confirm its table assignment.
         const createdMealSlot = await CapacityAPI.createMealSlot(mealSlotData);
 
         /** @type {ConfiguredMealSlot} */
@@ -420,6 +510,12 @@ export default function useStaffCapacity() {
 
         setMealSlots((current) => [...current, newMealSlot]);
         setSelectedSlotId(String(newMealSlot.id));
+        setSelectedTableIds([]);
+        setIsSuggestedConfiguration(false);
+        setSelectionBeforeReuse(null);
+        setReuseMatch(null);
+        setReuseOrder("newest");
+        setAssignmentForNewSlot(true);
         setFeedbackMessage("Meal slot added successfully.");
       }
 
@@ -427,6 +523,9 @@ export default function useStaffCapacity() {
       setIsSlotModalOpen(false);
       setEditingSlotId(null);
       setSlotForm(emptySlotForm);
+      if (editingSlotId === null) {
+        setIsAssignmentModalOpen(true);
+      }
     } catch (error) {
       // Keep the form open so the user can correct or retry the request.
       setErrorMessage(getErrorMessage(error));
@@ -520,6 +619,49 @@ export default function useStaffCapacity() {
     );
   }
 
+  /**
+   * Select or clear all tables currently shown in the assignment list.
+   *
+   * @param {number[]} tableIds
+   * @param {boolean} selectAll
+   */
+  function toggleAllTableAssignments(tableIds, selectAll) {
+    setSelectedTableIds((current) => {
+      if (!selectAll) {
+        return current.filter(
+          (id) => !tableIds.some((tableId) => String(tableId) === String(id)),
+        );
+      }
+
+      return [
+        ...current,
+        ...tableIds.filter(
+          (tableId) => !current.some((id) => String(id) === String(tableId)),
+        ),
+      ];
+    });
+  }
+
+  // Copy the previous configuration only into the unsaved modal selection.
+  function reusePreviousConfiguration() {
+    if (isSaving || !configuration) return;
+
+    setSelectionBeforeReuse(selectedTableIds);
+    setSelectedTableIds(configuration.tableIds);
+    setIsSuggestedConfiguration(true);
+    setErrorMessage("");
+  }
+
+  // Restore the selection that was visible before reusing a configuration.
+  function undoReuseConfiguration() {
+    if (selectionBeforeReuse) {
+      setSelectedTableIds(selectionBeforeReuse);
+    }
+
+    setSelectionBeforeReuse(null);
+    setIsSuggestedConfiguration(false);
+  }
+
   // Save the selected tables as the complete assignment for the chosen slot.
   async function saveAssignments() {
     // Require a selected slot before submitting table assignments.
@@ -553,6 +695,8 @@ export default function useStaffCapacity() {
       setSelectedTableIds(savedTableIds);
       setFeedbackMessage("Table assignments saved successfully.");
       setIsAssignmentModalOpen(false);
+      setIsSuggestedConfiguration(false);
+      setSelectionBeforeReuse(null);
     } catch (error) {
       // Keep the modal open when assignments cannot be saved.
       setErrorMessage(getErrorMessage(error));
@@ -577,6 +721,9 @@ export default function useStaffCapacity() {
     setSlotForm(emptySlotForm);
     setIsSlotModalOpen(false);
     setIsAssignmentModalOpen(false);
+    setIsSuggestedConfiguration(false);
+    setSelectionBeforeReuse(null);
+    setAssignmentForNewSlot(false);
     setErrorMessage("");
     setFeedbackMessage("");
   }
@@ -676,6 +823,17 @@ export default function useStaffCapacity() {
     updateSlotField,
     updateTableField,
     openNewSlotForm,
+    isSuggestedConfiguration,
+    previousConfigurationSlot,
+    canOfferReuse,
+    reuseMatch,
+    setReuseMatch,
+    reuseOrder,
+    setReuseOrder,
+    reusableTableCount,
+    assignmentForNewSlot,
+    reusePreviousConfiguration,
+    undoReuseConfiguration,
     openNewTableForm,
     startEditingSlot,
     startEditingTable,
@@ -683,10 +841,16 @@ export default function useStaffCapacity() {
     handleSlotSubmit,
     handleTableSubmit,
     toggleTableAssignment,
+    toggleAllTableAssignments,
     saveAssignments,
     closeSlotModal: () => setIsSlotModalOpen(false),
     closeTableModal: () => setIsTableModalOpen(false),
-    closeAssignmentModal: () => setIsAssignmentModalOpen(false),
+    closeAssignmentModal: () => {
+      setIsAssignmentModalOpen(false);
+      setIsSuggestedConfiguration(false);
+      setSelectionBeforeReuse(null);
+      setAssignmentForNewSlot(false);
+    },
     isCopyWeekOpen,
     copyWeekError,
     openCopyWeek,

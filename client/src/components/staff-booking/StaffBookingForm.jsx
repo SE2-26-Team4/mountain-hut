@@ -6,6 +6,7 @@ import {
   bookingRequestsTooLong,
   emptyBookingRequests,
   toBookingRequestFields,
+  dietaryRequirementsIncomplete,
 } from "../../utils/booking-requirements.js";
 import BookingConfirmationModal from "../booking/BookingConfirmationModal.jsx";
 import ExistingHikerPicker from "./ExistingHikerPicker.jsx";
@@ -139,6 +140,12 @@ export default function StaffBookingForm({ onCancel }) {
 
     setBookingError("");
 
+    if (dietaryRequirementsIncomplete(requests, Number(partySize))) {
+      setBookingError(
+        "Answer the dietary requirements question and complete any required descriptions.",
+      );
+      return;
+    }
     if (bookingRequestsTooLong(requests)) {
       setBookingError("Each field can contain up to 1,000 characters.");
       return;
