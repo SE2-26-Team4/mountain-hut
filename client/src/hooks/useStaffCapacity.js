@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import CapacityAPI from "../API/capacity-api.js";
+import { addCalendarDays } from "../utils/weekly-schedule.js";
 
 /**
  * API data types used by the capacity configuration.
@@ -110,6 +111,8 @@ export default function useStaffCapacity() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isCopyWeekOpen, setIsCopyWeekOpen] = useState(false);
+  const [copyWeekError, setCopyWeekError] = useState("");
 
   // Show only slots for the selected date, ordered by start time and ID.
   const visibleMealSlots = mealSlots
@@ -725,6 +728,69 @@ export default function useStaffCapacity() {
     setFeedbackMessage("");
   }
 
+  function openCopyWeek() {
+    setCopyWeekError("");
+    setErrorMessage("");
+    setFeedbackMessage("");
+    setIsCopyWeekOpen(true);
+  }
+
+  function closeCopyWeek() {
+    if (!isSaving) setIsCopyWeekOpen(false);
+  }
+
+  // TODO(MH-09): Keep copyWeek for a single destination week.
+  // Add a separate submit action when the recurrence API is available.
+  // For finite repeats, the server should validate every destination week
+  // before applying the copy so a conflict cannot leave a partial result.
+  /** @param {string} sourceWeekStart @param {string} destinationWeekStart */
+  async function copyWeek(sourceWeekStart, destinationWeekStart) {
+    if (isSaving) return;
+
+    const sourceWeekEnd = addCalendarDays(sourceWeekStart, 7);
+
+    // An empty source would replace the destination with an empty schedule.
+    if (
+      !mealSlots.some(
+        (slot) =>
+          slot.slotDate >= sourceWeekStart && slot.slotDate < sourceWeekEnd,
+      )
+    ) {
+      setCopyWeekError("The source week has no time slots to copy.");
+      return;
+    }
+
+    setCopyWeekError("");
+    setIsSaving(true);
+
+    try {
+      // [REQUIREMENT] MH-09: Copy meal slots and table assignments to another week.
+      const { mealSlots: copiedSlots } = await CapacityAPI.copyWeeklySchedule({
+        sourceWeekStart,
+        destinationWeekStart,
+      });
+      const destinationWeekEnd = addCalendarDays(destinationWeekStart, 7);
+
+      setMealSlots((current) => [
+        ...current.filter(
+          (slot) =>
+            slot.slotDate < destinationWeekStart ||
+            slot.slotDate >= destinationWeekEnd,
+        ),
+        ...copiedSlots,
+      ]);
+      setSelectedDate(destinationWeekStart);
+      setSelectedSlotId("");
+      setSelectedTableIds([]);
+      setIsCopyWeekOpen(false);
+      setFeedbackMessage("Weekly schedule copied successfully.");
+    } catch (error) {
+      setCopyWeekError(getErrorMessage(error));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   // Expose configuration data, derived values, forms, and actions to components.
   return {
     mealSlots,
@@ -785,5 +851,10 @@ export default function useStaffCapacity() {
       setSelectionBeforeReuse(null);
       setAssignmentForNewSlot(false);
     },
+    isCopyWeekOpen,
+    copyWeekError,
+    openCopyWeek,
+    closeCopyWeek,
+    copyWeek,
   };
 }

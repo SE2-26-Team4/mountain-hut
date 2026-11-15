@@ -232,17 +232,6 @@
   max-width: var(--mh-signout-button-max-width);
 }
 
-:is(button, .btn, [role="button"]):focus:not(:focus-visible) {
-  outline: none !important;
-  box-shadow: none !important;
-}
-
-:is(button, .btn, [role="button"]):focus-visible {
-  outline: var(--mh-border-width-accent) solid var(--mh-navy) !important;
-  outline-offset: var(--mh-border-width-accent);
-  box-shadow: none !important;
-}
-
 @media (max-width: 767px) {
   .mh-auth-heading {
     margin-top: var(--mh-space-4);
@@ -1985,7 +1974,6 @@ button.mh-add-dietary-requirement:focus-visible {
   background: var(--mh-white-transparent);
 }
 
-.cap-menu-toggle:focus-visible,
 .cap-navigation .cap-nav-item:focus-visible,
 .cap-logout.btn:focus-visible {
   outline: var(--mh-cap-size-3) solid var(--mh-copper);
@@ -2340,6 +2328,32 @@ button.mh-add-dietary-requirement:focus-visible {
   background-color: var(--mh-account-border);
 }
 
+.cap-tables-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.cap-tables-heading > button {
+  white-space: nowrap;
+}
+
+.cap-tables {
+  container: staff-tables / inline-size;
+}
+
+@container staff-tables (max-width: 18rem) {
+  .cap-tables-heading {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cap-tables-heading > button {
+    justify-self: stretch;
+    max-width: 100%;
+    white-space: normal;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cap-table-item .cap-icon-button {
     transition: none;
@@ -2583,6 +2597,42 @@ button.mh-add-dietary-requirement:focus-visible {
     flex: 0 0 var(--mh-cap-size-44);
     width: var(--mh-cap-size-44);
     height: var(--mh-cap-size-44);
+  }
+}
+
+.cap-schedule-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.cap-schedule-actions {
+  display: flex;
+  gap: var(--mh-cap-size-8);
+}
+
+.cap-schedule-actions > button {
+  white-space: nowrap;
+}
+
+@container time-slots (max-width: 34rem) {
+  .cap-schedule-actions {
+    display: grid;
+    justify-items: end;
+  }
+
+  .cap-schedule-actions > .cap-primary {
+    grid-row: 1;
+  }
+}
+
+@container time-slots (max-width: 18rem) {
+  .cap-schedule-heading {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cap-schedule-actions {
+    justify-items: stretch;
   }
 }
 
@@ -3048,14 +3098,15 @@ button.mh-add-dietary-requirement:focus-visible {
   font-size: var(--mh-mobile-menu-toggle-font-size);
 }
 
-.mh-menu-toggle:focus-visible {
-  outline: var(--mh-cap-size-3) solid var(--mh-copper);
-  outline-offset: var(--mh-cap-size-3);
+.mh-menu-toggle:focus-visible,
+.cap-menu-toggle:focus-visible {
+  outline: 1px solid currentColor;
+  outline-offset: -3px;
+  box-shadow: none;
 }
 
 .offcanvas.mh-mobile-menu.offcanvas-top {
   --bs-offcanvas-height: auto;
-
   inset: 0 0 auto;
   width: 100%;
   height: auto;
@@ -4062,6 +4113,62 @@ button.cap-sidebar-toggle:focus-visible {
   color: var(--mh-copper);
 }
 
+@media (max-width: 575.98px) {
+  .mh-staff-login-page {
+    padding: var(--mh-space-4);
+  }
+
+  .mh-staff-login-page > .mh-staff-login-card {
+    padding: var(--mh-cap-size-20);
+  }
+}
+
+@media (max-height: 650px) {
+  .mh-staff-login-page.align-items-center {
+    align-items: flex-start !important;
+  }
+}
+
+/* ==========================================================================
+   ScheduleCopyActions — components/capacity/ScheduleCopyActions.jsx
+   ========================================================================== */
+
+.cap-schedule-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  column-gap: var(--mh-cap-size-16);
+}
+
+.cap-schedule-copy-actions {
+  display: grid;
+  gap: var(--mh-cap-size-8);
+  margin-block: var(--mh-cap-size-12);
+}
+
+@media (max-width: 575.98px) {
+  .cap-schedule-copy-actions {
+    width: 100%;
+    margin-top: 0;
+  }
+}
+
+/* ==========================================================================
+   ScheduleCopyConfirmationModal — components/capacity/ScheduleCopyConfirmationModal.jsx
+   ========================================================================== */
+
+:where(#schedule-copy-confirmation-title) {
+  padding-inline: var(--mh-cap-size-24);
+}
+
+.modal-header:has(#schedule-copy-confirmation-title) > .btn-close {
+  position: absolute;
+  top: var(--mh-cap-size-16);
+  right: var(--mh-cap-size-16);
+  margin: 0;
+}
+
 /* ==========================================================================
    StaffBookingPage — pages/StaffBookingPage.jsx
    ========================================================================== */
@@ -4164,6 +4271,16 @@ button.staff-hiker-option:focus-visible {
 }
 
 /* ==========================================================================
+   ScheduleInfo — components/capacity/ScheduleInfo.jsx
+   ========================================================================== */
+
+.cap-schedule-info-popover {
+  --bs-popover-bg: #151515;
+  --bs-popover-border-color: #151515;
+  --bs-popover-body-color: var(--mh-white);
+}
+
+/* ==========================================================================
    CancellationMark — components/common/CancellationMark.jsx
    ========================================================================== */
 
@@ -4179,4 +4296,66 @@ button.staff-hiker-option:focus-visible {
 .mh-warning-mark {
   background-color: var(--mh-warning-mark-background);
   color: var(--mh-copper);
+}
+
+/* ==========================================================================
+   Responsive layout for schedule copy dialogs
+   ========================================================================== */
+
+.cap-schedule-dialog.modal-dialog-scrollable .modal-content {
+  max-height: 100%;
+  min-width: 0;
+}
+
+.cap-schedule-dialog .cap-schedule-modal-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cap-schedule-dialog .modal-header,
+.cap-schedule-dialog .modal-footer {
+  flex-shrink: 0;
+}
+
+.cap-schedule-dialog .modal-body {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 575.98px) {
+  .cap-schedule-dialog.modal-dialog-scrollable {
+    height: calc(100dvh - 1rem);
+    min-height: 0;
+    margin: 0.5rem;
+  }
+
+  .cap-schedule-dialog .modal-header,
+  .cap-schedule-dialog .modal-body,
+  .cap-schedule-dialog .modal-footer {
+    padding: 0.75rem;
+  }
+
+  .cap-schedule-dialog .modal-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .cap-schedule-dialog .modal-footer > button {
+    flex: 1 1 8rem;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+    padding-inline: 0.5rem;
+    white-space: normal;
+  }
+
+  .cap-schedule-dialog .list-group-item > button {
+    max-width: 100%;
+    white-space: normal;
+  }
 }

@@ -13,12 +13,14 @@ import StatusBadge from "../common/StatusBadge.jsx";
  * @param {ConfiguredMealSlot[]} props.slots
  * @param {DiningTableDTO[]} props.tables
  * @param {() => void} props.onAdd
+ * @param {() => void} props.onCopyWeek
  * @param {(slot: ConfiguredMealSlot) => void} props.onAssign
  */
 export default function StaffTimeSlotsPanel({
   slots,
   tables,
   onAdd,
+  onCopyWeek,
   onAssign,
 }) {
   const [statusFilter, setStatusFilter] = useState("all");
@@ -66,16 +68,23 @@ export default function StaffTimeSlotsPanel({
 
   return (
     <section className="cap-panel cap-slots">
-      <div className="cap-panel-heading d-flex flex-wrap align-items-start justify-content-between gap-3">
+      <div className="cap-panel-heading cap-schedule-heading">
         <div>
           <h2>Time slots</h2>
           <p>Set the available tables for each time slot.</p>
         </div>
 
-        <button type="button" className="cap-primary" onClick={onAdd}>
-          <i className="bi bi-plus-lg" aria-hidden="true" />
-          Add time slot
-        </button>
+        <div className="cap-schedule-actions">
+          <button type="button" className="cap-outline" onClick={onCopyWeek}>
+            <i className="bi bi-copy" aria-hidden="true" />
+            Copy week
+          </button>
+
+          <button type="button" className="cap-primary" onClick={onAdd}>
+            <i className="bi bi-plus-lg" aria-hidden="true" />
+            Add time slot
+          </button>
+        </div>
       </div>
 
       <div className="d-flex flex-wrap align-items-end gap-3 mt-2">

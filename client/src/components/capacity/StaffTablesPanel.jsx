@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState } from "react";
 
 /**
  * @typedef {import('../../models/models.js').DiningTableDTO} DiningTableDTO
@@ -10,12 +10,8 @@ import { useMemo, useState } from 'react';
  * @param {() => void} props.onAdd
  * @param {(table: DiningTableDTO) => void} props.onEdit
  */
-export default function StaffTablesPanel({
-  tables,
-  onAdd,
-  onEdit,
-}) {
-  const [query, setQuery] = useState('');
+export default function StaffTablesPanel({ tables, onAdd, onEdit }) {
+  const [query, setQuery] = useState("");
 
   const filtered = useMemo(
     () =>
@@ -27,32 +23,21 @@ export default function StaffTablesPanel({
 
   return (
     <section className="cap-panel cap-tables">
-      <div className="cap-panel-heading d-flex align-items-start justify-content-between">
+      <div className="cap-panel-heading cap-tables-heading">
         <div>
           <h2>Tables</h2>
 
           <p>Manage tables and seats.</p>
         </div>
 
-        <button
-          type="button"
-          className="cap-primary"
-          onClick={onAdd}
-        >
-          <i
-            className="bi bi-plus-lg"
-            aria-hidden="true"
-          />
-
+        <button type="button" className="cap-primary" onClick={onAdd}>
+          <i className="bi bi-plus-lg" aria-hidden="true" />
           Add table
         </button>
       </div>
 
       <div className="cap-search">
-        <i
-          className="bi bi-search"
-          aria-hidden="true"
-        />
+        <i className="bi bi-search" aria-hidden="true" />
 
         <input
           placeholder="Search tables..."
@@ -71,10 +56,7 @@ export default function StaffTablesPanel({
             key={table.id}
           >
             <span className="cap-table-symbol">
-              <i
-                className="bi bi-people"
-                aria-hidden="true"
-              />
+              <i className="bi bi-people" aria-hidden="true" />
             </span>
 
             <span className="cap-table-copy d-flex flex-column">
@@ -82,7 +64,7 @@ export default function StaffTablesPanel({
 
               <small>
                 {table.seatCount} seats
-                {!table.isActive ? ' · Inactive' : ''}
+                {!table.isActive ? " · Inactive" : ""}
               </small>
             </span>
 
@@ -92,17 +74,12 @@ export default function StaffTablesPanel({
               onClick={() => onEdit(table)}
               aria-label={`Edit ${table.name}`}
             >
-              <i
-                className="bi bi-pencil"
-                aria-hidden="true"
-              />
+              <i className="bi bi-pencil" aria-hidden="true" />
             </button>
           </div>
         ))}
 
-        {filtered.length === 0 && (
-          <p className="cap-empty">No tables found.</p>
-        )}
+        {filtered.length === 0 && <p className="cap-empty">No tables found.</p>}
       </div>
 
       <div className="cap-panel-footer cap-tables-footer">

@@ -502,6 +502,18 @@ a {
   outline-offset: var(--mh-space-1);
 }
 
+/* Keep button focus visible for keyboard navigation. */
+:is(button, .btn, [role="button"]):focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
+:is(button, .btn, [role="button"]):focus-visible {
+  outline: 1px solid var(--mh-navy);
+  outline-offset: 1px;
+  box-shadow: none;
+}
+
 /* Accessibility preferences: reduce custom transitions. */
 @media (prefers-reduced-motion: reduce) {
   :root {

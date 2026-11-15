@@ -11,6 +11,8 @@ import StaffSidebar from "../components/capacity/StaffSidebar.jsx";
 import StaffTablesPanel from "../components/capacity/StaffTablesPanel.jsx";
 import StaffTimeSlotsPanel from "../components/capacity/StaffTimeSlotsPanel.jsx";
 import Alert from "../components/common/AutoDismissAlert.jsx";
+import CopyWeekModal from "../components/capacity/CopyWeekModal.jsx";
+import ScheduleCopyActions from "../components/capacity/ScheduleCopyActions.jsx";
 
 /**
  * @typedef {import('../API/session-api.js').SessionUser} SessionUser
@@ -82,11 +84,15 @@ function StaffCapacityContent({ user, onLogout }) {
         </div>
 
         <div className="cap-content">
-          <StaffDateSelector
-            date={staff.selectedDate}
-            onChange={staff.changeSelectedDate}
-            disabled={staff.isLoading || staff.isSaving}
-          />
+          <div className="cap-schedule-toolbar">
+            <StaffDateSelector
+              date={staff.selectedDate}
+              onChange={staff.changeSelectedDate}
+              disabled={staff.isLoading || staff.isSaving}
+            />
+
+            <ScheduleCopyActions onAddSchedule={staff.openCopyWeek} />
+          </div>
 
           {staff.errorMessage &&
             !staff.isAssignmentModalOpen &&
@@ -123,10 +129,21 @@ function StaffCapacityContent({ user, onLogout }) {
                   slots={staff.visibleMealSlots}
                   tables={staff.diningTables}
                   onAdd={staff.openNewSlotForm}
+                  onCopyWeek={staff.openCopyWeek}
                   onAssign={staff.openAssignmentModal}
                 />
               </Col>
             </Row>
+          )}
+
+          {staff.isCopyWeekOpen && (
+            <CopyWeekModal
+              date={staff.selectedDate}
+              saving={staff.isSaving}
+              error={staff.copyWeekError}
+              onHide={staff.closeCopyWeek}
+              onCopy={staff.copyWeek}
+            />
           )}
 
           <AssignTablesModal
