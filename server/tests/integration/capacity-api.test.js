@@ -179,6 +179,55 @@ describe("meal-slot and capacity API", () => {
     });
   });
 
+  it("copies a non-empty weekly schedule through the staff API", async () => {
+    const sourceSlot = await createMealSlot({
+      slotDate: "2097-07-09",
+      name: `Weekly API copy ${uniqueSuffix}`,
+      startTime: "10:00",
+      endTime: "12:00",
+    });
+
+    createdSlotIds.push(sourceSlot.id);
+
+    await setMealSlotTables(sourceSlot.id, [tableId]);
+
+    const response = await employeeAgent
+      .post("/api/capacity/meal-slots/copy-week")
+      .send({
+        sourceWeekStart: "2097-07-08",
+        destinationWeekStart: "2097-08-05",
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.mealSlots).toHaveLength(1);
+
+    const copiedSlot = response.body.mealSlots[0];
+
+    createdSlotIds.push(copiedSlot.id);
+
+    expect(copiedSlot).toMatchObject({
+      name: sourceSlot.name,
+      slotDate: "2097-08-06",
+      startTime: "10:00",
+      endTime: "12:00",
+      tableIds: [tableId],
+    });
+
+    expect(copiedSlot.id).not.toBe(sourceSlot.id);
+
+    const configuration = await employeeAgent.get("/api/capacity");
+
+    expect(configuration.status).toBe(200);
+    expect(configuration.body.mealSlots).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: copiedSlot.id,
+          slotDate: "2097-08-06",
+        }),
+      ]),
+    );
+  });
+
   it('rejects an invalid destination week through the staff API', async () => {
     const response = await employeeAgent
       .post('/api/capacity/meal-slots/copy-week')
@@ -448,6 +497,14 @@ describe("capacity API edge cases", () => {
   function staffEndpoints() {
     return [
       ["get", "/api/capacity", undefined],
+      [
+        "post",
+        "/api/capacity/meal-slots/copy-week",
+        {
+          sourceWeekStart: "2097-01-05",
+          destinationWeekStart: "2097-02-02",
+        },
+      ],
       ["get", `/api/capacity/meal-slots/${activeSlotId}`, undefined],
       ["post", "/api/capacity/meal-slots", slotInput],
       ["post", "/api/capacity/dining-tables", tableInput],
@@ -695,7 +752,7 @@ describe("capacity API edge cases", () => {
 
   // Unexpected database errors must not expose private details to clients.
   it("returns a generic 500 response when a database read fails", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => { });
 
     vi.spyOn(CapacityDAO, "getMealSlots").mockRejectedValueOnce(
       new Error("Private database detail"),
@@ -716,7 +773,7 @@ describe("capacity API edge cases", () => {
   it.each([new Error("Database failure"), "Unexpected rejection"])(
     "forwards unexpected assignment failures to the error handler: %s",
     async (failure) => {
-      vi.spyOn(console, "error").mockImplementation(() => {});
+      vi.spyOn(console, "error").mockImplementation(() => { });
 
       vi.spyOn(CapacityDAO, "setMealSlotTables").mockRejectedValueOnce(failure);
 
