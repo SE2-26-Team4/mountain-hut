@@ -42,7 +42,11 @@ function HomePage() {
     handleSessionExpired,
   } = useAuth();
 
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('signIn') === '1',
+  );
 
   const isStaff =
     user?.role === 'employee' || user?.role === 'warden';

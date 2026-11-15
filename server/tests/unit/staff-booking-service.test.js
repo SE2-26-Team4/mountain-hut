@@ -187,7 +187,7 @@ describe("createBookingByStaff", () => {
       specialRequests: "",
     });
 
-    // Only the hash is saved; the plain password is returned once.
+    // Only the hash is saved; the plain password is kept for email delivery.
     expect(mocks.hashPassword).toHaveBeenCalledWith(GENERATED_PASSWORD);
     expect(result.initialPassword).toBe(GENERATED_PASSWORD);
     expect(result.hiker).toMatchObject({ mustChangePassword: true });
@@ -320,8 +320,6 @@ describe("createBookingByStaff", () => {
       "a new hiker with a too long email",
       newHikerInput({ email: `${"a".repeat(250)}@example.com` }),
     ],
-    ["a new hiker without phone", newHikerInput({ phone: undefined })],
-    ["a new hiker with a blank phone", newHikerInput({ phone: "  " })],
     ["a new hiker with a too short phone", newHikerInput({ phone: "12345" })],
     [
       "a new hiker with a too long phone",

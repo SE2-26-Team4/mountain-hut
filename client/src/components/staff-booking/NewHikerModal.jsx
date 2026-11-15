@@ -1,12 +1,12 @@
 import { useRef, useState } from "react";
-import { Col, Form, Modal, Row } from "react-bootstrap";
+import { Alert, Col, Form, Modal, Row, Spinner } from "react-bootstrap";
 
 import SuccessCheck from "../common/SuccessCheck.jsx";
 
 /**
  * @typedef {Object} RegistrationResult
  * @property {import("../../models/models.js").HikerDTO} hiker
- * @property {boolean} emailSent
+ * @property {boolean} passwordSent
  */
 
 /**
@@ -14,6 +14,7 @@ import SuccessCheck from "../common/SuccessCheck.jsx";
  *   show: boolean,
  *   onHide: () => void,
  *   registration?: RegistrationResult | null,
+ *   onRegister: (hiker: Exclude<import("../../models/models.js").StaffHikerInputDTO, { type: 'existing' }>) => Promise<void>,
  *   onContinue?: (hiker: RegistrationResult["hiker"]) => void,
  * }} props
  */
@@ -21,6 +22,7 @@ export default function NewHikerModal({
   show,
   onHide,
   registration = null,
+  onRegister,
   onContinue,
 }) {
   const [newHikerDraft, setNewHikerDraft] = useState({
@@ -31,6 +33,38 @@ export default function NewHikerModal({
   });
 
   const firstNameRef = useRef(/** @type {HTMLInputElement | null} */ (null));
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const handleCreateAccount = async () => {
+    const firstName = newHikerDraft.firstName.trim();
+    const lastName = newHikerDraft.lastName.trim();
+    const email = newHikerDraft.email.trim();
+    const phone = newHikerDraft.phone.trim();
+
+    if (!firstName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setErrorMessage("Enter a first name and a valid email address.");
+      return;
+    }
+
+    setErrorMessage("");
+    setIsSubmitting(true);
+
+    try {
+      await onRegister({
+        type: "new",
+        fullName: [firstName, lastName].filter(Boolean).join(" "),
+        email,
+        phone: phone || null,
+      });
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Could not create the account.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <Modal
@@ -52,7 +86,7 @@ export default function NewHikerModal({
             <p className="fw-semibold mb-2">{registration.hiker.fullName}</p>
 
             <p className="text-body-secondary mb-0" role="status">
-              {registration.emailSent
+              {registration.passwordSent
                 ? `The temporary password was sent to ${registration.hiker.email}. The hiker will need to change it at first sign-in.`
                 : "The account was created, but the email could not be sent."}
             </p>
@@ -80,6 +114,11 @@ export default function NewHikerModal({
           </Modal.Header>
 
           <Modal.Body>
+            {errorMessage && (
+              <Alert variant="danger" role="alert">
+                {errorMessage}
+              </Alert>
+            )}
             <Row className="g-3 mb-3">
               <Col xs={12} sm={6}>
                 <Form.Group controlId="staff-new-hiker-first-name">
@@ -152,33 +191,20 @@ export default function NewHikerModal({
             <button type="button" className="cap-outline" onClick={onHide}>
               Cancel
             </button>
-            {/* TODO: Feat — New Hiker First Login
-
-                This modal already has two views: "Register a new hiker" and
-                "Hiker account created". Connect the existing views as follows:
-
-                1. Wire Create account to a submit handler. Require a non-blank
-                first name and a valid email. Trim firstName and lastName, then
-                join the non-empty parts with a space to build fullName.
-                Send fullName, email, and optional phone through
-                BookingAPI.createHiker in client/src/API/booking-api.js
-                with type: "new".
-                Show "Creating account…" and disable submission while it runs.
-                If account creation fails, keep the form open with its values.
-
-                3. In client/src/components/staff-booking/StaffBookingForm.jsx,
-                pass onContinue so the "Continue to booking" button selects the
-                new hiker in Existing and preserves the booking details.
-                Keep the button enabled once the account is created, even if
-                sending the password email fails. Clear the registration result
-                when the modal closes.
-
-                The first-login password change is already implemented on
-                origin/feature/new-hiker-login. See
-                client/src/components/auth/ChangePasswordForm.jsx and
-                server/routes/auth-routes.js on that branch. */}
-            <button type="button" className="cap-primary" disabled>
-              Create account
+            <button
+              type="button"
+              className="cap-primary"
+              disabled={isSubmitting}
+              onClick={handleCreateAccount}
+            >
+              {isSubmitting ? (
+                <>
+                  <Spinner size="sm" animation="border" aria-hidden="true" />
+                  Creating account…
+                </>
+              ) : (
+                "Create account"
+              )}
             </button>
           </Modal.Footer>
         </>

@@ -40,3 +40,21 @@ export function requireRole(...allowedRoles) {
 }
 
 export const requireStaff = requireRole('employee', 'warden');
+
+/**
+ * Prevents hiker features until the initial password has been replaced.
+ *
+ * @type {import('express').RequestHandler}
+ */
+export function requirePasswordChanged(req, res, next) {
+  if (req.user?.role === 'hiker' && req.user.mustChangePassword) {
+    return res.status(403).json({
+      error: {
+        code: 'PASSWORD_CHANGE_REQUIRED',
+        message: 'You must change your password before continuing.',
+      },
+    });
+  }
+
+  return next();
+}

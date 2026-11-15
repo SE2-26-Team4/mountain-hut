@@ -147,7 +147,7 @@ Set backend environment variables **before** starting the server. The backend do
 | `DB_PATH` | SQLite database file path |
 | `SESSION_SECRET` | Session signing secret; required in production |
 | `SEED_DEMO_ACCOUNTS` | Set to `true` to create demo accounts |
-| `CLIENT_ORIGIN` | CORS frontend origin; defaults to `http://localhost:5173` |
+| `CLIENT_ORIGIN` | Public frontend origin used for CORS and account email links; defaults to `http://localhost:5173` for local development and is set to `http://localhost:8080` by Docker Compose |
 | `COOKIE_SECURE` | Set to `true` when cookies should be sent only over HTTPS |
 | `RESEND_API_KEY` | Resend API key for confirmation emails |
 | `EMAIL_FROM` | Email sender using a domain verified in Resend |

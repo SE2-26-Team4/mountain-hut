@@ -24,6 +24,7 @@ function useAuthLogic() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [feedbackMessage, setFeedbackMessage] = useState('');
 
@@ -102,6 +103,31 @@ function useAuthLogic() {
     }
   };
 
+  /**
+   * @param {{ currentPassword: string, newPassword: string, confirmPassword: string }} passwords
+   * @returns {Promise<boolean>}
+   */
+  const handleChangePassword = async (passwords) => {
+    setErrorMessage('');
+    setFeedbackMessage('');
+    setIsChangingPassword(true);
+
+    try {
+      const updatedUser = await API.changePassword(passwords);
+
+      setUser(updatedUser);
+      setFeedbackMessage('Your password has been updated.');
+
+      return true;
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error));
+
+      return false;
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   const handleSessionExpired = () => {
     setUser(null);
     setFeedbackMessage('');
@@ -116,11 +142,13 @@ function useAuthLogic() {
     user,
     isLoading,
     isSubmitting,
+    isChangingPassword,
     errorMessage,
     feedbackMessage,
     clearFeedbackMessage,
     handleLogin,
     handleLogout,
+    handleChangePassword,
     handleSessionExpired,
   };
 }

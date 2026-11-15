@@ -15,6 +15,8 @@ passport.use(
 
         if (
           !user ||
+          user.is_temporary ||
+          !user.password_hash ||
           !(await verifyPassword(password, user.password_hash))
         ) {
           return callback(null, false, {
@@ -28,6 +30,8 @@ passport.use(
           full_name: user.full_name,
           email: user.email,
           role: user.role,
+          isTemporary: Boolean(user.is_temporary),
+          mustChangePassword: Boolean(user.must_change_password),
         };
 
         return callback(null, authenticatedUser);
@@ -52,7 +56,10 @@ passport.deserializeUser(
     try {
       const user = await getUserById(id);
 
-      callback(null, user ?? false);
+      callback(
+        null,
+        user ?? false,
+      );
     } catch (error) {
       callback(error, false);
     }

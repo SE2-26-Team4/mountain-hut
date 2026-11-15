@@ -119,13 +119,6 @@ async function searchHikers(search) {
   return data.hikers;
 }
 
-// TODO: Feat — New Hiker First Login
-// Update the return type of createHiker in this file and its response DTO
-// in client/src/models/models.js to match POST /staff/hikers.
-// See server/routes/booking-routes.js on origin/feature/new-hiker-login
-// (commit 175a3a8). The route returns { hiker, passwordSent }.
-// Use passwordSent to report the email outcome. Keep the temporary
-// password server-side and use a separate response type for createStaffBooking.
 /**
  * Registers a new full or temporary hiker without a booking.
  *

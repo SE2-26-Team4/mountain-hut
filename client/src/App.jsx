@@ -2,15 +2,16 @@ import { useEffect } from "react";
 import { Alert } from "react-bootstrap";
 import { Link, Route, Routes, useLocation } from "react-router-dom";
 
-import { AuthProvider } from "./contexts/AuthContext.jsx";
-import { useAuthLogic } from "./hooks/useAuthLogic.js";
-import HomePage from "./pages/HomePage.jsx";
-import MenuPage from "./pages/MenuPage.jsx";
-import StaffLoginPage from "./pages/StaffLoginPage.jsx";
-import StaffCapacityPage from "./pages/StaffCapacityPage.jsx";
+import { AuthProvider } from './contexts/AuthContext.jsx';
+import { useAuthLogic } from './hooks/useAuthLogic.js';
+import HomePage from './pages/HomePage.jsx';
+import MenuPage from './pages/MenuPage.jsx';
+import StaffLoginPage from './pages/StaffLoginPage.jsx';
+import StaffCapacityPage from './pages/StaffCapacityPage.jsx';
+import MyBookingsPage from './pages/MyBookingsPage.jsx';
+import StaffAccessNotice from './components/auth/StaffAccessNotice.jsx';
+import ChangePasswordForm from './components/auth/ChangePasswordForm.jsx';
 import StaffBookingPage from "./pages/StaffBookingPage.jsx";
-import MyBookingsPage from "./pages/MyBookingsPage.jsx";
-import StaffAccessNotice from "./components/auth/StaffAccessNotice.jsx";
 
 /**
  * @param {Object} props
@@ -53,6 +54,22 @@ function App() {
 
   if (auth.isLoading) {
     return <main role="status">Loading Mountain Hut…</main>;
+  }
+
+  if (
+    auth.user?.role === 'hiker' &&
+    auth.user.mustChangePassword
+  ) {
+    return (
+      <AuthProvider value={auth}>
+        <ChangePasswordForm
+          isSubmitting={auth.isChangingPassword}
+          errorMessage={auth.errorMessage}
+          onSubmit={auth.handleChangePassword}
+          onSignOut={auth.handleLogout}
+        />
+      </AuthProvider>
+    );
   }
 
   return (
