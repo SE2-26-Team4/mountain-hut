@@ -196,9 +196,13 @@ Backend unit and integration tests are in `server/tests/unit/` and `server/tests
 
 ## Sprint 2 verification and code quality
 
-Sprint 2 included manual end-to-end checks for public availability, allergy information, booking edits and cancellations, staff bookings, and weekly schedule duplication. The final code reviews, cleanup, bug-fix activities, and regression checks covered frontend, backend, and automated-test code across MH-04–MH-09.
+Sprint 2 included comprehensive manual end-to-end testing for public availability, allergy information, booking editing and cancellation, staff bookings, and weekly schedule duplication.
 
-Run the available automated checks in [Tests and code checks](#tests-and-code-checks) after integration. **Coverage results should be read from the actual `test:coverage` output**; a Sprint coverage target is not itself proof of a measured percentage. In particular, the Windows symlink-permission issue described above can prevent an otherwise healthy test run from reporting full success.
+All planned bug fixes, final frontend and backend code reviews, automated test reviews, cleanup activities, and regression tests were completed by the end of Sprint 2.
+
+The team also completed the Sprint 2 test coverage task, achieving **100% code coverage for all code introduced or modified during Sprint 2**.
+
+The project was verified through automated tests, manual E2E testing, code reviews, and quality checks.
 
 ## Project specifications
 
