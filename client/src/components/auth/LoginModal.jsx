@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Col, Row } from 'react-bootstrap';
 
+import ForgotPasswordForm from './ForgotPasswordForm.jsx';
 import LoginForm from './LoginForm.jsx';
 
 /**
@@ -13,6 +15,7 @@ import LoginForm from './LoginForm.jsx';
  * @param {string} props.feedbackMessage
  * @param {(credentials: LoginCredentials) => Promise<boolean>} props.onLogin
  * @param {() => void} props.onClose
+ * @param {'login' | 'forgot-password'} [props.initialView]
  */
 function LoginModal({
   isSubmitting,
@@ -20,7 +23,10 @@ function LoginModal({
   feedbackMessage,
   onLogin,
   onClose,
+  initialView = 'login',
 }) {
+  const [view, setView] = useState(initialView);
+
   return (
     <div
       className="mh-login-overlay"
@@ -34,7 +40,11 @@ function LoginModal({
         className="mh-login-dialog"
         role="dialog"
         aria-modal="true"
-        aria-label="Sign in to Mountain Hut"
+        aria-label={
+          view === 'login'
+            ? 'Sign in to Mountain Hut'
+            : 'Reset your Mountain Hut password'
+        }
       >
         <button
           className="mh-login-close"
@@ -83,12 +93,17 @@ function LoginModal({
             className="mh-login-dialog-form d-flex align-items-center"
           >
             <div className="w-100">
-              <LoginForm
-                isSubmitting={isSubmitting}
-                errorMessage={errorMessage}
-                feedbackMessage={feedbackMessage}
-                onLogin={onLogin}
-              />
+              {view === 'login' ? (
+                <LoginForm
+                  isSubmitting={isSubmitting}
+                  errorMessage={errorMessage}
+                  feedbackMessage={feedbackMessage}
+                  onLogin={onLogin}
+                  onForgotPassword={() => setView('forgot-password')}
+                />
+              ) : (
+                <ForgotPasswordForm onBack={() => setView('login')} />
+              )}
             </div>
           </Col>
         </Row>

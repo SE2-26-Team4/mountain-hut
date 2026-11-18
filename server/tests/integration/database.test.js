@@ -87,12 +87,58 @@ describe("database initialization", () => {
         "slot_tables",
         "bookings",
         "booking_table_allocations",
+        "password_reset_tokens",
       ]),
     );
 
     expect(await db.getAsync("PRAGMA foreign_keys")).toEqual({
       foreign_keys: 1,
     });
+  });
+
+  // Databases created before password recovery must receive its table.
+  it("adds the password reset table to an existing database", async () => {
+    await loadDatabase();
+    await db.initializeDatabase();
+
+    await db.runAsync("DROP TABLE password_reset_tokens");
+
+    await db.initializeDatabase();
+
+    expect(
+      await db.allAsync(
+        `SELECT name
+         FROM sqlite_master
+         WHERE name IN ('password_reset_tokens', 'idx_password_reset_tokens_user')
+         ORDER BY name`,
+      ),
+    ).toEqual([
+      { name: "idx_password_reset_tokens_user" },
+      { name: "password_reset_tokens" },
+    ]);
+  });
+
+  // Reset links are removed together with their account.
+  it("deletes the reset links of a deleted account", async () => {
+    await loadDatabase();
+    await db.initializeDatabase();
+
+    const { lastID } = await db.runAsync(
+      `INSERT INTO users (full_name, email, password_hash, role)
+       VALUES ('Reset', 'reset@example.com', 'hash', 'hiker')`,
+    );
+
+    await db.runAsync(
+      `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+       VALUES (?, 'hash', '2099-01-01T00:00:00.000Z')`,
+      [lastID],
+    );
+
+    await db.runAsync("DELETE FROM users WHERE id = ?", [lastID]);
+
+    expect(
+      await db.getAsync("SELECT COUNT(*) AS total FROM password_reset_tokens"),
+    ).toEqual({ total: 0 });
   });
 
   // Repeated initialization must preserve existing records without duplicating them.

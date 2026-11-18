@@ -137,7 +137,12 @@
  *     notes?: string | null,
  *     emergencyContact?: string | null
  *   } |
- *   { type: 'temporary', fullName: string, phone?: string | null }
+ *   {
+ *     type: 'temporary',
+ *     fullName: string,
+ *     phone?: string | null,
+ *     email?: string | null
+ *   }
  * )} StaffHikerInputDTO
  */
 

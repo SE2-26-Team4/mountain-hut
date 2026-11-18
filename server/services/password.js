@@ -1,4 +1,5 @@
 import {
+  createHash,
   randomBytes,
   scrypt as scryptCallback,
   timingSafeEqual,
@@ -8,6 +9,46 @@ import { promisify } from 'node:util';
 // Convert the callback-based scrypt function into a promise-based function.
 /** @type {(password: string, salt: string, keyLength: number) => Promise<Buffer>} */
 const scrypt = promisify(scryptCallback);
+
+export const MIN_PASSWORD_LENGTH = 8;
+export const MAX_PASSWORD_LENGTH = 128;
+
+/**
+ * Checks a new password and its confirmation against the password rules
+ * shared by the password change and the password reset.
+ *
+ * @param {unknown} newPassword
+ * @param {unknown} confirmPassword
+ * @returns {boolean}
+ */
+export function isAcceptableNewPassword(newPassword, confirmPassword) {
+  return (
+    typeof newPassword === 'string' &&
+    newPassword.length >= MIN_PASSWORD_LENGTH &&
+    newPassword.length <= MAX_PASSWORD_LENGTH &&
+    newPassword === confirmPassword
+  );
+}
+
+/**
+ * Generates the secret sent in a password reset link (256 random bits).
+ *
+ * @returns {string}
+ */
+export function generateResetToken() {
+  return randomBytes(32).toString('base64url');
+}
+
+/**
+ * Hashes a reset token, so that the database never stores a usable link.
+ * The token is random and long, so a fast hash is enough.
+ *
+ * @param {string} token
+ * @returns {string}
+ */
+export function hashResetToken(token) {
+  return createHash('sha256').update(token).digest('hex');
+}
 
 /**
  * Generates a password hash with a random salt.

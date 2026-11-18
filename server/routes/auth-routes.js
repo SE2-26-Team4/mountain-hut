@@ -6,7 +6,11 @@ import {
   getUserByEmail,
 } from '../dao/auth-dao.js';
 import { requireAuth } from '../middleware/require-auth.js';
-import { hashPassword, verifyPassword } from '../services/password.js';
+import {
+  hashPassword,
+  isAcceptableNewPassword,
+  verifyPassword,
+} from '../services/password.js';
 
 const router = express.Router();
 
@@ -108,12 +112,8 @@ router.put(
 
       if (
         typeof currentPassword !== 'string' ||
-        typeof newPassword !== 'string' ||
-        typeof confirmPassword !== 'string' ||
         currentPassword.length === 0 ||
-        newPassword.length < 8 ||
-        newPassword.length > 128 ||
-        newPassword !== confirmPassword
+        !isAcceptableNewPassword(newPassword, confirmPassword)
       ) {
         return res.status(400).json({
           error: {

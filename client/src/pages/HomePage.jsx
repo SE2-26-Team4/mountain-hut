@@ -42,22 +42,36 @@ function HomePage() {
     handleSessionExpired,
   } = useAuth();
 
+  // Links in account emails open the sign-in or the password recovery form.
+  const [loginView, setLoginView] = useState(
+    /** @returns {'login' | 'forgot-password'} */ () =>
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('forgotPassword') === '1'
+        ? 'forgot-password'
+        : 'login',
+  );
+
   const [isLoginOpen, setIsLoginOpen] = useState(
     () =>
       typeof window !== 'undefined' &&
-      new URLSearchParams(window.location.search).get('signIn') === '1',
+      (loginView === 'forgot-password' ||
+        new URLSearchParams(window.location.search).get('signIn') === '1'),
   );
 
   const isStaff =
     user?.role === 'employee' || user?.role === 'warden';
 
-  const handleSignIn = () => setIsLoginOpen(true);
+  const handleSignIn = () => {
+    setLoginView('login');
+    setIsLoginOpen(true);
+  };
 
   const handleBookingLoginRequired = () => {
     if (user) {
       handleSessionExpired();
     }
 
+    setLoginView('login');
     setIsLoginOpen(true);
   };
 
@@ -225,6 +239,7 @@ function HomePage() {
           feedbackMessage={feedbackMessage}
           onLogin={handleDialogLogin}
           onClose={handleCloseLogin}
+          initialView={loginView}
         />
       )}
     </div>

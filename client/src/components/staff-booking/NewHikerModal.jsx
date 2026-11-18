@@ -3,6 +3,28 @@ import { Alert, Col, Form, Modal, Row, Spinner } from "react-bootstrap";
 
 import SuccessCheck from "../common/SuccessCheck.jsx";
 
+// Limits enforced by the staff hiker API.
+const MAX_TEXT_LENGTH = 500;
+
+const emptyDraft = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  phone: "",
+  notes: "",
+  emergencyContact: "",
+};
+
+/**
+ * Checks a mobile number as the API does: 6-15 digits, optional leading +,
+ * ignoring spaces, dashes, dots and brackets.
+ *
+ * @param {string} phone
+ */
+function isValidPhone(phone) {
+  return /^\+?\d{6,15}$/.test(phone.replace(/[\s\-().]/g, ""));
+}
+
 /**
  * @typedef {Object} RegistrationResult
  * @property {import("../../models/models.js").HikerDTO} hiker
@@ -25,25 +47,46 @@ export default function NewHikerModal({
   onRegister,
   onContinue,
 }) {
-  const [newHikerDraft, setNewHikerDraft] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-  });
+  const [newHikerDraft, setNewHikerDraft] = useState(emptyDraft);
 
   const firstNameRef = useRef(/** @type {HTMLInputElement | null} */ (null));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  /**
+   * @param {keyof typeof emptyDraft} field
+   * @returns {(event: import("react").ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void}
+   */
+  const updateDraft = (field) => (event) =>
+    setNewHikerDraft((draft) => ({ ...draft, [field]: event.target.value }));
+
+  // Start every registration from an empty form.
+  const resetForm = () => {
+    setNewHikerDraft(emptyDraft);
+    setErrorMessage("");
+  };
 
   const handleCreateAccount = async () => {
     const firstName = newHikerDraft.firstName.trim();
     const lastName = newHikerDraft.lastName.trim();
     const email = newHikerDraft.email.trim();
     const phone = newHikerDraft.phone.trim();
+    const notes = newHikerDraft.notes.trim();
+    const emergencyContact = newHikerDraft.emergencyContact.trim();
 
-    if (!firstName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setErrorMessage("Enter a first name and a valid email address.");
+    let validationError = "";
+
+    if (!firstName) {
+      validationError = "Enter the hiker's first name.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      validationError = "Enter a valid email address.";
+    } else if (!isValidPhone(phone)) {
+      validationError =
+        "Enter a valid mobile number (6–15 digits, optional leading +).";
+    }
+
+    if (validationError) {
+      setErrorMessage(validationError);
       return;
     }
 
@@ -55,7 +98,9 @@ export default function NewHikerModal({
         type: "new",
         fullName: [firstName, lastName].filter(Boolean).join(" "),
         email,
-        phone: phone || null,
+        phone,
+        notes: notes || null,
+        emergencyContact: emergencyContact || null,
       });
     } catch (error) {
       setErrorMessage(
@@ -71,6 +116,7 @@ export default function NewHikerModal({
       show={show}
       onHide={onHide}
       onEntered={() => firstNameRef.current?.focus()}
+      onExited={resetForm}
       centered
       aria-labelledby="register-hiker-title"
     >
@@ -126,14 +172,10 @@ export default function NewHikerModal({
                   <Form.Control
                     ref={firstNameRef}
                     autoComplete="given-name"
+                    maxLength={100}
                     value={newHikerDraft.firstName}
                     required
-                    onChange={(event) =>
-                      setNewHikerDraft({
-                        ...newHikerDraft,
-                        firstName: event.target.value,
-                      })
-                    }
+                    onChange={updateDraft("firstName")}
                   />
                 </Form.Group>
               </Col>
@@ -143,13 +185,9 @@ export default function NewHikerModal({
                   <Form.Label>Last name (optional)</Form.Label>
                   <Form.Control
                     autoComplete="family-name"
+                    maxLength={100}
                     value={newHikerDraft.lastName}
-                    onChange={(event) =>
-                      setNewHikerDraft({
-                        ...newHikerDraft,
-                        lastName: event.target.value,
-                      })
-                    }
+                    onChange={updateDraft("lastName")}
                   />
                 </Form.Group>
               </Col>
@@ -161,28 +199,44 @@ export default function NewHikerModal({
                 type="email"
                 required
                 autoComplete="email"
+                maxLength={254}
                 value={newHikerDraft.email}
-                onChange={(event) =>
-                  setNewHikerDraft({
-                    ...newHikerDraft,
-                    email: event.target.value,
-                  })
-                }
+                onChange={updateDraft("email")}
               />
             </Form.Group>
 
-            <Form.Group controlId="staff-new-hiker-phone">
-              <Form.Label>Phone (optional)</Form.Label>
+            <Form.Group className="mb-3" controlId="staff-new-hiker-phone">
+              <Form.Label>Mobile number</Form.Label>
               <Form.Control
                 type="tel"
+                required
                 autoComplete="tel"
+                maxLength={30}
+                placeholder="E.g. +39 333 123 4567"
                 value={newHikerDraft.phone}
-                onChange={(event) =>
-                  setNewHikerDraft({
-                    ...newHikerDraft,
-                    phone: event.target.value,
-                  })
-                }
+                onChange={updateDraft("phone")}
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3" controlId="staff-new-hiker-notes">
+              <Form.Label>Notes (optional)</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={2}
+                maxLength={MAX_TEXT_LENGTH}
+                placeholder="E.g. Registered mountain guide"
+                value={newHikerDraft.notes}
+                onChange={updateDraft("notes")}
+              />
+            </Form.Group>
+
+            <Form.Group controlId="staff-new-hiker-emergency-contact">
+              <Form.Label>Emergency contact (optional)</Form.Label>
+              <Form.Control
+                maxLength={MAX_TEXT_LENGTH}
+                placeholder="E.g. Anna Rossi, +39 333 765 4321"
+                value={newHikerDraft.emergencyContact}
+                onChange={updateDraft("emergencyContact")}
               />
             </Form.Group>
           </Modal.Body>

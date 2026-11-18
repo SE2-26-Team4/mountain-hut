@@ -89,4 +89,18 @@ CREATE INDEX idx_bookings_date_slot_status
 CREATE INDEX idx_booking_allocations_table
   ON booking_table_allocations(table_id);
 
+-- [REQUIREMENT] MH-07: The hiker can recover their password via email.
+-- Each reset link is single-use and expires after 24 hours; only a hash
+-- of its token is stored. Keep in sync with initializeDatabase in db.js.
+CREATE TABLE password_reset_tokens (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE INDEX idx_password_reset_tokens_user
+  ON password_reset_tokens(user_id);
+
 COMMIT;

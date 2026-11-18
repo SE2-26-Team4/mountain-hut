@@ -494,10 +494,18 @@ async function prepareNewHiker(input) {
       );
       const phone = optionalText(input.phone, "Phone", 30);
 
+      // A missing, null or blank email means that no confirmation is wanted.
+      const email =
+        input.email === undefined ||
+        input.email === null ||
+        (typeof input.email === "string" && input.email.trim().length === 0)
+          ? null
+          : normalizeEmail(input.email);
+
       return {
         newHiker: {
           fullName,
-          email: input.email === undefined ? null : normalizeEmail(input.email),
+          email,
           phone: phone === null ? null : normalizePhone(phone),
           notes: null,
           emergencyContact: null,

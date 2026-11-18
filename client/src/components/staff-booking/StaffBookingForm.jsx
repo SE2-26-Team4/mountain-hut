@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Col, Form, Row } from "react-bootstrap";
 
-import BookingAPI from "../../API/booking-api.js";
+import BookingAPI, { BookingApiError } from "../../API/booking-api.js";
 import {
   bookingRequestsTooLong,
   emptyBookingRequests,
@@ -64,6 +64,14 @@ export default function StaffBookingForm({ onCancel }) {
   const [loadingSlots, setLoadingSlots] = useState(true);
   const [isSavingBooking, setIsSavingBooking] = useState(false);
   const [bookingError, setBookingError] = useState("");
+  const [bookingErrorCode, setBookingErrorCode] = useState(
+    /** @type {string | undefined} */ (undefined),
+  );
+  // Free seats of the selected slot, and a counter to load them again.
+  const [availability, setAvailability] = useState(
+    /** @type {{ key: string, seats: number | null } | null} */ (null),
+  );
+  const [availabilityVersion, setAvailabilityVersion] = useState(0);
   const [confirmedReservation, setConfirmedReservation] = useState(
     /** @type {import("../booking/BookingConfirmationModal.jsx").BookingConfirmation | null} */ (
       null
@@ -109,6 +117,49 @@ export default function StaffBookingForm({ onCancel }) {
     };
   }, []);
 
+  const availabilityKey = `${bookingDate}|${slotId}|${availabilityVersion}`;
+
+  // Show staff the free seats before they confirm (same data as for hikers).
+  useEffect(() => {
+    if (!bookingDate || !slotId) return;
+
+    let ignore = false;
+
+    BookingAPI.getAvailability(bookingDate, Number(slotId))
+      .then((result) => {
+        if (!ignore) {
+          setAvailability({
+            key: availabilityKey,
+            seats: result.totalAvailableSeats,
+          });
+        }
+      })
+      .catch(() => {
+        if (!ignore) setAvailability({ key: availabilityKey, seats: null });
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [availabilityKey, bookingDate, slotId]);
+
+  /** @type {import("./StaffBookingDetails.jsx").SeatAvailability} */
+  let seatAvailability = { status: "idle" };
+
+  if (bookingDate && slotId) {
+    if (availability?.key !== availabilityKey) {
+      seatAvailability = { status: "loading" };
+    } else if (availability.seats === null) {
+      seatAvailability = { status: "error" };
+    } else {
+      seatAvailability = { status: "ready", seats: availability.seats };
+    }
+  }
+
+  const notEnoughSeats =
+    seatAvailability.status === "ready" &&
+    Number(partySize) > seatAvailability.seats;
+
   const parts = hutClock.formatToParts(new Date());
 
   /** @param {Intl.DateTimeFormatPartTypes} type */
@@ -126,9 +177,8 @@ export default function StaffBookingForm({ onCancel }) {
     )
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-  const handleHikerSearch = async () => {
-    const query = hikerSearch.trim();
-
+  /** @param {string} query - Trimmed search term. */
+  const searchHikers = async (query) => {
     if (
       query.length < 2 ||
       query.length > 100 ||
@@ -158,12 +208,27 @@ export default function StaffBookingForm({ onCancel }) {
     }
   };
 
+  const handleHikerSearch = () => searchHikers(hikerSearch.trim());
+
+  // The email of a temporary hiker already belongs to a hiker: look them up.
+  const handleFindHikerByEmail = () => {
+    const email = temporaryEmail.trim();
+
+    setBookingError("");
+    setBookingErrorCode(undefined);
+    setHikerMode("existing");
+    setSelectedHiker(null);
+    setHikerSearch(email);
+    void searchHikers(email);
+  };
+
   /** @param {import("react").FormEvent<HTMLFormElement>} event */
   const handleConfirmBooking = async (event) => {
     event.preventDefault();
     if (isSavingBooking || isSearching) return;
 
     setBookingError("");
+    setBookingErrorCode(undefined);
 
     if (dietaryRequirementsIncomplete(requests, Number(partySize))) {
       setBookingError(
@@ -203,6 +268,11 @@ export default function StaffBookingForm({ onCancel }) {
       setBookingError(
         "Select a date and meal slot, and enter a valid party size.",
       );
+      return;
+    }
+
+    if (notEnoughSeats) {
+      setBookingError("There are not enough available seats.");
       return;
     }
 
@@ -253,6 +323,11 @@ export default function StaffBookingForm({ onCancel }) {
           ? error.message
           : "Could not create the booking.",
       );
+      setBookingErrorCode(
+        error instanceof BookingApiError ? error.code : undefined,
+      );
+      // Seats may have changed since they were loaded.
+      setAvailabilityVersion((version) => version + 1);
     } finally {
       setIsSavingBooking(false);
     }
@@ -371,13 +446,28 @@ export default function StaffBookingForm({ onCancel }) {
             requests={requests}
             onRequestsChange={setRequests}
             isSavingBooking={isSavingBooking}
+            seatAvailability={seatAvailability}
           />
         </fieldset>
 
         {bookingError && (
-          <p className="text-danger mt-3 mb-0" role="alert">
-            {bookingError}
-          </p>
+          <div className="d-flex flex-wrap align-items-center gap-2 mt-3">
+            <p className="text-danger mb-0" role="alert">
+              {bookingError}
+            </p>
+
+            {bookingErrorCode === "EMAIL_ALREADY_REGISTERED" &&
+              hikerMode === "temporary" &&
+              temporaryEmail.trim() && (
+                <button
+                  type="button"
+                  className="cap-outline"
+                  onClick={handleFindHikerByEmail}
+                >
+                  Find this hiker
+                </button>
+              )}
+          </div>
         )}
 
         <div className="d-flex flex-wrap justify-content-end gap-2 mt-4">
@@ -396,6 +486,7 @@ export default function StaffBookingForm({ onCancel }) {
               isSavingBooking ||
               isSearching ||
               !slotId ||
+              notEnoughSeats ||
               (hikerMode === "existing" && !selectedHiker) ||
               (hikerMode === "temporary" && !temporaryName.trim())
             }

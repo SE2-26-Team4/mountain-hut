@@ -269,6 +269,111 @@ describe('session for a deleted account', () => {
       );
     });
 
+    it.each([
+      ['no current password', { currentPassword: '' }],
+      ['a non-text current password', { currentPassword: 42 }],
+      [
+        'a too short new password',
+        { newPassword: 'short', confirmPassword: 'short' },
+      ],
+      [
+        'a too long new password',
+        { newPassword: 'a'.repeat(129), confirmPassword: 'a'.repeat(129) },
+      ],
+      ['a different confirmation', { confirmPassword: 'Different123!' }],
+    ])('rejects a password change with %s', async (_label, overrides) => {
+      const agent = request.agent(app);
+
+      await agent
+        .post('/api/sessions')
+        .send({ email, password: initialPassword });
+
+      const response = await agent
+        .put('/api/sessions/current/password')
+        .send({
+          currentPassword: initialPassword,
+          newPassword: replacementPassword,
+          confirmPassword: replacementPassword,
+          ...overrides,
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toEqual({
+        code: 'INVALID_PASSWORD',
+        message:
+          'The new password must be 8 to 128 characters and match the confirmation.',
+      });
+    });
+
+    it('rejects a password change without a body', async () => {
+      const agent = request.agent(app);
+
+      await agent
+        .post('/api/sessions')
+        .send({ email, password: initialPassword });
+
+      const response = await agent.put('/api/sessions/current/password');
+
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe('INVALID_PASSWORD');
+    });
+
+    it('rejects a wrong initial password', async () => {
+      const agent = request.agent(app);
+
+      await agent
+        .post('/api/sessions')
+        .send({ email, password: initialPassword });
+
+      const response = await agent
+        .put('/api/sessions/current/password')
+        .send({
+          currentPassword: 'WrongPassword123!',
+          newPassword: replacementPassword,
+          confirmPassword: replacementPassword,
+        });
+
+      expect(response.status).toBe(401);
+      expect(response.body.error).toEqual({
+        code: 'INVALID_PASSWORD',
+        message: 'The current password is incorrect.',
+      });
+    });
+
+    it('rejects a new password equal to the initial one', async () => {
+      const agent = request.agent(app);
+
+      await agent
+        .post('/api/sessions')
+        .send({ email, password: initialPassword });
+
+      const response = await agent
+        .put('/api/sessions/current/password')
+        .send({
+          currentPassword: initialPassword,
+          newPassword: initialPassword,
+          confirmPassword: initialPassword,
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error.message).toBe(
+        'The new password must differ from the current password.',
+      );
+    });
+
+    it('requires a session to change the password', async () => {
+      const response = await request(app)
+        .put('/api/sessions/current/password')
+        .send({
+          currentPassword: initialPassword,
+          newPassword: replacementPassword,
+          confirmPassword: replacementPassword,
+        });
+
+      expect(response.status).toBe(401);
+      expect(response.body.error.code).toBe('UNAUTHENTICATED');
+    });
+
     it('changes the password and unlocks authenticated features', async () => {
       const agent = request.agent(app);
 

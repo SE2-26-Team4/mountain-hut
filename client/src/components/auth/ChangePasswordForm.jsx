@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Button, Form, Spinner } from 'react-bootstrap';
 
 import Alert from '../common/AutoDismissAlert.jsx';
+import AuthPageLayout from './AuthPageLayout.jsx';
+import PasswordField from './PasswordField.jsx';
 
 /**
  * @param {Object} props
@@ -40,88 +42,87 @@ export default function ChangePasswordForm({
   };
 
   return (
-    <main className="mh-auth-required-page">
-      <section className="mh-auth-required-card" aria-labelledby="change-password-title">
-        <h1 id="change-password-title">Change your password</h1>
-
-        <p>
-          For your security, you must choose a new password before using your
-          account.
-        </p>
-
-        {errorMessage && (
-          <Alert variant="danger" role="alert">
-            {errorMessage}
-          </Alert>
-        )}
-
-        <Form onSubmit={handleSubmit}>
-          <Form.Group className="mb-3" controlId="current-password">
-            <Form.Label>Initial password</Form.Label>
-            <Form.Control
-              type="password"
-              autoComplete="current-password"
-              value={currentPassword}
-              onChange={(event) => setCurrentPassword(event.target.value)}
-              disabled={isSubmitting}
-              required
-            />
-          </Form.Group>
-
-          <Form.Group className="mb-3" controlId="new-password">
-            <Form.Label>New password</Form.Label>
-            <Form.Control
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              maxLength={128}
-              value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
-              disabled={isSubmitting}
-              required
-            />
-          </Form.Group>
-
-          <Form.Group className="mb-4" controlId="confirm-password">
-            <Form.Label>Confirm new password</Form.Label>
-            <Form.Control
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              maxLength={128}
-              value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
-              disabled={isSubmitting}
-              required
-            />
-          </Form.Group>
-
-          <Button
-            className="mh-primary-button w-100"
-            type="submit"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <Spinner size="sm" animation="border" aria-hidden="true" />
-                <span>Updating…</span>
-              </>
-            ) : (
-              'Update password'
-            )}
-          </Button>
-        </Form>
-
-        <Button
-          variant="link"
-          className="mt-3"
+    <AuthPageLayout
+      titleId="change-password-title"
+      footer={
+        <button
           type="button"
+          className="mh-auth-link d-inline-block mt-3"
           onClick={onSignOut}
           disabled={isSubmitting}
         >
           Sign out
+        </button>
+      }
+    >
+      <div className="mh-auth-heading">
+        <h1 id="change-password-title" className="mh-auth-title">
+          Change your password
+        </h1>
+
+        <p className="mh-auth-copy">
+          For your security, you must choose a new password before using your
+          account.
+        </p>
+      </div>
+
+      {errorMessage && (
+        <Alert variant="danger" role="alert" className="mh-auth-alert">
+          {errorMessage}
+        </Alert>
+      )}
+
+      <Form onSubmit={handleSubmit}>
+        <PasswordField
+          controlId="current-password"
+          label="Initial password"
+          autoComplete="current-password"
+          placeholder="Password from the email"
+          value={currentPassword}
+          onChange={setCurrentPassword}
+          disabled={isSubmitting}
+        />
+
+        <PasswordField
+          controlId="new-password"
+          label="New password"
+          autoComplete="new-password"
+          placeholder="At least 8 characters"
+          minLength={8}
+          maxLength={128}
+          value={newPassword}
+          onChange={setNewPassword}
+          disabled={isSubmitting}
+        />
+
+        <PasswordField
+          controlId="confirm-password"
+          label="Confirm new password"
+          autoComplete="new-password"
+          placeholder="Repeat the new password"
+          minLength={8}
+          maxLength={128}
+          value={confirmPassword}
+          onChange={setConfirmPassword}
+          disabled={isSubmitting}
+          className="mb-4"
+        />
+
+        <Button
+          className="mh-primary-button mh-auth-submit w-100"
+          type="submit"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <>
+              <Spinner size="sm" animation="border" aria-hidden="true" />
+              <span>Updating…</span>
+            </>
+          ) : (
+            'Update password'
+          )}
         </Button>
-      </section>
-    </main>
+      </Form>
+    </AuthPageLayout>
   );
 }
