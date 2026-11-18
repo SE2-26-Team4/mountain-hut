@@ -25,6 +25,7 @@
  * @property {Pick<DiningTableDTO, 'id' | 'name'>[]} [tables] - Used to show table names instead of IDs.
  * @property {PartyRequirement[]} [requirements] - Listed only when provided.
  * @property {boolean} [isEdit] - Whether the email follows an update to an existing booking.
+ * @property {boolean} [isCancellation] - Whether the email follows a cancellation; it takes precedence over isEdit.
  */
 
 /**
@@ -238,20 +239,38 @@ export function buildBookingConfirmationEmail(input) {
 
   // Use the same wording in the subject, HTML, and plain-text versions of the email.
   const greeting = `Hello ${hikerName},`;
-  const action = input.isEdit ? "updated" : "confirmed";
-  const intro = `Your table booking at the Mountain Hut is ${action}.`;
+  // [REQUIREMENT] MH-08: Any change to the reservation, including its
+  // cancellation, should be notified by email.
+  const isCancellation = input.isCancellation === true;
+  const action = isCancellation
+    ? "cancelled"
+    : input.isEdit
+      ? "updated"
+      : "confirmed";
+  const intro = isCancellation
+    ? "Your table booking at the Mountain Hut has been cancelled and your seats have been released."
+    : `Your table booking at the Mountain Hut is ${action}.`;
+  const followUp = isCancellation
+    ? "We hope to welcome you another time."
+    : "We look forward to welcoming you.";
+  const signOff = isCancellation ? "Kind regards," : "See you soon,";
   const closing = `Please quote booking reference ${reference} if you need to contact the hut.`;
 
   // Build the plain-text summary for email clients that do not display HTML.
+  // A cancelled booking no longer occupies seats, so no allocation is listed.
   const textLines = [
     greeting,
     "",
     intro,
     "",
     ...details.map(([label, value]) => `${label}: ${value}`),
-    "",
-    "Table allocation:",
-    ...allocations.map((allocation) => `- ${allocation}`),
+    ...(isCancellation
+      ? []
+      : [
+          "",
+          "Table allocation:",
+          ...allocations.map((allocation) => `- ${allocation}`),
+        ]),
   ];
 
   // Build escaped HTML rows for the booking summary table.
@@ -275,10 +294,11 @@ export function buildBookingConfirmationEmail(input) {
     .map((allocation) => `<li>${escapeHtml(allocation)}</li>`)
     .join("");
 
-  // Omit the requirements row when no requirements were provided.
+  // Omit the requirements row when no requirements were provided
+  // or the booking has been cancelled.
   let requirementsHtml = "";
 
-  if (requirements.length > 0) {
+  if (!isCancellation && requirements.length > 0) {
     textLines.push(
       "",
       "Party requirements:",
@@ -337,7 +357,40 @@ export function buildBookingConfirmationEmail(input) {
   }
 
   // Finish the plain-text message with the contact instruction and signature.
-  textLines.push("", closing, "", "See you soon,", "The Mountain Hut team");
+  textLines.push("", closing, "", signOff, "The Mountain Hut team");
+
+  // A success check does not suit a cancellation, so it is shown only
+  // for confirmed or updated bookings.
+  const successCheckHtml = isCancellation
+    ? ""
+    : `
+              <table role="presentation" align="center" cellpadding="0" cellspacing="0"
+                style="margin:0 auto 16px;">
+                <tr>
+                  <td align="center" valign="middle">
+                    <img src="cid:booking-success-check"
+                      width="60" height="60" alt=""
+                      style="display:block;width:60px;height:60px;border:0;">
+                  </td>
+                </tr>
+              </table>
+`;
+
+  // The seats of a cancelled booking have been released.
+  const allocationHtml = isCancellation
+    ? ""
+    : `
+                <tr>
+                  <th style="padding:14px 18px;text-align:left;vertical-align:top;font-size:14px;font-weight:400;color:#596873;">
+                    Table allocation
+                  </th>
+                  <td style="padding:14px 18px;vertical-align:top;font-size:14px;line-height:1.8;font-weight:500;overflow-wrap:anywhere;">
+                    <ul style="list-style:none;margin:0;padding:0;">
+                      ${allocationRows}
+                    </ul>
+                  </td>
+                </tr>
+`;
 
   // Assemble the HTML email with inline styles and presentation tables.
   // The hidden opening text provides an inbox preview.
@@ -367,19 +420,8 @@ export function buildBookingConfirmationEmail(input) {
               <p style="margin:0 0 20px;color:#172c38;font-size:12px;font-weight:400;letter-spacing:3px;">
                 MOUNTAIN HUT
               </p>
-
-              <table role="presentation" align="center" cellpadding="0" cellspacing="0"
-                style="margin:0 auto 16px;">
-                <tr>
-                  <td align="center" valign="middle">
-                    <img src="cid:booking-success-check"
-                      width="60" height="60" alt=""
-                      style="display:block;width:60px;height:60px;border:0;">
-                  </td>
-                </tr>
-              </table>
-
-              <h1 style="margin:0;color:#172c38;font-size:28px;line-height:1.25;font-weight:600;">
+${successCheckHtml}
+              <h1style="margin:0;color:#172c38;font-size:28px;line-height:1.25;font-weight:600;">
                 Your booking is ${action}
               </h1>
             </td>
@@ -393,22 +435,13 @@ export function buildBookingConfirmationEmail(input) {
               </p>
               <p style="margin:0 0 24px;color:#596873;">
                 ${escapeHtml(intro)}<br>
-                We look forward to welcoming you.
+                ${followUp}
               </p>
 
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
                 style="table-layout:fixed;background:#ffffff;border:1px solid #dce2e7;border-radius:12px;border-spacing:0;">
                 ${detailRows}
-                <tr>
-                  <th style="padding:14px 18px;text-align:left;vertical-align:top;font-size:14px;font-weight:400;color:#596873;">
-                    Table allocation
-                  </th>
-                  <td style="padding:14px 18px;vertical-align:top;font-size:14px;line-height:1.8;font-weight:500;overflow-wrap:anywhere;">
-                    <ul style="list-style:none;margin:0;padding:0;">
-                      ${allocationRows}
-                    </ul>
-                  </td>
-                </tr>
+${allocationHtml}
               </table>
 
               ${requirementsHtml}
@@ -417,7 +450,7 @@ export function buildBookingConfirmationEmail(input) {
                 ${escapeHtml(closing)}
               </p>
               <p style="margin:0;">
-                See you soon,<br>
+                ${signOff}<br>
                 <strong>The Mountain Hut team</strong>
               </p>
 

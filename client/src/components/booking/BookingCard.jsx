@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Overlay, Tooltip } from "react-bootstrap";
 
 import { formatBookingDate } from "../../utils/formatBookingDate.js";
+import { formatMealTimeRange } from "../../utils/formatMealSlot.js";
 import StatusBadge from "../common/StatusBadge.jsx";
 
 /**
@@ -79,7 +80,10 @@ export default function BookingCard({ booking, status, onCancel, onEdit }) {
               <>
                 <span className="d-block">{booking.slotName}</span>
                 <span className="d-block small fw-normal">
-                  {booking.slotStartTime}–{booking.slotEndTime}
+                  {formatMealTimeRange(
+                    booking.slotStartTime,
+                    booking.slotEndTime,
+                  )}
                 </span>
               </>
             ) : (

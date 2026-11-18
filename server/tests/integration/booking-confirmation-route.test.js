@@ -344,3 +344,146 @@ describe('POST /api/bookings confirmation email integration', () => {
     expect(stored.count).toBe(0);
   });
 });
+describe('DELETE /api/bookings/:id cancellation email integration', () => {
+  // Create a confirmed booking without counting its confirmation email.
+  async function createBooking(body = {}) {
+    const created = await agent
+      .post('/api/bookings')
+      .send({ bookingDate, slotId, partySize: 2, ...body });
+
+    expect(created.status).toBe(201);
+    emailMocks.send.mockClear();
+
+    return created.body.booking;
+  }
+
+  // [REQUIREMENT] MH-08: Any change to the reservation, including its
+  // cancellation, should be notified by email.
+  it('notifies the hiker by email after the booking is cancelled', async () => {
+    const booking = await createBooking({
+      dietaryRequirements: 'One vegetarian guest',
+      specialRequests: 'Window seat',
+    });
+
+    const response = await agent.delete(`/api/bookings/${booking.id}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.emailSent).toBe(true);
+
+    // The response carries the meal details shown on the booking card.
+    expect(response.body.booking).toMatchObject({
+      id: booking.id,
+      status: 'cancelled',
+      slotName: `Confirmation slot ${suffix}`,
+      slotStartTime: '18:00',
+      slotEndTime: '20:00',
+    });
+
+    expect(emailMocks.send).toHaveBeenCalledTimes(1);
+
+    const [message] = emailMocks.send.mock.calls[0];
+
+    expect(message).toMatchObject({
+      to: email,
+      subject: expect.stringContaining(`Booking cancelled #${booking.id}`),
+    });
+
+    expect(message.text).toContain(
+      'Your table booking at the Mountain Hut has been cancelled',
+    );
+    expect(message.text).toContain(`Booking reference: #${booking.id}`);
+    expect(message.text).toContain('Name: Confirmation Route Hiker');
+    expect(message.text).toContain('Party size: 2');
+
+    // Released seats and party requirements are not part of a cancellation.
+    expect(message.text).not.toContain('Table allocation');
+    expect(message.text).not.toContain('Window seat');
+    expect(message.html).not.toContain('Table allocation');
+    expect(message.html).not.toContain('cid:booking-success-check');
+  });
+
+  // Email failure must not undo a cancellation or invite a second attempt.
+  it('keeps the cancellation and reports emailSent false if delivery fails', async () => {
+    const booking = await createBooking();
+
+    emailMocks.send.mockRejectedValueOnce(new Error('Resend unavailable'));
+
+    const consoleSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+
+    try {
+      const response = await agent.delete(`/api/bookings/${booking.id}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.emailSent).toBe(false);
+      expect(consoleSpy).toHaveBeenCalled();
+    } finally {
+      consoleSpy.mockRestore();
+    }
+
+    const stored = await getAsync(
+      'SELECT status FROM bookings WHERE id = ?',
+      [booking.id]
+    );
+
+    expect(stored.status).toBe('cancelled');
+  });
+
+  // A booking that cannot be cancelled must not trigger an email.
+  it('sends no email when the booking is not found', async () => {
+    const response = await agent.delete(
+      `/api/bookings/${Number.MAX_SAFE_INTEGER}`,
+    );
+
+    expect(response.status).toBe(404);
+    expect(emailMocks.send).not.toHaveBeenCalled();
+  });
+
+  // [REQUIREMENT] MH-08: Cancellation stays open until the meal service ends.
+  it('rejects cancellation after the meal service has ended', async () => {
+    // Hikers cannot book a past meal, so the ended booking is stored directly.
+    // The session clock is real: faking it would also expire the login.
+    const pastSlotId = (
+      await runAsync(
+        `INSERT INTO meal_slots (
+           slot_date, name, start_time, end_time
+         )
+         VALUES ('2000-01-01', ?, '18:00', '20:00')`,
+        [`Ended confirmation slot ${suffix}`]
+      )
+    ).lastID;
+
+    try {
+      const bookingId = (
+        await runAsync(
+          `INSERT INTO bookings (
+             hiker_id, booking_date, slot_id, party_size
+           )
+           VALUES (?, '2000-01-01', ?, 2)`,
+          [userId, pastSlotId]
+        )
+      ).lastID;
+
+      const response = await agent.delete(`/api/bookings/${bookingId}`);
+
+      expect(response.status).toBe(409);
+      expect(response.body.error).toEqual({
+        code: 'BOOKING_CANCEL_TOO_LATE',
+        message:
+          'This meal service has already ended, so the booking can no longer be cancelled.',
+      });
+      expect(emailMocks.send).not.toHaveBeenCalled();
+
+      const stored = await getAsync(
+        'SELECT status FROM bookings WHERE id = ?',
+        [bookingId]
+      );
+
+      expect(stored.status).toBe('confirmed');
+    } finally {
+      await runAsync('DELETE FROM bookings WHERE slot_id = ?', [pastSlotId]);
+      await runAsync('DELETE FROM meal_slots WHERE id = ?', [pastSlotId]);
+    }
+  });
+});

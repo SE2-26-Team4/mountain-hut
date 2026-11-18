@@ -2,9 +2,11 @@ import { useState } from "react";
 import { Button, Form, Spinner } from "react-bootstrap";
 import { Link } from "react-router-dom";
 
+import { MyBookingsApiError } from "../../API/my-bookings-api.js";
 import useMyBookings from "../../hooks/useMyBookings.js";
 import { getBookingStatus } from "../../utils/booking-status.js";
 import { formatBookingDate } from "../../utils/formatBookingDate.js";
+import { formatMealSlot } from "../../utils/formatMealSlot.js";
 import Alert from "../common/AutoDismissAlert.jsx";
 import BookingCard from "./BookingCard.jsx";
 import BookingConfirmationModal from "./BookingConfirmationModal.jsx";
@@ -40,14 +42,18 @@ export default function MyBookingsList({ hikerId }) {
   const [updatedReservation, setUpdatedReservation] = useState(
     /** @type {BookingConfirmation | null} */ (null),
   );
-  const [cancellationFeedback, setCancellationFeedback] = useState("");
+  const [cancellationFeedback, setCancellationFeedback] = useState(
+    /** @type {{ variant: "success" | "warning", message: string } | null} */ (
+      null
+    ),
+  );
   const [statusFilter, setStatusFilter] = useState("All");
   const [dateFilter, setDateFilter] = useState("");
   const [sortOrder, setSortOrder] = useState("default");
 
   /** @param {BookingDTO} booking */
   const openCancelModal = (booking) => {
-    setCancellationFeedback("");
+    setCancellationFeedback(null);
     setBookingToCancel(booking);
     setCancelError("");
     setShowCancelModal(true);
@@ -59,7 +65,7 @@ export default function MyBookingsList({ hikerId }) {
 
   /** @param {BookingDTO} booking */
   const openEditModal = (booking) => {
-    setCancellationFeedback("");
+    setCancellationFeedback(null);
     setEditing(booking);
   };
 
@@ -70,15 +76,36 @@ export default function MyBookingsList({ hikerId }) {
     setCancelError("");
 
     try {
-      const cancelled = await cancelBooking(bookingToCancel.id);
+      const { booking: cancelled, emailSent } = await cancelBooking(
+        bookingToCancel.id,
+      );
+
+      // Name the meal too: a hiker can book lunch and dinner on one date.
+      const mealSlot = formatMealSlot({ ...bookingToCancel, ...cancelled });
+      const bookingLabel = `Booking #${cancelled.id} (${formatBookingDate(
+        cancelled.bookingDate,
+      )}${mealSlot ? `, ${mealSlot}` : ""})`;
 
       setShowCancelModal(false);
-      setCancellationFeedback(
-        `Booking #${cancelled.id} for ${formatBookingDate(
-          cancelled.bookingDate,
-        )} has been cancelled.`,
-      );
+      setCancellationFeedback({
+        variant: "success",
+        message: emailSent
+          ? `${bookingLabel} has been cancelled. A cancellation email has been sent to your email address.`
+          : `${bookingLabel} has been cancelled, but the cancellation email could not be sent.`,
+      });
     } catch (error) {
+      // Retrying cannot help when the booking is no longer cancellable
+      // (already cancelled, missing, or its meal has ended): close the
+      // dialog and explain why while the list shows the real status.
+      if (
+        error instanceof MyBookingsApiError &&
+        (error.status === 404 || error.status === 409)
+      ) {
+        setShowCancelModal(false);
+        setCancellationFeedback({ variant: "warning", message: error.message });
+        return;
+      }
+
       setCancelError(
         error instanceof Error
           ? error.message
@@ -164,8 +191,8 @@ export default function MyBookingsList({ hikerId }) {
   return (
     <>
       {cancellationFeedback && (
-        <Alert variant="success" role="status">
-          {cancellationFeedback}
+        <Alert variant={cancellationFeedback.variant} role="status">
+          {cancellationFeedback.message}
         </Alert>
       )}
 

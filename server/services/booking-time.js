@@ -57,6 +57,18 @@ export function getMealStartTimestamp(bookingDate, startTime) {
 }
 
 /**
+ * Converts the end of a meal service in Europe/Rome to a timestamp.
+ * Meal slots start and end on the same calendar date.
+ *
+ * @param {string} bookingDate
+ * @param {string} endTime
+ * @returns {number}
+ */
+export function getMealEndTimestamp(bookingDate, endTime) {
+  return getMealStartTimestamp(bookingDate, endTime);
+}
+
+/**
  * Returns the booking deadline: two hours before service starts.
  *
  * @param {string} bookingDate

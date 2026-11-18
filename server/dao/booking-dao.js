@@ -2,6 +2,7 @@ import { withTransaction } from "../db.js";
 import {
   getBookingDeadline,
   getBookingEditDeadline,
+  getMealEndTimestamp,
   getMealStartTimestamp,
 } from "../services/booking-time.js";
 import { createHiker, getHikerById, isEmailRegistered } from "./auth-dao.js";
@@ -790,31 +791,91 @@ export async function getBookingsByDateAndSlot(bookingDate, slotId) {
 }
 
 /**
- * Cancels a confirmed booking.
+ * Cancels a confirmed booking and releases its seats.
+ * The booking is read and updated in the same transaction, so the result
+ * always describes the booking that has just been cancelled.
  *
  * @param {number} id
  * @param {number} [hikerId] - Restricts cancellation to the owner.
- * @returns {Promise<boolean>}
+ * @returns {Promise<BookingDTO | null>} The cancelled booking with its meal
+ *   details, or null when no matching confirmed booking exists.
+ * @throws {BookingError} If the meal service has already ended.
  */
 export async function cancelBooking(id, hikerId) {
-  return withTransaction(async ({ runAsync }) => {
-    // Restrict the update to the owner when a hiker ID is provided.
-    const ownerCondition = hikerId === undefined ? "" : " AND hiker_id = ?";
+  return withTransaction(async ({ runAsync, getAsync, allAsync }) => {
+    // Restrict the search to the owner when a hiker ID is provided.
+    const ownerCondition = hikerId === undefined ? "" : " AND b.hiker_id = ?";
 
     // Match the parameters to the optional ownership condition.
     const params = hikerId === undefined ? [id] : [id, hikerId];
 
-    // Change only confirmed bookings and preserve their stored allocations.
-    // Availability calculations ignore allocations of cancelled bookings.
-    const result = await runAsync(
-      `UPDATE bookings
-       SET status = 'cancelled'
-       WHERE id = ?
-         AND status = 'confirmed'${ownerCondition}`,
+    // Load the confirmed booking with the meal details shown to the hiker.
+    /** @type {(BookingRow & { slotEndTime: string }) | undefined} */
+    const booking = await getAsync(
+      `SELECT
+         b.id,
+         b.hiker_id AS hikerId,
+         b.booking_date AS bookingDate,
+         b.slot_id AS slotId,
+         b.party_size AS partySize,
+         b.dietary_requirements AS dietaryRequirements,
+         b.special_requests AS specialRequests,
+         b.status,
+         s.name AS slotName,
+         s.start_time AS slotStartTime,
+         s.end_time AS slotEndTime
+       FROM bookings AS b
+       JOIN meal_slots AS s ON s.id = b.slot_id
+       WHERE b.id = ?
+         AND b.status = 'confirmed'${ownerCondition}`,
       params,
     );
 
-    // Return true only when a confirmed booking was actually cancelled.
-    return result.changes > 0;
+    // Missing, already cancelled and unowned bookings are reported alike.
+    if (!booking) return null;
+
+    // [REQUIREMENT] MH-08: There are no time constraints, hikers can cancel a
+    // reservation at any time. Cancellation stays open until the meal service
+    // ends; after that the seats can no longer be offered to other guests.
+    let mealEnd;
+
+    try {
+      mealEnd = getMealEndTimestamp(booking.bookingDate, booking.slotEndTime);
+    } catch {
+      // An end time that does not exist in the hut time zone cannot be
+      // compared, so it does not restrict the cancellation.
+      mealEnd = Infinity;
+    }
+
+    if (Date.now() >= mealEnd) {
+      throw new BookingError(
+        "BOOKING_CANCEL_TOO_LATE",
+        "This meal service has already ended, so the booking can no longer be cancelled.",
+      );
+    }
+
+    // [REQUIREMENT] MH-08: Cancelling a booking lets the hut make the places
+    // available to other guests. Only the status changes and the stored
+    // allocations are kept: availability ignores cancelled bookings.
+    await runAsync(
+      `UPDATE bookings
+       SET status = 'cancelled'
+       WHERE id = ?`,
+      [id],
+    );
+
+    // Return the allocations for the cancellation email and the client.
+    /** @type {BookingTableAllocationDTO[]} */
+    const allocations = await allAsync(
+      `SELECT
+         table_id AS tableId,
+         seats_reserved AS seatsReserved
+       FROM booking_table_allocations
+       WHERE booking_id = ?
+       ORDER BY table_id`,
+      [id],
+    );
+
+    return { ...booking, status: "cancelled", allocations };
   });
 }

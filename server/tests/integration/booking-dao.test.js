@@ -5,6 +5,7 @@ import {
   describe,
   expect,
   it,
+  vi,
 } from 'vitest';
 
 import {
@@ -453,8 +454,22 @@ describe('booking data access', () => {
     const first = await createBooking(input(1));
 
     // Only the first cancellation changes the booking status.
-    expect(await cancelBooking(first.id)).toBe(true);
-    expect(await cancelBooking(first.id)).toBe(false);
+    // It returns the cancelled booking with the meal details shown to the hiker.
+    expect(await cancelBooking(first.id)).toEqual({
+      id: first.id,
+      hikerId,
+      bookingDate,
+      slotId,
+      partySize: 1,
+      dietaryRequirements: '',
+      specialRequests: '',
+      status: 'cancelled',
+      slotName: `Booking DAO slot ${uniqueSuffix}`,
+      slotStartTime: '18:00',
+      slotEndTime: '20:00',
+      allocations: first.allocations,
+    });
+    expect(await cancelBooking(first.id)).toBeNull();
 
     expect(await getBookingById(first.id)).toMatchObject({
       status: 'cancelled',
@@ -479,17 +494,61 @@ describe('booking data access', () => {
 
     expect(
       await cancelBooking(saved.id, Number.MAX_SAFE_INTEGER)
-    ).toBe(false);
+    ).toBeNull();
 
     expect(await getBookingById(saved.id)).toMatchObject({
       status: 'confirmed',
     });
 
     // The actual owner can cancel the same booking.
-    expect(await cancelBooking(saved.id, hikerId)).toBe(true);
+    expect(await cancelBooking(saved.id, hikerId)).toMatchObject({
+      id: saved.id,
+      status: 'cancelled',
+    });
 
     expect(await getBookingById(saved.id)).toMatchObject({
       status: 'cancelled',
+    });
+  });
+
+  // [REQUIREMENT] MH-08: There are no time constraints, hikers can cancel a
+  // reservation at any time, until the meal service ends.
+  it('allows cancellation during the meal but not after it has ended', async () => {
+    await runAsync(
+      'INSERT INTO slot_tables (slot_id, table_id) VALUES (?, ?)',
+      [secondSlotId, tableIds[1]]
+    );
+
+    const ongoing = await createBooking(input(1));
+    const ended = await createBooking({ ...input(1), slotId: secondSlotId });
+
+    vi.useFakeTimers({ toFake: ['Date'] });
+
+    try {
+      // The primary slot runs 18:00-20:00 in Rome (UTC+1 in December).
+      // One millisecond before it ends, the booking can still be cancelled.
+      vi.setSystemTime(new Date('2099-12-30T18:59:59.999Z'));
+
+      expect(await cancelBooking(ongoing.id, hikerId)).toMatchObject({
+        status: 'cancelled',
+      });
+
+      // The second slot ends at 22:00 in Rome; at that instant it is too late.
+      vi.setSystemTime(new Date('2099-12-30T21:00:00.000Z'));
+
+      await expect(cancelBooking(ended.id, hikerId)).rejects.toMatchObject({
+        code: 'BOOKING_CANCEL_TOO_LATE',
+        message:
+          'This meal service has already ended, so the booking can no longer be cancelled.',
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+
+    // The rejected cancellation keeps the booking and its seats.
+    expect(await getBookingById(ended.id)).toMatchObject({
+      status: 'confirmed',
+      allocations: ended.allocations,
     });
   });
 

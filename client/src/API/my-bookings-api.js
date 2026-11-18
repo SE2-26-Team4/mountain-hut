@@ -51,7 +51,9 @@ export async function getMyBookings(signal) {
  * Cancels a booking owned by the authenticated hiker.
  *
  * @param {number} bookingId
- * @returns {Promise<BookingDTO>} The booking with its updated status.
+ * @returns {Promise<{ booking: BookingDTO, emailSent: boolean }>} The
+ *   booking with its updated status and meal details, and whether the
+ *   cancellation email was accepted for delivery.
  */
 export async function cancelMyBooking(bookingId) {
   const response = await fetch(`${API_URL}/bookings/${bookingId}`, {
@@ -64,6 +66,7 @@ export async function cancelMyBooking(bookingId) {
   if (!response.ok) {
     // The server answers 404 for missing, unowned, or already cancelled
     // bookings, so the message covers all three cases.
+    // A 409 means that the meal service has already ended.
     let message;
 
     switch (response.status) {
@@ -76,6 +79,11 @@ export async function cancelMyBooking(bookingId) {
           'This booking was not found or has already been cancelled.';
         break;
 
+      case 409:
+        message =
+          'This meal service has already ended, so the booking can no longer be cancelled.';
+        break;
+
       default:
         message =
           data?.error?.message ?? 'Could not cancel your booking.';
@@ -84,5 +92,5 @@ export async function cancelMyBooking(bookingId) {
     throw new MyBookingsApiError(message, response.status);
   }
 
-  return data.booking;
+  return { booking: data.booking, emailSent: data.emailSent === true };
 }

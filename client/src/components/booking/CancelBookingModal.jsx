@@ -2,6 +2,7 @@ import { Button, Modal, Spinner } from "react-bootstrap";
 
 import { formatCount } from "../../utils/formatCount.js";
 import { formatBookingDate } from "../../utils/formatBookingDate.js";
+import { formatMealSlot } from "../../utils/formatMealSlot.js";
 import Alert from "../common/AutoDismissAlert.jsx";
 import CancellationMark from "../common/CancellationMark.jsx";
 
@@ -74,6 +75,10 @@ export default function CancelBookingModal({
               <dt className="fw-normal">Date</dt>
               <dd>{formatBookingDate(booking.bookingDate)}</dd>
 
+              {/* A hiker can book lunch and dinner on the same date. */}
+              <dt className="fw-normal">Meal slot</dt>
+              <dd>{formatMealSlot(booking) ?? "Meal details unavailable"}</dd>
+
               <dt className="fw-normal">Party size</dt>
               <dd className="mb-0">
                 {formatCount(booking.partySize, "guest")}
@@ -81,8 +86,8 @@ export default function CancelBookingModal({
             </dl>
 
             <p className="text-secondary mb-0">
-              Your seats will be released for other guests. This action cannot
-              be undone.
+              Your seats will be released for other guests and you will receive
+              a cancellation email. This action cannot be undone.
             </p>
           </>
         )}
