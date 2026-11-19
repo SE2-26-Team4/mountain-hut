@@ -636,6 +636,44 @@ export async function copyWeeklySchedule(input) {
 }
 
 /**
+ * Copies all selected weeks together. A failure rolls back the entire series.
+ *
+ * @param {string} sourceWeekStart
+ * @param {string[]} destinations
+ */
+export async function copySelectedWeeks(sourceWeekStart, destinations) {
+  return withTransaction(async (queries) => {
+    const copiedSlots = [];
+
+    for (const destinationWeekStart of destinations) {
+      const input = { sourceWeekStart, destinationWeekStart };
+
+      try {
+        const slots = await copyWeekWithinTransaction(input, queries);
+
+        for (const slot of slots) copiedSlots.push(slot);
+      } catch (error) {
+        if (error instanceof WeeklyScheduleConflictError) {
+          error.message =
+            `The week starting ${destinationWeekStart} has confirmed bookings. ` +
+            "Deselect it to continue.";
+        }
+        throw error;
+      }
+    }
+
+    const weeks = destinations.map((start) => ({
+      start,
+      status: "copied",
+    }));
+
+    await saveScheduleCopyHistory(queries, sourceWeekStart, weeks);
+
+    return copiedSlots;
+  });
+}
+
+/**
  * @param {{sourceWeekStart: string, destinationWeekStart: string}} input
  * @param {TransactionQueries} queries
  */
