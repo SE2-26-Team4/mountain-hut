@@ -18,7 +18,7 @@ vi.mock('../../db.js', () => ({
   withTransaction: db.withTransaction,
 }));
 
-import { createBooking } from '../../dao/booking-dao.js';
+import { cancelBooking, createBooking } from '../../dao/booking-dao.js';
 
 // Reset mocks and execute transaction callbacks with the mocked database.
 beforeEach(() => {
@@ -54,4 +54,31 @@ it('rejects an invalid stored meal time before persisting a booking', async () =
   expect(db.getAsync).toHaveBeenCalledTimes(1);
   expect(db.runAsync).not.toHaveBeenCalled();
   expect(db.allAsync).not.toHaveBeenCalled();
+});
+// [REQUIREMENT] MH-08: There are no time constraints, hikers can cancel a
+// reservation at any time. An end time that cannot be compared in the hut
+// time zone must not block the cancellation.
+it('cancels a booking whose stored meal end time is invalid', async () => {
+  db.getAsync.mockResolvedValue({
+    id: 5,
+    hikerId: 7,
+    bookingDate: '2099-12-30',
+    slotId: 1,
+    partySize: 2,
+    dietaryRequirements: '',
+    specialRequests: '',
+    status: 'confirmed',
+    slotName: 'Dinner',
+    slotStartTime: '19:00',
+    slotEndTime: 'invalid',
+  });
+  db.allAsync.mockResolvedValue([{ tableId: 3, seatsReserved: 2 }]);
+
+  await expect(cancelBooking(5, 7)).resolves.toMatchObject({
+    id: 5,
+    status: 'cancelled',
+    allocations: [{ tableId: 3, seatsReserved: 2 }],
+  });
+
+  expect(db.runAsync).toHaveBeenCalledTimes(1);
 });

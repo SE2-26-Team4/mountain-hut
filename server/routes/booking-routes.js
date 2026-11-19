@@ -3,7 +3,6 @@ import express from "express";
 import {
   BookingError,
   cancelBooking,
-  getBookingById,
   getBookingsByHiker,
 } from "../dao/booking-dao.js";
 import {
@@ -80,17 +79,22 @@ function asyncRoute(handler) {
 }
 
 /**
- * Sends the confirmation email for a booking that has already been saved.
+ * Sends the confirmation email for a booking that has already been saved
+ * or cancelled.
  * Delivery failures are logged and never undo a valid booking or
  * encourage the client to submit it again.
  * Hikers without an email (temporary hikers) receive no confirmation.
  *
  * @param {{ full_name: string, email: string | null }} hiker
  * @param {BookingDTO} booking
- * @param {boolean} [isEdit]
+ * @param {{ isEdit?: boolean, isCancellation?: boolean }} [options]
  * @returns {Promise<boolean>} True when the sending service accepted the email.
  */
-async function sendBookingConfirmation(hiker, booking, isEdit = false) {
+async function sendBookingConfirmation(
+  hiker,
+  booking,
+  { isEdit = false, isCancellation = false } = {},
+) {
   const recipient = hiker.email;
 
   if (!recipient) {
@@ -120,6 +124,7 @@ async function sendBookingConfirmation(hiker, booking, isEdit = false) {
     // as allergies; their full description remains in the message.
     const email = buildBookingConfirmationEmail({
       isEdit,
+      isCancellation,
       hiker: { full_name: hiker.full_name, email: recipient },
       booking,
       mealSlot,
@@ -237,7 +242,7 @@ const saveBooking = asyncRoute(async (req, res) => {
     : await createBookingForHiker(bookingData);
 
   // [REQUIREMENT] MH-06: When a change has been done the change to the reservation should be notified by email.
-  const emailSent = await sendBookingConfirmation(user, booking, isEdit);
+  const emailSent = await sendBookingConfirmation(user, booking, { isEdit });
 
   return res.status(isEdit ? 200 : 201).json({ booking, emailSent });
 });
@@ -328,6 +333,8 @@ router.get(
 /* DELETE */
 
 // Cancel a confirmed booking owned by the authenticated hiker.
+// [REQUIREMENT] MH-08: As a hiker I want to cancel a table booking,
+// so that the hut can make the places available to other guests.
 router.delete(
   "/bookings/:id",
   requireRole("hiker"),
@@ -362,10 +369,12 @@ router.delete(
     }
 
     // Restrict cancellation to bookings owned by this hiker.
-    const cancelled = await cancelBooking(bookingId, user.id);
+    // [REQUIREMENT] MH-08: There are no time constraints, hikers can cancel a
+    // reservation at any time (until the meal service ends).
+    const booking = await cancelBooking(bookingId, user.id);
 
     // Use the same response for missing, already cancelled, or unowned bookings.
-    if (!cancelled) {
+    if (!booking) {
       return res.status(404).json({
         error: {
           code: "BOOKING_NOT_FOUND",
@@ -374,10 +383,14 @@ router.delete(
       });
     }
 
-    // Return the booking with its updated cancellation status.
-    const booking = await getBookingById(bookingId);
+    // [REQUIREMENT] MH-08: Any change to the reservation, including its
+    // cancellation, should be notified by email.
+    const emailSent = await sendBookingConfirmation(user, booking, {
+      isCancellation: true,
+    });
 
-    return res.status(200).json({ booking });
+    // Return the cancelled booking read in the same transaction as the update.
+    return res.status(200).json({ booking, emailSent });
   }),
 );
 
@@ -533,6 +546,7 @@ const handleBookingError = (error, _req, res, next) => {
       case "NO_AVAILABILITY":
       case "DUPLICATE_BOOKING":
       case "BOOKING_EDIT_TOO_LATE":
+      case "BOOKING_CANCEL_TOO_LATE":
       case "BOOKING_TOO_LATE":
       case "EMAIL_ALREADY_REGISTERED":
         status = 409;

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   getBookingDeadline,
+  getMealEndTimestamp,
   getMealStartTimestamp,
 } from '../../services/booking-time.js';
 
@@ -22,6 +23,13 @@ describe('meal service start time', () => {
       getMealStartTimestamp('2026-11-11', '12:00') -
         getBookingDeadline('2026-11-11', '12:00'),
     ).toBe(2 * 60 * 60 * 1000);
+  });
+
+  // [REQUIREMENT] MH-08: Cancellation stays open until the meal service ends.
+  it('converts the Rome end time of a meal service', () => {
+    expect(
+      new Date(getMealEndTimestamp('2026-11-11', '14:00')).toISOString(),
+    ).toBe('2026-11-11T13:00:00.000Z');
   });
 
   it('rejects a start time skipped by daylight saving time', () => {
