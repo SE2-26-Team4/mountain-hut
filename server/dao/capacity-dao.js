@@ -540,6 +540,27 @@ export async function getMealSlotCapacity(slotId) {
 }
 
 /**
+ * Returns saved copy operations, newest first.
+ */
+export async function getScheduleCopyHistory() {
+  return withTransaction(async ({ allAsync }) => {
+    const rows = await allAsync(
+      `SELECT id, source_start AS sourceWeekStart, created_at AS createdAt,
+              weeks_json AS weeksJson
+       FROM schedule_copy_history
+       ORDER BY id DESC`,
+    );
+
+    return rows.map((row) => ({
+      id: row.id,
+      sourceWeekStart: row.sourceWeekStart,
+      createdAt: `${row.createdAt.replace(" ", "T")}Z`,
+      weeks: JSON.parse(row.weeksJson),
+    }));
+  });
+}
+
+/**
  * Reads existing slots and confirmed bookings for a destination date range.
  * Both ends of the range are inclusive.
  *

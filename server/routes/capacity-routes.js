@@ -15,6 +15,7 @@ import {
   TableSlotConflictError,
   DuplicateMealSlotError,
   WeeklyScheduleConflictError,
+  getScheduleCopyHistory,
   getScheduleCopyPreview,
   copyWeeklySchedule,
 } from "../dao/capacity-dao.js";
@@ -202,6 +203,16 @@ router.get(
 
     const preview = await getScheduleCopyPreview(from, to);
     return res.json(preview);
+  }),
+);
+
+// Return saved weekly schedule copies to staff.
+router.get(
+  "/capacity/schedule-copies",
+  requireStaff,
+  asyncRoute(async (_req, res) => {
+    const copies = await getScheduleCopyHistory();
+    return res.json({ copies });
   }),
 );
 
