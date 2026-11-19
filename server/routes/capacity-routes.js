@@ -16,6 +16,10 @@ import {
   DuplicateMealSlotError,
   WeeklyScheduleConflictError,
   copyWeeklySchedule,
+  copySelectedWeeks,
+  getScheduleCopyHistory,
+  getScheduleCopyPreview,
+  copyScheduleSeries,
 } from "../dao/capacity-dao.js";
 import { requireStaff } from "../middleware/require-role.js";
 import {
@@ -170,9 +174,159 @@ router.get(
   }),
 );
 
+/**
+ * @param {unknown} value
+ * @returns {value is string}
+ */
+function isPreviewDate(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const date = new Date(`${value}T00:00:00Z`);
+
+  return (
+    Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
+  );
+}
+
+router.get(
+  "/capacity/schedule-copies/preview",
+  requireStaff,
+  asyncRoute(async (req, res) => {
+    const { from, to } = req.query;
+
+    if (!isPreviewDate(from) || !isPreviewDate(to) || from > to) {
+      return sendValidationError(
+        res,
+        new Error("Choose a valid destination date range."),
+      );
+    }
+
+    const preview = await getScheduleCopyPreview(from, to);
+    return res.json(preview);
+  }),
+);
+
+// Return saved weekly schedule copies to staff.
+router.get(
+  "/capacity/schedule-copies",
+  requireStaff,
+  asyncRoute(async (_req, res) => {
+    const copies = await getScheduleCopyHistory();
+    return res.json({ copies });
+  }),
+);
+
 // Replace a destination week with a copy of a source week's schedule.
 router.post(
-  '/capacity/meal-slots/copy-week',
+  "/capacity/meal-slots/copy-weeks",
+  requireStaff,
+  asyncRoute(async (req, res) => {
+    const body = req.body ?? {};
+    const { sourceWeekStart, destinations } = body;
+    const isSeries = body.mode === "series";
+    const excludedWeeks = body.excludedWeeks ?? [];
+    const previewBookedWeeks = body.previewBookedWeeks ?? [];
+
+    try {
+      if (body.mode !== undefined && !isSeries) {
+        throw new Error("Unknown schedule copy mode.");
+      }
+
+      if (!Array.isArray(destinations) || destinations.length === 0) {
+        throw new Error("Select at least one destination week.");
+      }
+
+      if (!isPreviewDate(sourceWeekStart) || sourceWeekStart > "9999-12-24") {
+        throw new Error("Choose a valid source week.");
+      }
+
+      if (
+        !isSeries &&
+        (body.excludedWeeks !== undefined ||
+          body.previewBookedWeeks !== undefined)
+      ) {
+        throw new Error("Week exclusions require series mode.");
+      }
+
+      const candidates = new Set(destinations);
+
+      if (candidates.size !== destinations.length) {
+        throw new Error("Destination weeks must be distinct.");
+      }
+
+      for (const list of [excludedWeeks, previewBookedWeeks]) {
+        if (
+          !Array.isArray(list) ||
+          new Set(list).size !== list.length ||
+          list.some((start) => !candidates.has(start))
+        ) {
+          throw new Error("Invalid destination week selection.");
+        }
+      }
+
+      /** @type {Set<string>} */
+      const excluded = new Set(excludedWeeks);
+
+      /** @type {Set<string>} */
+      const booked = new Set(previewBookedWeeks);
+
+      if ([...excluded].some((start) => booked.has(start))) {
+        throw new Error("A booked week cannot also be manually excluded.");
+      }
+
+      if (excluded.size + booked.size === destinations.length) {
+        throw new Error("Select at least one available destination week.");
+      }
+
+      for (const [index, start] of destinations.entries()) {
+        if (!isPreviewDate(start) || start > "9999-12-24") {
+          throw new Error("Choose a valid destination week.");
+        }
+
+        const offsetDays =
+          (Date.parse(start) - Date.parse(destinations[0])) / 86_400_000;
+
+        if (isSeries && offsetDays !== index * 7) {
+          throw new Error("Send every week of the series in calendar order.");
+        }
+
+        if (!isSeries && offsetDays % 7 !== 0) {
+          throw new Error("Destination weeks must start on the same weekday.");
+        }
+
+        // An excluded week is never written, even if it overlaps the source.
+        if (!excluded.has(start) && !booked.has(start)) {
+          validateWeeklyScheduleCopy({
+            sourceWeekStart,
+            destinationWeekStart: start,
+          });
+        }
+      }
+    } catch (error) {
+      return sendValidationError(res, error);
+    }
+
+    if (isSeries) {
+      const result = await copyScheduleSeries(
+        sourceWeekStart,
+        destinations,
+        excludedWeeks,
+        previewBookedWeeks,
+      );
+
+      return res.status(201).json(result);
+    }
+
+    const mealSlots = await copySelectedWeeks(sourceWeekStart, destinations);
+    return res.status(201).json({ mealSlots });
+  }),
+);
+
+// Copy a source week's meal slots and table assignments to one destination week.
+router.post(
+  "/capacity/meal-slots/copy-week",
   requireStaff,
   asyncRoute(async (req, res) => {
     let copyRequest;

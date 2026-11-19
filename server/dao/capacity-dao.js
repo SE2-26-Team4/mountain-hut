@@ -1,4 +1,4 @@
-import { withTransaction } from '../db.js';
+import { withTransaction } from "../db.js";
 
 /**
  * API data types used to configure meal slots and dining tables.
@@ -31,10 +31,10 @@ export class DiningTablesNotFoundError extends Error {
    * @param {number[]} missingTableIds
    */
   constructor(missingTableIds) {
-    super('One or more dining tables were not found.');
+    super("One or more dining tables were not found.");
 
-    this.name = 'DiningTablesNotFoundError';
-    this.code = 'DINING_TABLES_NOT_FOUND';
+    this.name = "DiningTablesNotFoundError";
+    this.code = "DINING_TABLES_NOT_FOUND";
     this.missingTableIds = missingTableIds;
   }
 }
@@ -50,8 +50,8 @@ export class DuplicateNameError extends Error {
   constructor(entity, name) {
     super(`A ${entity} named "${name}" already exists.`);
 
-    this.name = 'DuplicateNameError';
-    this.code = 'DUPLICATE_NAME';
+    this.name = "DuplicateNameError";
+    this.code = "DUPLICATE_NAME";
   }
 }
 
@@ -60,12 +60,10 @@ export class DuplicateNameError extends Error {
  */
 export class CapacityConflictError extends Error {
   constructor() {
-    super(
-      'This change conflicts with existing confirmed bookings.'
-    );
+    super("This change conflicts with existing confirmed bookings.");
 
-    this.name = 'CapacityConflictError';
-    this.code = 'CAPACITY_CONFLICT';
+    this.name = "CapacityConflictError";
+    this.code = "CAPACITY_CONFLICT";
   }
 }
 
@@ -79,11 +77,11 @@ export class TableSlotConflictError extends Error {
    */
   constructor(tableName, slotName) {
     super(
-      `Table "${tableName}" is already assigned to the active slot "${slotName}" with overlapping times.`
+      `Table "${tableName}" is already assigned to the active slot "${slotName}" with overlapping times.`,
     );
 
-    this.name = 'TableSlotConflictError';
-    this.code = 'TABLE_SLOT_CONFLICT';
+    this.name = "TableSlotConflictError";
+    this.code = "TABLE_SLOT_CONFLICT";
   }
 }
 
@@ -93,11 +91,11 @@ export class TableSlotConflictError extends Error {
 export class DuplicateMealSlotError extends Error {
   constructor() {
     super(
-      'A meal slot with the same date, name, start time and end time already exists.'
+      "A meal slot with the same date, name, start time and end time already exists.",
     );
 
-    this.name = 'DuplicateMealSlotError';
-    this.code = 'DUPLICATE_MEAL_SLOT';
+    this.name = "DuplicateMealSlotError";
+    this.code = "DUPLICATE_MEAL_SLOT";
   }
 }
 
@@ -107,12 +105,10 @@ export class DuplicateMealSlotError extends Error {
  */
 export class WeeklyScheduleConflictError extends Error {
   constructor() {
-    super(
-      'The destination week contains bookings and cannot be replaced.',
-    );
+    super("The destination week contains bookings and cannot be replaced.");
 
-    this.name = 'WeeklyScheduleConflictError';
-    this.code = 'WEEKLY_SCHEDULE_CONFLICT';
+    this.name = "WeeklyScheduleConflictError";
+    this.code = "WEEKLY_SCHEDULE_CONFLICT";
   }
 }
 
@@ -182,17 +178,14 @@ function normalizeDiningTable(table) {
  * @param {TransactionQueries} queries
  * @returns {Promise<MealSlotCapacityDTO | null>}
  */
-async function readMealSlotCapacity(
-  slotId,
-  { getAsync, allAsync }
-) {
+async function readMealSlotCapacity(slotId, { getAsync, allAsync }) {
   // Retrieve the slot's identity before loading its assigned tables.
   /** @type {{ slotId: number, slotName: string } | undefined} */
   const slot = await getAsync(
     `SELECT id AS slotId, name AS slotName
      FROM meal_slots
      WHERE id = ?`,
-    [slotId]
+    [slotId],
   );
 
   if (!slot) return null;
@@ -209,22 +202,19 @@ async function readMealSlotCapacity(
      JOIN dining_tables AS t ON t.id = st.table_id
      WHERE st.slot_id = ?
      ORDER BY t.name, t.id`,
-    [slotId]
+    [slotId],
   );
 
   // Convert database active flags to the boolean values expected by the API.
-  const normalizedTables = tables.map(
-    (table) => normalizeDiningTable(table)
-  );
+  const normalizedTables = tables.map((table) => normalizeDiningTable(table));
 
   // Return every assigned table, but count seats only from active tables.
   return {
     ...slot,
     tables: normalizedTables,
     totalSeatCapacity: normalizedTables.reduce(
-      (total, table) =>
-        total + (table.isActive ? table.seatCount : 0),
-      0
+      (total, table) => total + (table.isActive ? table.seatCount : 0),
+      0,
     ),
   };
 }
@@ -247,14 +237,11 @@ async function assertNameAvailable(getAsync, tableName, name, excludedId) {
      FROM ${tableName}
      WHERE name = ? COLLATE NOCASE
        AND id <> ?`,
-    [name, excludedId ?? 0]
+    [name, excludedId ?? 0],
   );
 
   if (existing) {
-    throw new DuplicateNameError(
-      'dining table',
-      name
-    );
+    throw new DuplicateNameError("dining table", name);
   }
 }
 
@@ -262,18 +249,17 @@ async function assertNameAvailable(getAsync, tableName, name, excludedId) {
  * Returns today's calendar date in the hut's time zone.
  */
 function getTodayInHutTimeZone() {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/Rome',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Rome",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).formatToParts(new Date());
 
   /** @param {Intl.DateTimeFormatPartTypes} type */
-  const value = (type) =>
-    parts.find((part) => part.type === type)?.value;
+  const value = (type) => parts.find((part) => part.type === type)?.value;
 
-  return `${value('year')}-${value('month')}-${value('day')}`;
+  return `${value("year")}-${value("month")}-${value("day")}`;
 }
 
 /**
@@ -300,7 +286,7 @@ async function assertNoTableSlotOverlap(
   if (tableIds.length === 0) return;
 
   // Bind one SQL parameter for each table being checked.
-  const placeholders = tableIds.map(() => '?').join(', ');
+  const placeholders = tableIds.map(() => "?").join(", ");
 
   // Strict time comparisons allow one slot to start when another ends.
   const conflict = await getAsync(
@@ -318,15 +304,12 @@ async function assertNoTableSlotOverlap(
        AND s.end_time > ?
      ORDER BY s.start_time, s.id, t.id
      LIMIT 1`,
-    [...tableIds, slotId, slotDate, endTime, startTime]
+    [...tableIds, slotId, slotDate, endTime, startTime],
   );
 
   // Report the first conflicting table and slot.
   if (conflict) {
-    throw new TableSlotConflictError(
-      conflict.tableName,
-      conflict.slotName,
-    );
+    throw new TableSlotConflictError(conflict.tableName, conflict.slotName);
   }
 }
 
@@ -359,7 +342,7 @@ async function assertMealSlotAvailable(
        AND start_time = ?
        AND end_time = ?
        AND id <> ?`,
-    [slotDate, name, startTime, endTime, excludedId ?? 0]
+    [slotDate, name, startTime, endTime, excludedId ?? 0],
   );
 
   if (existing) {
@@ -399,13 +382,7 @@ export async function createMealSlot({
 }) {
   // Keep the duplicate check and insertion in the same transaction.
   return withTransaction(async ({ runAsync, getAsync }) => {
-    await assertMealSlotAvailable(
-      getAsync,
-      slotDate,
-      name,
-      startTime,
-      endTime,
-    );
+    await assertMealSlotAvailable(getAsync, slotDate, name, startTime, endTime);
 
     // Store boolean active status as a SQLite integer.
     const result = await runAsync(
@@ -413,7 +390,7 @@ export async function createMealSlot({
         slot_date, name, start_time, end_time, is_active
       )
       VALUES (?, ?, ?, ?, ?)`,
-      [slotDate, name, startTime, endTime, isActive ? 1 : 0]
+      [slotDate, name, startTime, endTime, isActive ? 1 : 0],
     );
 
     // Read the inserted record using API property names.
@@ -428,7 +405,7 @@ export async function createMealSlot({
          is_active AS isActive
        FROM meal_slots
        WHERE id = ?`,
-      [result.lastID]
+      [result.lastID],
     );
 
     return normalizeMealSlot(slot);
@@ -442,20 +419,16 @@ export async function createMealSlot({
  * @returns {Promise<DiningTableDTO | null>}
  * @throws {DuplicateNameError} If another dining table uses the name.
  */
-export async function createDiningTable({
-  name,
-  seatCount,
-  isActive = true,
-}) {
+export async function createDiningTable({ name, seatCount, isActive = true }) {
   return withTransaction(async ({ runAsync, getAsync }) => {
     // Prevent case-insensitive duplicate table names.
-    await assertNameAvailable(getAsync, 'dining_tables', name);
+    await assertNameAvailable(getAsync, "dining_tables", name);
 
     // Save the table independently of any meal-slot assignment.
     const result = await runAsync(
       `INSERT INTO dining_tables (name, seat_count, is_active)
        VALUES (?, ?, ?)`,
-      [name, seatCount, isActive ? 1 : 0]
+      [name, seatCount, isActive ? 1 : 0],
     );
 
     // Read and normalize the newly created table.
@@ -468,7 +441,7 @@ export async function createDiningTable({
          is_active AS isActive
        FROM dining_tables
        WHERE id = ?`,
-      [result.lastID]
+      [result.lastID],
     );
 
     return normalizeDiningTable(table);
@@ -495,7 +468,7 @@ export async function getMealSlots() {
          end_time AS endTime,
          is_active AS isActive
        FROM meal_slots
-       ORDER BY start_time, id`
+       ORDER BY start_time, id`,
     );
 
     return slots.map((slot) => normalizeMealSlot(slot));
@@ -518,7 +491,7 @@ export async function getDiningTables() {
          seat_count AS seatCount,
          is_active AS isActive
        FROM dining_tables
-       ORDER BY name, id`
+       ORDER BY name, id`,
     );
 
     return tables.map((table) => normalizeDiningTable(table));
@@ -534,9 +507,81 @@ export async function getDiningTables() {
  */
 export async function getMealSlotCapacity(slotId) {
   // Open a transaction and delegate the capacity calculation to the helper.
-  return withTransaction((queries) =>
-    readMealSlotCapacity(slotId, queries)
+  return withTransaction((queries) => readMealSlotCapacity(slotId, queries));
+}
+
+/**
+ * @param {TransactionQueries} queries
+ * @param {string} sourceWeekStart
+ * @param {Array<{ start: string, status: string }>} weeks
+ */
+async function saveScheduleCopyHistory(queries, sourceWeekStart, weeks) {
+  await queries.runAsync(
+    `INSERT INTO schedule_copy_history (source_start, weeks_json)
+     VALUES (?, ?)`,
+    [sourceWeekStart, JSON.stringify(weeks)],
   );
+}
+
+/**
+ * Returns saved copy operations, newest first.
+ */
+export async function getScheduleCopyHistory() {
+  return withTransaction(async ({ allAsync }) => {
+    const rows = await allAsync(
+      `SELECT id, source_start AS sourceWeekStart, created_at AS createdAt,
+              weeks_json AS weeksJson
+       FROM schedule_copy_history
+       ORDER BY id DESC`,
+    );
+
+    return rows.map((row) => ({
+      id: row.id,
+      sourceWeekStart: row.sourceWeekStart,
+      createdAt: `${row.createdAt.replace(" ", "T")}Z`,
+      weeks: JSON.parse(row.weeksJson),
+    }));
+  });
+}
+
+/**
+ * Reads existing slots and confirmed bookings for a destination date range.
+ * Both ends of the range are inclusive.
+ *
+ * @param {string} from
+ * @param {string} to
+ */
+export async function getScheduleCopyPreview(from, to) {
+  return withTransaction(async ({ allAsync }) => {
+    const scheduledDays = await allAsync(
+      `SELECT DISTINCT slot_date AS date
+       FROM meal_slots
+       WHERE slot_date BETWEEN ? AND ?
+       ORDER BY slot_date`,
+      [from, to],
+    );
+
+    const bookings = await allAsync(
+      `SELECT
+         b.id AS bookingId,
+         b.booking_date AS bookingDate,
+         b.party_size AS partySize,
+         s.slot_date AS slotDate,
+         s.name AS slotName,
+         s.start_time AS startTime
+       FROM meal_slots AS s
+       JOIN bookings AS b ON b.slot_id = s.id
+       WHERE s.slot_date BETWEEN ? AND ?
+         AND b.status = 'confirmed'
+       ORDER BY s.slot_date, s.start_time, b.id`,
+      [from, to],
+    );
+
+    return {
+      scheduledDates: scheduledDays.map((row) => row.date),
+      bookings,
+    };
+  });
 }
 
 /**
@@ -549,21 +594,156 @@ export async function getMealSlotCapacity(slotId) {
  * @throws {WeeklyScheduleConflictError} If destination slots have confirmed bookings.
  * @throws {DuplicateMealSlotError} If a copied slot conflicts with another slot.
  */
-export async function copyWeeklySchedule({
+export async function copyWeeklySchedule(input) {
+  return withTransaction(async (queries) => {
+    const slots = await copyWeekWithinTransaction(input, queries);
+
+    await saveScheduleCopyHistory(queries, input.sourceWeekStart, [
+      { start: input.destinationWeekStart, status: "copied" },
+    ]);
+
+    return slots;
+  });
+}
+
+/**
+ * Copies all selected weeks together. A failure rolls back the entire series.
+ *
+ * @param {string} sourceWeekStart
+ * @param {string[]} destinations
+ */
+export async function copySelectedWeeks(sourceWeekStart, destinations) {
+  return withTransaction(async (queries) => {
+    const copiedSlots = [];
+
+    for (const destinationWeekStart of destinations) {
+      const input = { sourceWeekStart, destinationWeekStart };
+
+      try {
+        const slots = await copyWeekWithinTransaction(input, queries);
+
+        for (const slot of slots) copiedSlots.push(slot);
+      } catch (error) {
+        if (error instanceof WeeklyScheduleConflictError) {
+          error.message =
+            `The week starting ${destinationWeekStart} has confirmed bookings. ` +
+            "Deselect it to continue.";
+        }
+        throw error;
+      }
+    }
+
+    const weeks = destinations.map((start) => ({
+      start,
+      status: "copied",
+    }));
+
+    await saveScheduleCopyHistory(queries, sourceWeekStart, weeks);
+
+    return copiedSlots;
+  });
+}
+
+/**
+ * Saves a weekly series and its actual outcome in one transaction.
+ *
+ * @param {string} sourceWeekStart
+ * @param {string[]} destinations All candidate week starts, in calendar order.
+ * @param {string[]} excludedWeeks Weeks explicitly excluded by staff.
+ * @param {string[]} previewBookedWeeks Weeks shown as locked in the preview.
+ */
+export async function copyScheduleSeries(
   sourceWeekStart,
-  destinationWeekStart,
-}) {
+  destinations,
+  excludedWeeks,
+  previewBookedWeeks,
+) {
+  const excluded = new Set(excludedWeeks);
+  const previewBooked = new Set(previewBookedWeeks);
+
+  return withTransaction(async (queries) => {
+    const sourceSlot = await queries.getAsync(
+      `SELECT id
+       FROM meal_slots
+       WHERE slot_date BETWEEN ? AND ?
+       LIMIT 1`,
+      [sourceWeekStart, addCalendarDays(sourceWeekStart, 6)],
+    );
+
+    if (!sourceSlot) {
+      const error = new CapacityConflictError();
+      error.message = "The source week has no time slots to copy.";
+      throw error;
+    }
+
+    const mealSlots = [];
+    const weeks = [];
+
+    for (const start of destinations) {
+      if (excluded.has(start)) {
+        weeks.push({ start, status: "excluded" });
+        continue;
+      }
+
+      const bookings = await queries.allAsync(
+        `SELECT
+           b.id AS bookingId,
+           b.booking_date AS bookingDate,
+           b.party_size AS partySize,
+           s.slot_date AS slotDate,
+           s.name AS slotName,
+           s.start_time AS startTime
+         FROM meal_slots AS s
+         JOIN bookings AS b ON b.slot_id = s.id
+         WHERE s.slot_date BETWEEN ? AND ?
+           AND b.status = 'confirmed'
+         ORDER BY s.slot_date, s.start_time, b.id`,
+        [start, addCalendarDays(start, 6)],
+      );
+
+      if (bookings.length > 0) {
+        weeks.push({ start, status: "booked", bookings });
+        continue;
+      }
+
+      if (previewBooked.has(start)) {
+        const error = new CapacityConflictError();
+        error.code = "SCHEDULE_PREVIEW_CHANGED";
+        error.message =
+          `The week starting ${start} is now available. ` +
+          "Review your selection before copying.";
+        throw error;
+      }
+
+      const slots = await copyWeekWithinTransaction(
+        { sourceWeekStart, destinationWeekStart: start },
+        queries,
+      );
+
+      for (const slot of slots) mealSlots.push(slot);
+      weeks.push({ start, status: "copied" });
+    }
+
+    await saveScheduleCopyHistory(queries, sourceWeekStart, weeks);
+
+    return { mealSlots, weeks };
+  });
+}
+
+/**
+ * @param {{sourceWeekStart: string, destinationWeekStart: string}} input
+ * @param {TransactionQueries} queries
+ */
+async function copyWeekWithinTransaction(
+  { sourceWeekStart, destinationWeekStart },
+  { runAsync, getAsync, allAsync },
+) {
   const sourceWeekEnd = addCalendarDays(sourceWeekStart, 7);
   const destinationWeekEnd = addCalendarDays(destinationWeekStart, 7);
 
-  return withTransaction(async ({
-    runAsync,
-    getAsync,
-    allAsync,
-  }) => {
-    /** @type {MealSlotRow[]} */
-    const sourceSlots = await allAsync(
-      `SELECT
+  /** @type {MealSlotRow[]} */
+  const sourceSlots = await allAsync(
+    `SELECT
          id,
          name,
          slot_date AS slotDate,
@@ -574,134 +754,132 @@ export async function copyWeeklySchedule({
        WHERE slot_date >= ?
          AND slot_date < ?
        ORDER BY slot_date, start_time, id`,
-      [sourceWeekStart, sourceWeekEnd],
-    );
+    [sourceWeekStart, sourceWeekEnd],
+  );
 
-    const destinationSlots = await allAsync(
-      `SELECT id
+  if (sourceSlots.length === 0) {
+    const error = new CapacityConflictError();
+    error.message = "The source week has no time slots to copy.";
+    throw error;
+  }
+
+  const destinationSlots = await allAsync(
+    `SELECT id
        FROM meal_slots
        WHERE slot_date >= ?
          AND slot_date < ?`,
-      [destinationWeekStart, destinationWeekEnd],
-    );
+    [destinationWeekStart, destinationWeekEnd],
+  );
 
-    if (destinationSlots.length > 0) {
-      const destinationIds = destinationSlots.map((slot) => slot.id);
-      const placeholders = destinationIds.map(() => '?').join(', ');
+  if (destinationSlots.length > 0) {
+    const destinationIds = destinationSlots.map((slot) => slot.id);
+    const placeholders = destinationIds.map(() => "?").join(", ");
 
-      // [REQUIREMENT] MH-09: It is not possible to copy a weekly schedule onto an existing schedule unless there are not reservations, in this case it completely replaces the existing one
-      // Cancelled bookings are no longer reservations, so only confirmed ones block the copy.
-      const booking = await getAsync(
-        `SELECT 1
+    // [REQUIREMENT] MH-09: Replace the entire destination week only if it has no confirmed bookings.
+    // Cancelled bookings are no longer reservations, so only confirmed ones block the copy.
+    const booking = await getAsync(
+      `SELECT 1
          FROM bookings
          WHERE slot_id IN (${placeholders})
            AND status = 'confirmed'
          LIMIT 1`,
-        destinationIds,
-      );
+      destinationIds,
+    );
 
-      if (booking) {
-        throw new WeeklyScheduleConflictError();
-      }
+    if (booking) {
+      throw new WeeklyScheduleConflictError();
+    }
 
-      // bookings.slot_id has no cascading delete, so remove the remaining
-      // cancelled bookings and their table allocations before the slots.
-      await runAsync(
-        `DELETE FROM booking_table_allocations
+    // bookings.slot_id has no cascading delete, so remove the remaining
+    // cancelled bookings and their table allocations before the slots.
+    await runAsync(
+      `DELETE FROM booking_table_allocations
          WHERE booking_id IN (
            SELECT id
            FROM bookings
            WHERE slot_id IN (${placeholders})
              AND status = 'cancelled'
          )`,
-        destinationIds,
-      );
-      await runAsync(
-        `DELETE FROM bookings
+      destinationIds,
+    );
+    await runAsync(
+      `DELETE FROM bookings
          WHERE slot_id IN (${placeholders})
            AND status = 'cancelled'`,
-        destinationIds,
-      );
-      await runAsync(
-        `DELETE FROM slot_tables
+      destinationIds,
+    );
+    await runAsync(
+      `DELETE FROM slot_tables
          WHERE slot_id IN (${placeholders})`,
-        destinationIds,
-      );
-      await runAsync(
-        `DELETE FROM meal_slots
+      destinationIds,
+    );
+    await runAsync(
+      `DELETE FROM meal_slots
          WHERE id IN (${placeholders})`,
-        destinationIds,
-      );
-    }
+      destinationIds,
+    );
+  }
 
-    const copiedSlots = [];
+  const copiedSlots = [];
 
-    for (const sourceSlot of sourceSlots) {
-      const sourceDate = new Date(
-        `${sourceSlot.slotDate}T00:00:00Z`,
-      );
-      const sourceStart = new Date(
-        `${sourceWeekStart}T00:00:00Z`,
-      );
-      const dayOffset = Math.round(
-        (sourceDate.getTime() - sourceStart.getTime()) /
-          (24 * 60 * 60 * 1000),
-      );
-      const destinationDate = addCalendarDays(
-        destinationWeekStart,
-        dayOffset,
-      );
+  // [REQUIREMENT] MH-09: Copy each source slot and its table assignments to the corresponding destination day.
+  for (const sourceSlot of sourceSlots) {
+    const sourceDate = new Date(`${sourceSlot.slotDate}T00:00:00Z`);
+    const sourceStart = new Date(`${sourceWeekStart}T00:00:00Z`);
+    const dayOffset = Math.round(
+      (sourceDate.getTime() - sourceStart.getTime()) / (24 * 60 * 60 * 1000),
+    );
+    const destinationDate = addCalendarDays(destinationWeekStart, dayOffset);
 
-      await assertMealSlotAvailable(
-        getAsync,
+    await assertMealSlotAvailable(
+      getAsync,
+      destinationDate,
+      sourceSlot.name,
+      sourceSlot.startTime,
+      sourceSlot.endTime,
+    );
+
+    const result = await runAsync(
+      `INSERT INTO meal_slots (
+           slot_date, name, start_time, end_time, is_active
+         )
+         VALUES (?, ?, ?, ?, ?)`,
+      [
         destinationDate,
         sourceSlot.name,
         sourceSlot.startTime,
         sourceSlot.endTime,
-      );
+        sourceSlot.isActive,
+      ],
+    );
 
-      const result = await runAsync(
-        `INSERT INTO meal_slots (
-           slot_date, name, start_time, end_time, is_active
-         )
-         VALUES (?, ?, ?, ?, ?)`,
-        [
-          destinationDate,
-          sourceSlot.name,
-          sourceSlot.startTime,
-          sourceSlot.endTime,
-          sourceSlot.isActive,
-        ],
-      );
-
-      const assignedTables = await allAsync(
-        `SELECT table_id AS tableId
+    const assignedTables = await allAsync(
+      `SELECT table_id AS tableId
          FROM slot_tables
          WHERE slot_id = ?
          ORDER BY table_id`,
-        [sourceSlot.id],
-      );
+      [sourceSlot.id],
+    );
 
-      for (const { tableId } of assignedTables) {
-        await runAsync(
-          `INSERT INTO slot_tables (slot_id, table_id)
+    for (const { tableId } of assignedTables) {
+      await runAsync(
+        `INSERT INTO slot_tables (slot_id, table_id)
            VALUES (?, ?)`,
-          [result.lastID, tableId],
-        );
-      }
-
-      copiedSlots.push({
-        ...normalizeMealSlot({
-          ...sourceSlot,
-          id: result.lastID,
-          slotDate: destinationDate,
-        }),
-        tableIds: assignedTables.map(({ tableId }) => tableId),
-      });
+        [result.lastID, tableId],
+      );
     }
 
-    return copiedSlots;
-  });
+    copiedSlots.push({
+      ...normalizeMealSlot({
+        ...sourceSlot,
+        id: result.lastID,
+        slotDate: destinationDate,
+      }),
+      tableIds: assignedTables.map(({ tableId }) => tableId),
+    });
+  }
+
+  return copiedSlots;
 }
 
 /* UPDATE */
@@ -717,14 +895,10 @@ export async function copyWeeklySchedule({
  */
 export async function updateMealSlot(
   slotId,
-  { slotDate, name, startTime, endTime, isActive }
+  { slotDate, name, startTime, endTime, isActive },
 ) {
   // Validate booking safety and save the update atomically.
-  return withTransaction(async ({
-    runAsync,
-    getAsync,
-    allAsync,
-  }) => {
+  return withTransaction(async ({ runAsync, getAsync, allAsync }) => {
     // Load the existing values to determine which fields are changing.
     const existingSlot = await getAsync(
       `SELECT
@@ -735,7 +909,7 @@ export async function updateMealSlot(
         is_active AS isActive
       FROM meal_slots
       WHERE id = ?`,
-      [slotId]
+      [slotId],
     );
 
     if (!existingSlot) return null;
@@ -750,7 +924,7 @@ export async function updateMealSlot(
         WHERE slot_id = ?
           AND status = 'confirmed'
         LIMIT 1`,
-        [slotId]
+        [slotId],
       );
 
       if (confirmedBooking) {
@@ -760,11 +934,9 @@ export async function updateMealSlot(
 
     // Detect changes that could disrupt current or future reservations.
     const timesChanged =
-      existingSlot.startTime !== startTime ||
-      existingSlot.endTime !== endTime;
+      existingSlot.startTime !== startTime || existingSlot.endTime !== endTime;
 
-    const isBeingDeactivated =
-      Boolean(existingSlot.isActive) && !isActive;
+    const isBeingDeactivated = Boolean(existingSlot.isActive) && !isActive;
 
     // Protect confirmed bookings dated today or later.
     if (timesChanged || isBeingDeactivated) {
@@ -775,7 +947,7 @@ export async function updateMealSlot(
           AND status = 'confirmed'
           AND booking_date >= ?
         LIMIT 1`,
-        [slotId, getTodayInHutTimeZone()]
+        [slotId, getTodayInHutTimeZone()],
       );
 
       if (confirmedBooking) {
@@ -800,7 +972,7 @@ export async function updateMealSlot(
         `SELECT table_id AS tableId
         FROM slot_tables
         WHERE slot_id = ?`,
-        [slotId]
+        [slotId],
       );
 
       await assertNoTableSlotOverlap(
@@ -822,7 +994,7 @@ export async function updateMealSlot(
           end_time = ?,
           is_active = ?
       WHERE id = ?`,
-      [slotDate, name, startTime, endTime, isActive ? 1 : 0, slotId]
+      [slotDate, name, startTime, endTime, isActive ? 1 : 0, slotId],
     );
 
     // Return the updated record with a boolean active flag.
@@ -837,7 +1009,7 @@ export async function updateMealSlot(
          is_active AS isActive
        FROM meal_slots
        WHERE id = ?`,
-      [slotId]
+      [slotId],
     );
 
     return normalizeMealSlot(slot);
@@ -855,19 +1027,19 @@ export async function updateMealSlot(
  */
 export async function updateDiningTable(
   tableId,
-  { name, seatCount, isActive }
+  { name, seatCount, isActive },
 ) {
   return withTransaction(async ({ runAsync, getAsync }) => {
     // Report a missing table before checking for a name conflict.
     const existingTable = await getAsync(
-      'SELECT id FROM dining_tables WHERE id = ?',
-      [tableId]
+      "SELECT id FROM dining_tables WHERE id = ?",
+      [tableId],
     );
 
     if (!existingTable) return null;
 
     // Allow the table to retain its own name.
-    await assertNameAvailable(getAsync, 'dining_tables', name, tableId);
+    await assertNameAvailable(getAsync, "dining_tables", name, tableId);
 
     // Reject capacity reductions below the seats already reserved per slot.
     // Deactivation is checked as a proposed capacity of zero.
@@ -881,11 +1053,7 @@ export async function updateDiningTable(
       GROUP BY b.booking_date, b.slot_id
       HAVING SUM(a.seats_reserved) > ?
       LIMIT 1`,
-      [
-        tableId,
-        getTodayInHutTimeZone(),
-        isActive ? seatCount : 0,
-      ]
+      [tableId, getTodayInHutTimeZone(), isActive ? seatCount : 0],
     );
 
     if (conflict) {
@@ -899,7 +1067,7 @@ export async function updateDiningTable(
            seat_count = ?,
            is_active = ?
        WHERE id = ?`,
-      [name, seatCount, isActive ? 1 : 0, tableId]
+      [name, seatCount, isActive ? 1 : 0, tableId],
     );
 
     // Retrieve and normalize the saved table.
@@ -912,7 +1080,7 @@ export async function updateDiningTable(
          is_active AS isActive
        FROM dining_tables
        WHERE id = ?`,
-      [tableId]
+      [tableId],
     );
 
     return normalizeDiningTable(table);
@@ -937,7 +1105,7 @@ export async function setMealSlotTables(slotId, tableIds) {
     !Array.isArray(tableIds) ||
     !tableIds.every((tableId) => Number.isInteger(tableId))
   ) {
-    throw new TypeError('Table IDs must be provided as an array of integers.');
+    throw new TypeError("Table IDs must be provided as an array of integers.");
   }
 
   // Store each table assignment only once.
@@ -957,30 +1125,28 @@ export async function setMealSlotTables(slotId, tableIds) {
         is_active AS isActive
       FROM meal_slots
       WHERE id = ?`,
-      [slotId]
+      [slotId],
     );
 
     if (!slot) return null;
 
     // Validate every requested table before changing existing assignments.
     if (uniqueTableIds.length > 0) {
-      const placeholders = uniqueTableIds.map(() => '?').join(', ');
+      const placeholders = uniqueTableIds.map(() => "?").join(", ");
 
       /** @type {{ id: number }[]} */
       const existingTables = await allAsync(
         `SELECT id
          FROM dining_tables
          WHERE id IN (${placeholders})`,
-        uniqueTableIds
+        uniqueTableIds,
       );
 
-      const existingTableIds = new Set(
-        existingTables.map((table) => table.id)
-      );
+      const existingTableIds = new Set(existingTables.map((table) => table.id));
 
       // Identify requested IDs that are missing from the database.
       const missingTableIds = uniqueTableIds.filter(
-        (tableId) => !existingTableIds.has(tableId)
+        (tableId) => !existingTableIds.has(tableId),
       );
 
       if (missingTableIds.length > 0) {
@@ -1002,11 +1168,10 @@ export async function setMealSlotTables(slotId, tableIds) {
 
     // Restrict the booking check to tables that would be removed.
     // With an empty selection, every existing allocation is checked.
-    const retainedClause = uniqueTableIds.length > 0
-      ? `AND a.table_id NOT IN (${
-          uniqueTableIds.map(() => '?').join(', ')
-        })`
-      : '';
+    const retainedClause =
+      uniqueTableIds.length > 0
+        ? `AND a.table_id NOT IN (${uniqueTableIds.map(() => "?").join(", ")})`
+        : "";
 
     // Prevent removing tables used by confirmed bookings dated today or later.
     const conflict = await getAsync(
@@ -1018,11 +1183,7 @@ export async function setMealSlotTables(slotId, tableIds) {
         AND b.booking_date >= ?
         ${retainedClause}
       LIMIT 1`,
-      [
-        slotId,
-        getTodayInHutTimeZone(),
-        ...uniqueTableIds,
-      ]
+      [slotId, getTodayInHutTimeZone(), ...uniqueTableIds],
     );
 
     if (conflict) {
@@ -1030,16 +1191,13 @@ export async function setMealSlotTables(slotId, tableIds) {
     }
 
     // Replace the previous assignment with the complete requested set.
-    await runAsync(
-      'DELETE FROM slot_tables WHERE slot_id = ?',
-      [slotId]
-    );
+    await runAsync("DELETE FROM slot_tables WHERE slot_id = ?", [slotId]);
 
     for (const tableId of uniqueTableIds) {
       await runAsync(
         `INSERT INTO slot_tables (slot_id, table_id)
          VALUES (?, ?)`,
-        [slotId, tableId]
+        [slotId, tableId],
       );
     }
 

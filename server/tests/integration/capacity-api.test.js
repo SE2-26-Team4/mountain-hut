@@ -163,20 +163,187 @@ afterAll(async () => {
 });
 
 describe("meal-slot and capacity API", () => {
-  it('copies a weekly schedule through the staff API', async () => {
+  it("rejects an empty source week and preserves the destination and copy history", async () => {
+    const destinationSlot = await createMealSlot({
+      slotDate: "2097-02-04",
+      name: `Existing lunch ${uniqueSuffix}`,
+      startTime: "12:00",
+      endTime: "13:00",
+    });
+
+    createdSlotIds.push(destinationSlot.id);
+    await setMealSlotTables(destinationSlot.id, [tableId]);
+
+    const historyBefore = await CapacityDAO.getScheduleCopyHistory();
+
     const response = await employeeAgent
-      .post('/api/capacity/meal-slots/copy-week')
+      .post("/api/capacity/meal-slots/copy-week")
       .send({
-        sourceWeekStart: '2097-01-05',
-        destinationWeekStart: '2097-02-02',
+        sourceWeekStart: "2097-01-05",
+        destinationWeekStart: "2097-02-02",
       });
 
-    expect(response.status).toBe(201);
-    expect(response.body).toMatchObject({
-      sourceWeekStart: '2097-01-05',
-      destinationWeekStart: '2097-02-02',
-      mealSlots: [],
+    expect(response.status).toBe(409);
+    expect(response.body.error).toMatchObject({
+      code: "CAPACITY_CONFLICT",
+      message: "The source week has no time slots to copy.",
     });
+
+    const configuration = await employeeAgent.get("/api/capacity");
+    expect(configuration.status).toBe(200);
+    expect(configuration.body.mealSlots).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: destinationSlot.id,
+          slotDate: destinationSlot.slotDate,
+          name: destinationSlot.name,
+          startTime: "12:00",
+          endTime: "13:00",
+        }),
+      ]),
+    );
+
+    const capacity = await CapacityDAO.getMealSlotCapacity(destinationSlot.id);
+    expect(capacity.tables.map((table) => table.id)).toContain(tableId);
+    expect(await CapacityDAO.getScheduleCopyHistory()).toEqual(historyBefore);
+  });
+
+  it("copies available weeks and records excluded and booked weeks", async () => {
+    const source = "2097-10-01";
+    const destinations = ["2097-11-01", "2097-11-08", "2097-11-15"];
+    const [available, excluded, booked] = destinations;
+
+    const makeLunch = async (slotDate) => {
+      const slot = await createMealSlot({
+        slotDate,
+        name: `Lunch ${uniqueSuffix}`,
+        startTime: "12:00",
+        endTime: "13:00",
+      });
+
+      createdSlotIds.push(slot.id);
+      return slot;
+    };
+
+    await makeLunch(source);
+    const excludedSlot = await makeLunch(excluded);
+    const bookedSlot = await makeLunch(booked);
+
+    const booking = await runAsync(
+      `INSERT INTO bookings (hiker_id, booking_date, slot_id, party_size)
+       SELECT id, ?, ?, 2 FROM users WHERE email = ?`,
+      [booked, bookedSlot.id, hikerEmail],
+    );
+
+    try {
+      const response = await employeeAgent
+        .post("/api/capacity/meal-slots/copy-weeks")
+        .send({
+          mode: "series",
+          sourceWeekStart: source,
+          destinations,
+          excludedWeeks: [excluded],
+          previewBookedWeeks: [booked],
+        });
+
+      expect(response.status).toBe(201);
+
+      const { mealSlots, weeks } = response.body;
+      expect(mealSlots).toHaveLength(1);
+      createdSlotIds.push(mealSlots[0].id);
+      expect(mealSlots[0].slotDate).toBe(available);
+
+      expect(weeks).toMatchObject([
+        { start: available, status: "copied" },
+        { start: excluded, status: "excluded" },
+        {
+          start: booked,
+          status: "booked",
+          bookings: [{ bookingId: booking.lastID }],
+        },
+      ]);
+
+      expect(
+        await CapacityDAO.getMealSlotCapacity(excludedSlot.id),
+      ).toBeTruthy();
+      expect(await CapacityDAO.getMealSlotCapacity(bookedSlot.id)).toBeTruthy();
+
+      const history = await employeeAgent.get("/api/capacity/schedule-copies");
+      expect(history.status).toBe(200);
+      expect(history.body.copies[0]).toMatchObject({
+        sourceWeekStart: source,
+        weeks,
+      });
+    } finally {
+      await runAsync("DELETE FROM bookings WHERE id = ?", [booking.lastID]);
+    }
+  });
+
+  it("rolls back the series when a previewed booking is cancelled", async () => {
+    const source = "2096-03-01";
+    const first = "2096-04-01";
+    const second = "2096-04-08";
+
+    const makeSlot = async (slotDate, name) => {
+      const slot = await createMealSlot({
+        slotDate,
+        name,
+        startTime: "12:00",
+        endTime: "13:00",
+      });
+
+      createdSlotIds.push(slot.id);
+      return slot;
+    };
+
+    await makeSlot(source, "Source lunch");
+    const original = await makeSlot(first, "Original lunch");
+    await setMealSlotTables(original.id, [tableId]);
+
+    const protectedSlot = await makeSlot(second, "Booked lunch");
+    const booking = await runAsync(
+      `INSERT INTO bookings (hiker_id, booking_date, slot_id, party_size)
+       SELECT id, ?, ?, 2 FROM users WHERE email = ?`,
+      [second, protectedSlot.id, hikerEmail],
+    );
+
+    try {
+      const preview = await employeeAgent
+        .get("/api/capacity/schedule-copies/preview")
+        .query({ from: first, to: "2096-04-14" });
+
+      expect(preview.status).toBe(200);
+      expect(preview.body.bookings).toMatchObject([
+        { bookingId: booking.lastID, slotDate: second },
+      ]);
+
+      await runAsync("UPDATE bookings SET status = 'cancelled' WHERE id = ?", [
+        booking.lastID,
+      ]);
+
+      const slotsBefore = await CapacityDAO.getMealSlots();
+      const historyBefore = await CapacityDAO.getScheduleCopyHistory();
+
+      const response = await employeeAgent
+        .post("/api/capacity/meal-slots/copy-weeks")
+        .send({
+          mode: "series",
+          sourceWeekStart: source,
+          destinations: [first, second],
+          excludedWeeks: [],
+          previewBookedWeeks: [second],
+        });
+
+      expect(response.status).toBe(409);
+      expect(response.body.error.code).toBe("SCHEDULE_PREVIEW_CHANGED");
+      expect(await CapacityDAO.getMealSlots()).toEqual(slotsBefore);
+
+      const capacity = await CapacityDAO.getMealSlotCapacity(original.id);
+      expect(capacity.tables.map((table) => table.id)).toEqual([tableId]);
+      expect(await CapacityDAO.getScheduleCopyHistory()).toEqual(historyBefore);
+    } finally {
+      await runAsync("DELETE FROM bookings WHERE id = ?", [booking.lastID]);
+    }
   });
 
   it("copies a non-empty weekly schedule through the staff API", async () => {
@@ -228,36 +395,36 @@ describe("meal-slot and capacity API", () => {
     );
   });
 
-  it('rejects an invalid destination week through the staff API', async () => {
+  it("rejects an invalid destination week through the staff API", async () => {
     const response = await employeeAgent
-      .post('/api/capacity/meal-slots/copy-week')
+      .post("/api/capacity/meal-slots/copy-week")
       .send({
-        sourceWeekStart: '2097-01-05',
-        destinationWeekStart: '2097-02-30',
+        sourceWeekStart: "2097-01-05",
+        destinationWeekStart: "2097-02-30",
       });
 
     expect(response.status).toBe(400);
     expect(response.body.error.message).toBe(
-      'A valid destination week start date in YYYY-MM-DD format is required.',
+      "A valid destination week start date in YYYY-MM-DD format is required.",
     );
   });
 
-  it('reports a destination schedule conflict', async () => {
-    vi.spyOn(CapacityDAO, 'copyWeeklySchedule').mockRejectedValueOnce(
+  it("reports a destination schedule conflict", async () => {
+    vi.spyOn(CapacityDAO, "copyWeeklySchedule").mockRejectedValueOnce(
       new WeeklyScheduleConflictError(),
     );
 
     const response = await employeeAgent
-      .post('/api/capacity/meal-slots/copy-week')
+      .post("/api/capacity/meal-slots/copy-week")
       .send({
-        sourceWeekStart: '2097-03-03',
-        destinationWeekStart: '2097-04-07',
+        sourceWeekStart: "2097-03-03",
+        destinationWeekStart: "2097-04-07",
       });
 
     expect(response.status).toBe(409);
     expect(response.body.error).toEqual({
-      code: 'WEEKLY_SCHEDULE_CONFLICT',
-      message: 'The destination week contains bookings and cannot be replaced.',
+      code: "WEEKLY_SCHEDULE_CONFLICT",
+      message: "The destination week contains bookings and cannot be replaced.",
     });
   });
 
@@ -752,7 +919,7 @@ describe("capacity API edge cases", () => {
 
   // Unexpected database errors must not expose private details to clients.
   it("returns a generic 500 response when a database read fails", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => { });
+    vi.spyOn(console, "error").mockImplementation(() => {});
 
     vi.spyOn(CapacityDAO, "getMealSlots").mockRejectedValueOnce(
       new Error("Private database detail"),
@@ -773,7 +940,7 @@ describe("capacity API edge cases", () => {
   it.each([new Error("Database failure"), "Unexpected rejection"])(
     "forwards unexpected assignment failures to the error handler: %s",
     async (failure) => {
-      vi.spyOn(console, "error").mockImplementation(() => { });
+      vi.spyOn(console, "error").mockImplementation(() => {});
 
       vi.spyOn(CapacityDAO, "setMealSlotTables").mockRejectedValueOnce(failure);
 
@@ -987,5 +1154,176 @@ describe("capacity API name conflicts", () => {
 
     expect(response.status).toBe(404);
     expect(response.body.error.code).toBe("NOT_FOUND");
+  });
+});
+
+describe("MH-09 weekly copy requests", () => {
+  const path = "/api/capacity/meal-slots/copy-weeks";
+  const source = "2095-02-01";
+  const first = "2095-03-01";
+  const second = "2095-03-08";
+  const base = { sourceWeekStart: source, destinations: [first, second] };
+
+  it.each([
+    ["missing body", undefined, "Select at least one destination week."],
+    [
+      "unknown mode",
+      { ...base, mode: "monthly" },
+      "Unknown schedule copy mode.",
+    ],
+    [
+      "empty list",
+      { ...base, destinations: [] },
+      "Select at least one destination week.",
+    ],
+    [
+      "invalid source",
+      { ...base, sourceWeekStart: "2095-02-30" },
+      "Choose a valid source week.",
+    ],
+    [
+      "exclusions without series mode",
+      { ...base, excludedWeeks: [first] },
+      "Week exclusions require series mode.",
+    ],
+    [
+      "duplicate weeks",
+      { ...base, destinations: [first, first] },
+      "Destination weeks must be distinct.",
+    ],
+    [
+      "unrelated exclusion",
+      { ...base, mode: "series", excludedWeeks: [source] },
+      "Invalid destination week selection.",
+    ],
+    [
+      "booked and excluded",
+      {
+        ...base,
+        mode: "series",
+        excludedWeeks: [first],
+        previewBookedWeeks: [first],
+      },
+      "A booked week cannot also be manually excluded.",
+    ],
+    [
+      "no available weeks",
+      { ...base, mode: "series", excludedWeeks: [first, second] },
+      "Select at least one available destination week.",
+    ],
+    [
+      "invalid destination",
+      { ...base, destinations: ["bad-date"] },
+      "Choose a valid destination week.",
+    ],
+    [
+      "gap in series",
+      { ...base, mode: "series", destinations: [first, "2095-03-15"] },
+      "Send every week of the series in calendar order.",
+    ],
+    [
+      "different weekdays",
+      { ...base, destinations: [first, "2095-03-09"] },
+      "Destination weeks must start on the same weekday.",
+    ],
+  ])("rejects %s", async (_label, body, message) => {
+    const result = await employeeAgent.post(path).send(body);
+
+    expect(result.status).toBe(400);
+    expect(result.body.error.message).toBe(message);
+  });
+
+  it("rejects a reversed preview range", async () => {
+    const result = await employeeAgent
+      .get("/api/capacity/schedule-copies/preview")
+      .query({ from: second, to: first });
+
+    expect(result.status).toBe(400);
+  });
+
+  it.each([{}, { mode: "series" }])(
+    "rejects an empty source with options %j",
+    async (options) => {
+      const result = await employeeAgent.post(path).send({
+        ...base,
+        sourceWeekStart: "2093-02-01",
+        ...options,
+      });
+
+      expect(result.status).toBe(409);
+      expect(result.body.error.message).toBe(
+        "The source week has no time slots to copy.",
+      );
+    },
+  );
+
+  it("copies selected non-consecutive weeks and records one operation", async () => {
+    const slot = await createMealSlot({
+      slotDate: source,
+      name: "Lunch",
+      startTime: "12:00",
+      endTime: "13:00",
+    });
+    createdSlotIds.push(slot.id);
+
+    const destinations = [first, "2095-03-15"];
+    const result = await employeeAgent.post(path).send({
+      sourceWeekStart: source,
+      destinations,
+    });
+
+    expect(result.status).toBe(201);
+    const copiedSlots = result.body.mealSlots;
+    createdSlotIds.push(...copiedSlots.map((item) => item.id));
+    expect(copiedSlots.map((item) => item.slotDate)).toEqual(destinations);
+
+    const [latest] = await CapacityDAO.getScheduleCopyHistory();
+    expect(latest.sourceWeekStart).toBe(source);
+    expect(latest.weeks).toEqual(
+      destinations.map((start) => ({ start, status: "copied" })),
+    );
+  });
+
+  it("rolls back selected weeks when the last one is booked", async () => {
+    const sourceWeekStart = "2094-02-01";
+    const destinations = ["2094-03-01", "2094-03-08"];
+
+    const makeSlot = async (slotDate) => {
+      const slot = await createMealSlot({
+        slotDate,
+        name: "Dinner",
+        startTime: "18:00",
+        endTime: "19:00",
+      });
+      createdSlotIds.push(slot.id);
+      return slot;
+    };
+
+    await makeSlot(sourceWeekStart);
+    await makeSlot(destinations[0]);
+    const booked = await makeSlot(destinations[1]);
+
+    const booking = await runAsync(
+      `INSERT INTO bookings (hiker_id, booking_date, slot_id, party_size)
+       SELECT id, ?, ?, 2 FROM users WHERE email = ?`,
+      [booked.slotDate, booked.id, hikerEmail],
+    );
+
+    try {
+      const slotsBefore = await CapacityDAO.getMealSlots();
+      const historyBefore = await CapacityDAO.getScheduleCopyHistory();
+
+      const result = await employeeAgent.post(path).send({
+        sourceWeekStart,
+        destinations,
+      });
+
+      expect(result.status).toBe(409);
+      expect(result.body.error.code).toBe("WEEKLY_SCHEDULE_CONFLICT");
+      expect(await CapacityDAO.getMealSlots()).toEqual(slotsBefore);
+      expect(await CapacityDAO.getScheduleCopyHistory()).toEqual(historyBefore);
+    } finally {
+      await runAsync("DELETE FROM bookings WHERE id = ?", [booking.lastID]);
+    }
   });
 });

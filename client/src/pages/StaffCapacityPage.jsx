@@ -141,8 +141,21 @@ function StaffCapacityContent({ user, onLogout }) {
               date={staff.selectedDate}
               saving={staff.isSaving}
               error={staff.copyWeekError}
+              onClearError={staff.clearCopyWeekError}
               onHide={staff.closeCopyWeek}
               onCopy={staff.copyWeek}
+              onCopyWeeks={(
+                source,
+                destinations,
+                excludedWeeks,
+                previewBookedWeeks,
+              ) =>
+                staff.copyWeek(source, destinations[0], {
+                  destinations,
+                  excludedWeeks,
+                  previewBookedWeeks,
+                })
+              }
             />
           )}
 

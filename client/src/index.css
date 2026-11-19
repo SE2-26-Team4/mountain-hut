@@ -436,6 +436,31 @@
   --mh-staff-sidebar-toolbar-height: 68px;
   --mh-staff-sidebar-toggle-shadow-color: rgb(0 0 0 / 10%);
   --mh-staff-control-focus-offset: -4px;
+
+  /* client/src/components/capacity/CopyWeekModal.jsx */
+  --copy-selected-bg: var(--mh-staff-hiker-option-selected-bg);
+  --copy-excluded-bg: var(--mh-white);
+  --copy-booked-bg: #e1e5e9;
+  --copy-booked-text: #404b55;
+  --copy-accent: var(--mh-staff-hiker-option-accent);
+  --copy-text: #282421;
+  --copy-muted: #5e6670;
+  --copy-outside-text: #747b83;
+  --copy-check-border: #69717a;
+
+  --copy-dialog-width: 74rem;
+  --copy-dialog-height: 90dvh;
+  --copy-settings-width: 12rem;
+  --copy-mini-width: 10rem;
+  --copy-nav-size: 2.25rem;
+  --copy-nav-font: 1.35rem;
+  --copy-day-height: 2.65rem;
+  --copy-day-gap: 0.2rem;
+  --copy-row-gap: 0.4rem;
+  --copy-check-size: 1rem;
+  --copy-check-radius: 0.2rem;
+  --copy-check-font: 0.75rem;
+  --copy-help-font: 0.875rem;
 }
 
 /* ==========================================================================

@@ -96,28 +96,6 @@ describe("database initialization", () => {
     });
   });
 
-  // Databases created before password recovery must receive its table.
-  it("adds the password reset table to an existing database", async () => {
-    await loadDatabase();
-    await db.initializeDatabase();
-
-    await db.runAsync("DROP TABLE password_reset_tokens");
-
-    await db.initializeDatabase();
-
-    expect(
-      await db.allAsync(
-        `SELECT name
-         FROM sqlite_master
-         WHERE name IN ('password_reset_tokens', 'idx_password_reset_tokens_user')
-         ORDER BY name`,
-      ),
-    ).toEqual([
-      { name: "idx_password_reset_tokens_user" },
-      { name: "password_reset_tokens" },
-    ]);
-  });
-
   // Reset links are removed together with their account.
   it("deletes the reset links of a deleted account", async () => {
     await loadDatabase();

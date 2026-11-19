@@ -9,7 +9,6 @@ import {
 // Keep DAO and service mocks available to the hoisted module factories.
 const mocks = vi.hoisted(() => ({
   cancelBooking: vi.fn(),
-  getBookingById: vi.fn(),
   getBookingsByHiker: vi.fn(),
   createBookingForHiker: vi.fn(),
   getMealSlotAvailability: vi.fn(),
@@ -19,7 +18,6 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../dao/booking-dao.js', async (importOriginal) => ({
   ...await importOriginal(),
   cancelBooking: mocks.cancelBooking,
-  getBookingById: mocks.getBookingById,
   getBookingsByHiker: mocks.getBookingsByHiker,
 }));
 
@@ -126,9 +124,9 @@ describe('booking route defensive cases', () => {
     expect(mocks.cancelBooking).not.toHaveBeenCalled();
   });
 
-  // Missing or unowned bookings must return 404 without fetching booking details.
+  // Missing, already cancelled or unowned bookings must return 404.
   it('returns 404 when cancellation finds no owned booking', async () => {
-    mocks.cancelBooking.mockResolvedValue(false);
+    mocks.cancelBooking.mockResolvedValue(null);
 
     const { res } = await invoke('delete', '/bookings/:id', {
       user: { id: 7 },
@@ -144,8 +142,6 @@ describe('booking route defensive cases', () => {
         message: 'The requested booking was not found.',
       },
     });
-
-    expect(mocks.getBookingById).not.toHaveBeenCalled();
   });
 
   // A missing request body must reach service validation without crashing the handler.

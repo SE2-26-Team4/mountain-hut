@@ -20,20 +20,23 @@
  * @property {DiningTableDTO[]} diningTables
  */
 
-const API_URL = (
-  import.meta.env.VITE_API_BASE_URL ?? '/api'
-).replace(/\/$/, '');
+const API_URL = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(
+  /\/$/,
+  "",
+);
 
 class CapacityApiError extends Error {
   /**
    * @param {string} message
    * @param {number} status
+   * @param {string} [code]
    */
-  constructor(message, status) {
+  constructor(message, status, code) {
     super(message);
 
-    this.name = 'CapacityApiError';
+    this.name = "CapacityApiError";
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -47,22 +50,21 @@ class CapacityApiError extends Error {
 async function request(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
-    credentials: 'include',
+    credentials: "include",
     headers: {
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
       ...options.headers,
     },
   });
 
   const data =
-    response.status === 204
-      ? null
-      : await response.json().catch(() => null);
+    response.status === 204 ? null : await response.json().catch(() => null);
 
   if (!response.ok) {
     throw new CapacityApiError(
-      data?.error?.message ?? 'The capacity request could not be completed.',
+      data?.error?.message ?? "The capacity request could not be completed.",
       response.status,
+      data?.error?.code,
     );
   }
 
@@ -76,14 +78,12 @@ async function request(path, options = {}) {
  */
 async function getConfiguration() {
   /** @type {{ mealSlots: MealSlotDTO[], diningTables: DiningTableDTO[] }} */
-  const { mealSlots, diningTables } = await request('/capacity');
+  const { mealSlots, diningTables } = await request("/capacity");
 
   const mealSlotsWithTables = await Promise.all(
     mealSlots.map(async (mealSlot) => {
       /** @type {{ capacity: MealSlotCapacityDTO }} */
-      const { capacity } = await request(
-        `/capacity/meal-slots/${mealSlot.id}`,
-      );
+      const { capacity } = await request(`/capacity/meal-slots/${mealSlot.id}`);
 
       return {
         ...mealSlot,
@@ -104,8 +104,8 @@ async function getConfiguration() {
  */
 async function createMealSlot(mealSlot) {
   /** @type {{ mealSlot: MealSlotDTO }} */
-  const data = await request('/capacity/meal-slots', {
-    method: 'POST',
+  const data = await request("/capacity/meal-slots", {
+    method: "POST",
     body: JSON.stringify(mealSlot),
   });
 
@@ -120,7 +120,7 @@ async function createMealSlot(mealSlot) {
 async function updateMealSlot(slotId, mealSlot) {
   /** @type {{ mealSlot: MealSlotDTO }} */
   const data = await request(`/capacity/meal-slots/${slotId}`, {
-    method: 'PUT',
+    method: "PUT",
     body: JSON.stringify(mealSlot),
   });
 
@@ -133,8 +133,8 @@ async function updateMealSlot(slotId, mealSlot) {
  */
 async function createDiningTable(diningTable) {
   /** @type {{ diningTable: DiningTableDTO }} */
-  const data = await request('/capacity/dining-tables', {
-    method: 'POST',
+  const data = await request("/capacity/dining-tables", {
+    method: "POST",
     body: JSON.stringify(diningTable),
   });
 
@@ -149,7 +149,7 @@ async function createDiningTable(diningTable) {
 async function updateDiningTable(tableId, diningTable) {
   /** @type {{ diningTable: DiningTableDTO }} */
   const data = await request(`/capacity/dining-tables/${tableId}`, {
-    method: 'PUT',
+    method: "PUT",
     body: JSON.stringify(diningTable),
   });
 
@@ -164,13 +164,10 @@ async function updateDiningTable(tableId, diningTable) {
  * @returns {Promise<MealSlotCapacityDTO>}
  */
 async function saveMealSlotTables(slotId, tableIds) {
-  const data = await request(
-    `/capacity/meal-slots/${slotId}/tables`,
-    {
-      method: 'PUT',
-      body: JSON.stringify({ tableIds }),
-    },
-  );
+  const data = await request(`/capacity/meal-slots/${slotId}/tables`, {
+    method: "PUT",
+    body: JSON.stringify({ tableIds }),
+  });
 
   return data.capacity;
 }
@@ -186,14 +183,115 @@ async function copyWeeklySchedule(dates) {
   });
 }
 
+/**
+ * @param {string} sourceWeekStart
+ * @param {string[]} destinations
+ * @returns {Promise<{ mealSlots: ConfiguredMealSlot[] }>}
+ */
+async function copySelectedWeeks(sourceWeekStart, destinations) {
+  return request("/capacity/meal-slots/copy-weeks", {
+    method: "POST",
+    body: JSON.stringify({ sourceWeekStart, destinations }),
+  });
+}
+
+/**
+ * @param {string} from First destination day, inclusive.
+ * @param {string} to Last destination day, inclusive.
+ * @param {AbortSignal} [signal]
+ * @returns {Promise<{
+ *   scheduledDates: string[],
+ *   bookings: Array<{
+ *     bookingId: number,
+ *     bookingDate: string,
+ *     partySize: number,
+ *     slotDate: string,
+ *     slotName: string,
+ *     startTime: string
+ *   }>
+ * }>}
+ */
+async function getScheduleCopyPreview(from, to, signal) {
+  const query = new URLSearchParams({ from, to });
+
+  return request(`/capacity/schedule-copies/preview?${query}`, {
+    signal,
+  });
+}
+
+/**
+ * @param {string} sourceWeekStart
+ * @param {string[]} destinations
+ * @param {string[]} excludedWeeks
+ * @param {string[]} previewBookedWeeks
+ * @returns {Promise<{
+ *   mealSlots: ConfiguredMealSlot[],
+ *   weeks: Array<{
+ *     start: string,
+ *     status: "copied" | "excluded" | "booked"
+ *   }>
+ * }>}
+ */
+async function copyScheduleSeries(
+  sourceWeekStart,
+  destinations,
+  excludedWeeks,
+  previewBookedWeeks,
+) {
+  return request("/capacity/meal-slots/copy-weeks", {
+    method: "POST",
+    body: JSON.stringify({
+      mode: "series",
+      sourceWeekStart,
+      destinations,
+      excludedWeeks,
+      previewBookedWeeks,
+    }),
+  });
+}
+
+/**
+ * @typedef {Awaited<ReturnType<typeof getScheduleCopyPreview>>["bookings"][number]} CopyBooking
+ */
+
+/**
+ * @typedef {{
+ *   start: string,
+ *   status: "copied" | "excluded" | "booked",
+ *   bookings?: CopyBooking[]
+ * }} SavedCopyWeek
+ */
+
+/**
+ * @typedef {{
+ *   id: number,
+ *   sourceWeekStart: string,
+ *   createdAt: string,
+ *   weeks: SavedCopyWeek[]
+ * }} SavedScheduleCopy
+ */
+
+/**
+ * @param {AbortSignal} [signal]
+ * @returns {Promise<SavedScheduleCopy[]>}
+ */
+async function getScheduleCopyHistory(signal) {
+  const data = await request("/capacity/schedule-copies", { signal });
+  return data.copies;
+}
+
 const CapacityAPI = {
   getConfiguration,
-  copyWeeklySchedule,
   createMealSlot,
   updateMealSlot,
   createDiningTable,
   updateDiningTable,
   saveMealSlotTables,
+  copyWeeklySchedule,
+  copySelectedWeeks,
+  getScheduleCopyPreview,
+  getScheduleCopyHistory,
+  copyScheduleSeries,
 };
 
 export { CapacityApiError };

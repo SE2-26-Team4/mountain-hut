@@ -44,7 +44,7 @@ export default function MyBookingsPage() {
 
           <p className="small text-secondary mt-2 mb-0">
             You can edit your booking up to 48 hours before your original meal
-            starts.
+            starts. You can cancel it at any time until the meal service ends.
           </p>
         </header>
 

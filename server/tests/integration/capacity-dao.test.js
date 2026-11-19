@@ -1,10 +1,4 @@
-import {
-  afterAll,
-  beforeAll,
-  describe,
-  expect,
-  it,
-} from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   createDiningTable,
@@ -20,13 +14,9 @@ import {
   setMealSlotTables,
   updateDiningTable,
   updateMealSlot,
-} from '../../dao/capacity-dao.js';
+} from "../../dao/capacity-dao.js";
 
-import {
-  getAsync,
-  initializeDatabase,
-  runAsync,
-} from '../../db.js';
+import { getAsync, initializeDatabase, runAsync } from "../../db.js";
 
 // Generate unique names for the shared test fixtures.
 const uniqueSuffix = `${Date.now()}-${Math.random()}`;
@@ -40,10 +30,10 @@ beforeAll(async () => {
   await initializeDatabase();
 
   const slot = await createMealSlot({
-    slotDate: '2099-12-30',
+    slotDate: "2099-12-30",
     name: `Capacity test slot ${uniqueSuffix}`,
-    startTime: '18:00',
-    endTime: '20:00',
+    startTime: "18:00",
+    endTime: "20:00",
   });
 
   slotId = slot.id;
@@ -59,32 +49,20 @@ beforeAll(async () => {
 // Remove assignments before deleting the shared slot and table.
 afterAll(async () => {
   if (slotId) {
-    await runAsync(
-      'DELETE FROM slot_tables WHERE slot_id = ?',
-      [slotId],
-    );
+    await runAsync("DELETE FROM slot_tables WHERE slot_id = ?", [slotId]);
 
-    await runAsync(
-      'DELETE FROM meal_slots WHERE id = ?',
-      [slotId],
-    );
+    await runAsync("DELETE FROM meal_slots WHERE id = ?", [slotId]);
   }
 
   if (tableId) {
-    await runAsync(
-      'DELETE FROM slot_tables WHERE table_id = ?',
-      [tableId],
-    );
+    await runAsync("DELETE FROM slot_tables WHERE table_id = ?", [tableId]);
 
-    await runAsync(
-      'DELETE FROM dining_tables WHERE id = ?',
-      [tableId],
-    );
+    await runAsync("DELETE FROM dining_tables WHERE id = ?", [tableId]);
   }
 });
 
-describe('meal-slot and dining-table data access', () => {
-  it('copies a weekly schedule with new slots and table assignments', async () => {
+describe("meal-slot and dining-table data access", () => {
+  it("copies a weekly schedule with new slots and table assignments", async () => {
     const suffix = `${Date.now()}-${Math.random()}`;
     const table = await createDiningTable({
       name: `Weekly copy table ${suffix}`,
@@ -98,98 +76,92 @@ describe('meal-slot and dining-table data access', () => {
     try {
       sourceSlots.push(
         await createMealSlot({
-          slotDate: '2098-01-05',
+          slotDate: "2098-01-05",
           name: `Weekly copy dinner ${suffix}`,
-          startTime: '18:00',
-          endTime: '20:00',
+          startTime: "18:00",
+          endTime: "20:00",
           isActive: false,
         }),
         await createMealSlot({
-          slotDate: '2098-01-06',
+          slotDate: "2098-01-06",
           name: `Weekly copy lunch ${suffix}`,
-          startTime: '12:00',
-          endTime: '14:00',
+          startTime: "12:00",
+          endTime: "14:00",
         }),
       );
       await setMealSlotTables(sourceSlots[0].id, [table.id]);
 
       destinationSlots.push(
         await createMealSlot({
-          slotDate: '2098-02-05',
+          slotDate: "2098-02-05",
           name: `Old destination slot ${suffix}`,
-          startTime: '10:00',
-          endTime: '11:00',
+          startTime: "10:00",
+          endTime: "11:00",
         }),
       );
 
       const copied = await copyWeeklySchedule({
-        sourceWeekStart: '2098-01-05',
-        destinationWeekStart: '2098-02-02',
+        sourceWeekStart: "2098-01-05",
+        destinationWeekStart: "2098-02-02",
       });
 
       expect(copied).toHaveLength(2);
       expect(copied).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            slotDate: '2098-02-02',
+            slotDate: "2098-02-02",
             name: `Weekly copy dinner ${suffix}`,
-            startTime: '18:00',
-            endTime: '20:00',
+            startTime: "18:00",
+            endTime: "20:00",
             isActive: false,
             tableIds: [table.id],
           }),
           expect.objectContaining({
-            slotDate: '2098-02-03',
+            slotDate: "2098-02-03",
             name: `Weekly copy lunch ${suffix}`,
             isActive: true,
             tableIds: [],
           }),
         ]),
       );
-      expect(copied.every((slot) =>
-        !sourceSlots.some((source) => source.id === slot.id),
-      )).toBe(true);
+      expect(
+        copied.every(
+          (slot) => !sourceSlots.some((source) => source.id === slot.id),
+        ),
+      ).toBe(true);
 
       const remainingDestination = await getMealSlots();
       expect(
-        remainingDestination.some(
-          (slot) => slot.id === destinationSlots[0].id,
-        ),
+        remainingDestination.some((slot) => slot.id === destinationSlots[0].id),
       ).toBe(false);
     } finally {
-      const slotsToDelete = [
-        ...sourceSlots,
-        ...destinationSlots,
-      ];
+      const slotsToDelete = [...sourceSlots, ...destinationSlots];
       const copiedSlots = await getMealSlots();
       const testSlots = copiedSlots.filter((slot) =>
         slot.name.endsWith(suffix),
       );
 
       for (const slot of [...slotsToDelete, ...testSlots]) {
-        await runAsync(
-          'DELETE FROM slot_tables WHERE slot_id = ?',
-          [slot.id],
-        );
-        await runAsync(
-          'DELETE FROM meal_slots WHERE id = ?',
-          [slot.id],
-        );
+        await runAsync("DELETE FROM slot_tables WHERE slot_id = ?", [slot.id]);
+        await runAsync("DELETE FROM meal_slots WHERE id = ?", [slot.id]);
       }
-      await runAsync(
-        'DELETE FROM dining_tables WHERE id = ?',
-        [table.id],
-      );
+      await runAsync("DELETE FROM dining_tables WHERE id = ?", [table.id]);
     }
   });
 
-  it('does not replace a destination week that contains bookings', async () => {
+  it("does not replace a destination week that contains bookings", async () => {
     const suffix = `${Date.now()}-${Math.random()}`;
+    const sourceSlot = await createMealSlot({
+      slotDate: "2098-03-02",
+      name: `Source lunch ${suffix}`,
+      startTime: "12:00",
+      endTime: "13:00",
+    });
     const destinationSlot = await createMealSlot({
-      slotDate: '2098-04-07',
+      slotDate: "2098-04-07",
       name: `Booked destination slot ${suffix}`,
-      startTime: '18:00',
-      endTime: '20:00',
+      startTime: "18:00",
+      endTime: "20:00",
     });
     const hiker = await runAsync(
       `INSERT INTO users (full_name, email, password_hash, role)
@@ -197,7 +169,7 @@ describe('meal-slot and dining-table data access', () => {
       [
         `Weekly copy hiker ${suffix}`,
         `weekly-copy-${suffix}@example.com`,
-        'test-password-hash',
+        "test-password-hash",
       ],
     );
     const booking = await runAsync(
@@ -211,41 +183,37 @@ describe('meal-slot and dining-table data access', () => {
     try {
       await expect(
         copyWeeklySchedule({
-          sourceWeekStart: '2098-03-02',
-          destinationWeekStart: '2098-04-06',
+          sourceWeekStart: "2098-03-02",
+          destinationWeekStart: "2098-04-06",
         }),
       ).rejects.toBeInstanceOf(WeeklyScheduleConflictError);
 
       const unchanged = await getMealSlots();
-      expect(
-        unchanged.some((slot) => slot.id === destinationSlot.id),
-      ).toBe(true);
+      expect(unchanged.some((slot) => slot.id === destinationSlot.id)).toBe(
+        true,
+      );
     } finally {
       await runAsync(
-        'DELETE FROM booking_table_allocations WHERE booking_id = ?',
+        "DELETE FROM booking_table_allocations WHERE booking_id = ?",
         [booking.lastID],
       );
-      await runAsync(
-        'DELETE FROM bookings WHERE id = ?',
-        [booking.lastID],
-      );
-      await runAsync(
-        'DELETE FROM slot_tables WHERE slot_id = ?',
-        [destinationSlot.id],
-      );
-      await runAsync(
-        'DELETE FROM meal_slots WHERE id = ?',
-        [destinationSlot.id],
-      );
-      await runAsync(
-        'DELETE FROM users WHERE id = ?',
-        [hiker.lastID],
-      );
+      await runAsync("DELETE FROM bookings WHERE id = ?", [booking.lastID]);
+
+      await runAsync("DELETE FROM slot_tables WHERE slot_id IN (?, ?)", [
+        destinationSlot.id,
+        sourceSlot.id,
+      ]);
+      await runAsync("DELETE FROM meal_slots WHERE id IN (?, ?)", [
+        destinationSlot.id,
+        sourceSlot.id,
+      ]);
+
+      await runAsync("DELETE FROM users WHERE id = ?", [hiker.lastID]);
     }
   });
 
   // Cancelled bookings are not reservations, so they must not block the copy.
-  it('replaces a destination week that contains only cancelled bookings', async () => {
+  it("replaces a destination week that contains only cancelled bookings", async () => {
     const suffix = `${Date.now()}-${Math.random()}`;
     const table = await createDiningTable({
       name: `Cancelled booking table ${suffix}`,
@@ -253,16 +221,16 @@ describe('meal-slot and dining-table data access', () => {
       isActive: false,
     });
     const sourceSlot = await createMealSlot({
-      slotDate: '2098-05-05',
+      slotDate: "2098-05-05",
       name: `Cancelled booking source slot ${suffix}`,
-      startTime: '12:00',
-      endTime: '14:00',
+      startTime: "12:00",
+      endTime: "14:00",
     });
     const destinationSlot = await createMealSlot({
-      slotDate: '2098-06-08',
+      slotDate: "2098-06-08",
       name: `Cancelled booking destination slot ${suffix}`,
-      startTime: '18:00',
-      endTime: '20:00',
+      startTime: "18:00",
+      endTime: "20:00",
     });
     await setMealSlotTables(destinationSlot.id, [table.id]);
 
@@ -272,7 +240,7 @@ describe('meal-slot and dining-table data access', () => {
       [
         `Cancelled booking hiker ${suffix}`,
         `cancelled-booking-${suffix}@example.com`,
-        'test-password-hash',
+        "test-password-hash",
       ],
     );
     const booking = await runAsync(
@@ -292,87 +260,71 @@ describe('meal-slot and dining-table data access', () => {
 
     try {
       const copied = await copyWeeklySchedule({
-        sourceWeekStart: '2098-05-04',
-        destinationWeekStart: '2098-06-08',
+        sourceWeekStart: "2098-05-04",
+        destinationWeekStart: "2098-06-08",
       });
 
       expect(copied).toEqual([
         expect.objectContaining({
-          slotDate: '2098-06-09',
+          slotDate: "2098-06-09",
           name: sourceSlot.name,
         }),
       ]);
 
       // The old destination slot is replaced together with its dependent rows.
-      expect(await getAsync(
-        'SELECT 1 FROM meal_slots WHERE id = ?',
-        [destinationSlot.id],
-      )).toBeUndefined();
-      expect(await getAsync(
-        'SELECT 1 FROM slot_tables WHERE slot_id = ?',
-        [destinationSlot.id],
-      )).toBeUndefined();
-      expect(await getAsync(
-        'SELECT 1 FROM bookings WHERE id = ?',
-        [booking.lastID],
-      )).toBeUndefined();
-      expect(await getAsync(
-        'SELECT 1 FROM booking_table_allocations WHERE booking_id = ?',
-        [booking.lastID],
-      )).toBeUndefined();
+      expect(
+        await getAsync("SELECT 1 FROM meal_slots WHERE id = ?", [
+          destinationSlot.id,
+        ]),
+      ).toBeUndefined();
+      expect(
+        await getAsync("SELECT 1 FROM slot_tables WHERE slot_id = ?", [
+          destinationSlot.id,
+        ]),
+      ).toBeUndefined();
+      expect(
+        await getAsync("SELECT 1 FROM bookings WHERE id = ?", [booking.lastID]),
+      ).toBeUndefined();
+      expect(
+        await getAsync(
+          "SELECT 1 FROM booking_table_allocations WHERE booking_id = ?",
+          [booking.lastID],
+        ),
+      ).toBeUndefined();
     } finally {
       await runAsync(
-        'DELETE FROM booking_table_allocations WHERE booking_id = ?',
+        "DELETE FROM booking_table_allocations WHERE booking_id = ?",
         [booking.lastID],
       );
-      await runAsync(
-        'DELETE FROM bookings WHERE id = ?',
-        [booking.lastID],
-      );
+      await runAsync("DELETE FROM bookings WHERE id = ?", [booking.lastID]);
 
       const testSlots = (await getMealSlots()).filter((slot) =>
         slot.name.endsWith(suffix),
       );
 
       for (const slot of testSlots) {
-        await runAsync(
-          'DELETE FROM slot_tables WHERE slot_id = ?',
-          [slot.id],
-        );
-        await runAsync(
-          'DELETE FROM meal_slots WHERE id = ?',
-          [slot.id],
-        );
+        await runAsync("DELETE FROM slot_tables WHERE slot_id = ?", [slot.id]);
+        await runAsync("DELETE FROM meal_slots WHERE id = ?", [slot.id]);
       }
-      await runAsync(
-        'DELETE FROM users WHERE id = ?',
-        [hiker.lastID],
-      );
-      await runAsync(
-        'DELETE FROM dining_tables WHERE id = ?',
-        [table.id],
-      );
+      await runAsync("DELETE FROM users WHERE id = ?", [hiker.lastID]);
+      await runAsync("DELETE FROM dining_tables WHERE id = ?", [table.id]);
     }
   });
 
   // Created records must be returned with their configured values.
-  it('reads the created meal slot and dining table', async () => {
+  it("reads the created meal slot and dining table", async () => {
     const slots = await getMealSlots();
     const tables = await getDiningTables();
 
-    expect(
-      slots.find((slot) => slot.id === slotId),
-    ).toMatchObject({
-      slotDate: '2099-12-30',
+    expect(slots.find((slot) => slot.id === slotId)).toMatchObject({
+      slotDate: "2099-12-30",
       name: `Capacity test slot ${uniqueSuffix}`,
-      startTime: '18:00',
-      endTime: '20:00',
+      startTime: "18:00",
+      endTime: "20:00",
       isActive: true,
     });
 
-    expect(
-      tables.find((table) => table.id === tableId),
-    ).toMatchObject({
+    expect(tables.find((table) => table.id === tableId)).toMatchObject({
       name: `Capacity test table ${uniqueSuffix}`,
       seatCount: 4,
       isActive: true,
@@ -380,12 +332,12 @@ describe('meal-slot and dining-table data access', () => {
   });
 
   // Updates must return the new values while preserving record IDs.
-  it('updates a meal slot and a dining table', async () => {
+  it("updates a meal slot and a dining table", async () => {
     const updatedSlot = await updateMealSlot(slotId, {
-      slotDate: '2099-12-30',
+      slotDate: "2099-12-30",
       name: `Updated capacity test slot ${uniqueSuffix}`,
-      startTime: '19:00',
-      endTime: '21:00',
+      startTime: "19:00",
+      endTime: "21:00",
       isActive: true,
     });
 
@@ -397,10 +349,10 @@ describe('meal-slot and dining-table data access', () => {
 
     expect(updatedSlot).toMatchObject({
       id: slotId,
-      slotDate: '2099-12-30',
+      slotDate: "2099-12-30",
       name: `Updated capacity test slot ${uniqueSuffix}`,
-      startTime: '19:00',
-      endTime: '21:00',
+      startTime: "19:00",
+      endTime: "21:00",
       isActive: true,
     });
 
@@ -413,17 +365,17 @@ describe('meal-slot and dining-table data access', () => {
   });
 
   // Updating a missing record must return null.
-  it('returns null when updating a meal slot or table that does not exist', async () => {
+  it("returns null when updating a meal slot or table that does not exist", async () => {
     const missingSlot = await updateMealSlot(-1, {
-      slotDate: '2099-12-30',
-      name: 'Missing slot',
-      startTime: '18:00',
-      endTime: '20:00',
+      slotDate: "2099-12-30",
+      name: "Missing slot",
+      startTime: "18:00",
+      endTime: "20:00",
       isActive: true,
     });
 
     const missingTable = await updateDiningTable(-1, {
-      name: 'Missing table',
+      name: "Missing table",
       seatCount: 2,
       isActive: true,
     });
@@ -433,16 +385,16 @@ describe('meal-slot and dining-table data access', () => {
   });
 
   // Inactive records must retain their status and remain available in listings.
-  it('creates inactive meal slots and dining tables', async () => {
+  it("creates inactive meal slots and dining tables", async () => {
     let inactiveSlotId;
     let inactiveTableId;
 
     try {
       const slot = await createMealSlot({
-        slotDate: '2099-12-30',
+        slotDate: "2099-12-30",
         name: `Inactive slot ${uniqueSuffix}`,
-        startTime: '08:00',
-        endTime: '09:00',
+        startTime: "08:00",
+        endTime: "09:00",
         isActive: false,
       });
 
@@ -479,23 +431,19 @@ describe('meal-slot and dining-table data access', () => {
     } finally {
       // Remove local fixtures even if an assertion fails.
       if (inactiveSlotId) {
-        await runAsync(
-          'DELETE FROM meal_slots WHERE id = ?',
-          [inactiveSlotId],
-        );
+        await runAsync("DELETE FROM meal_slots WHERE id = ?", [inactiveSlotId]);
       }
 
       if (inactiveTableId) {
-        await runAsync(
-          'DELETE FROM dining_tables WHERE id = ?',
-          [inactiveTableId],
-        );
+        await runAsync("DELETE FROM dining_tables WHERE id = ?", [
+          inactiveTableId,
+        ]);
       }
     }
   });
 
   // Duplicate checks must ignore letter case and prevent duplicate records.
-  it('rejects duplicate names on creation, ignoring letter case', async () => {
+  it("rejects duplicate names on creation, ignoring letter case", async () => {
     const slotName = `Duplicate slot ${uniqueSuffix}`;
     const tableName = `Duplicate table ${uniqueSuffix}`;
 
@@ -503,24 +451,28 @@ describe('meal-slot and dining-table data access', () => {
     let duplicateTableId;
 
     try {
-      duplicateSlotId = (await createMealSlot({
-        slotDate: '2099-12-30',
-        name: slotName,
-        startTime: '08:00',
-        endTime: '09:00',
-      }))?.id;
+      duplicateSlotId = (
+        await createMealSlot({
+          slotDate: "2099-12-30",
+          name: slotName,
+          startTime: "08:00",
+          endTime: "09:00",
+        })
+      )?.id;
 
-      duplicateTableId = (await createDiningTable({
-        name: tableName,
-        seatCount: 2,
-      }))?.id;
+      duplicateTableId = (
+        await createDiningTable({
+          name: tableName,
+          seatCount: 2,
+        })
+      )?.id;
 
       await expect(
         createMealSlot({
-          slotDate: '2099-12-30',
+          slotDate: "2099-12-30",
           name: slotName.toUpperCase(),
-          startTime: '08:00',
-          endTime: '09:00',
+          startTime: "08:00",
+          endTime: "09:00",
         }),
       ).rejects.toBeInstanceOf(DuplicateMealSlotError);
 
@@ -541,39 +493,37 @@ describe('meal-slot and dining-table data access', () => {
       expect(sameNameTables).toHaveLength(1);
     } finally {
       if (duplicateSlotId) {
-        await runAsync(
-          'DELETE FROM meal_slots WHERE id = ?',
-          [duplicateSlotId],
-        );
+        await runAsync("DELETE FROM meal_slots WHERE id = ?", [
+          duplicateSlotId,
+        ]);
       }
 
       if (duplicateTableId) {
-        await runAsync(
-          'DELETE FROM dining_tables WHERE id = ?',
-          [duplicateTableId],
-        );
+        await runAsync("DELETE FROM dining_tables WHERE id = ?", [
+          duplicateTableId,
+        ]);
       }
     }
   });
 
   // Updates must reject conflicting names while allowing a record's own name.
-  it('rejects renaming to another record name but allows keeping its own', async () => {
+  it("rejects renaming to another record name but allows keeping its own", async () => {
     const createdSlotIds = [];
     const createdTableIds = [];
 
     try {
       const firstSlot = await createMealSlot({
-        slotDate: '2099-12-30',
+        slotDate: "2099-12-30",
         name: `Rename slot A ${uniqueSuffix}`,
-        startTime: '06:00',
-        endTime: '07:00',
+        startTime: "06:00",
+        endTime: "07:00",
       });
 
       const secondSlot = await createMealSlot({
-        slotDate: '2099-12-30',
+        slotDate: "2099-12-30",
         name: `Rename slot B ${uniqueSuffix}`,
-        startTime: '07:00',
-        endTime: '08:00',
+        startTime: "07:00",
+        endTime: "08:00",
       });
 
       const firstTable = await createDiningTable({
@@ -591,10 +541,10 @@ describe('meal-slot and dining-table data access', () => {
 
       await expect(
         updateMealSlot(secondSlot?.id ?? -1, {
-          slotDate: '2099-12-30',
+          slotDate: "2099-12-30",
           name: `Rename slot A ${uniqueSuffix}`,
-          startTime: '06:00',
-          endTime: '07:00',
+          startTime: "06:00",
+          endTime: "07:00",
           isActive: true,
         }),
       ).rejects.toBeInstanceOf(DuplicateMealSlotError);
@@ -609,40 +559,33 @@ describe('meal-slot and dining-table data access', () => {
 
       // A failed rename must preserve the table's original name.
       expect(
-        (await getDiningTables()).find(
-          (table) => table.id === secondTable?.id,
-        )?.name,
+        (await getDiningTables()).find((table) => table.id === secondTable?.id)
+          ?.name,
       ).toBe(`Rename table B ${uniqueSuffix}`);
 
       // Keeping the same name with different letter case remains valid.
       const sameSlot = await updateMealSlot(firstSlot?.id ?? -1, {
-        slotDate: '2099-12-30',
+        slotDate: "2099-12-30",
         name: `RENAME SLOT A ${uniqueSuffix}`,
-        startTime: '06:00',
-        endTime: '07:30',
+        startTime: "06:00",
+        endTime: "07:30",
         isActive: true,
       });
 
       expect(sameSlot?.name).toBe(`RENAME SLOT A ${uniqueSuffix}`);
     } finally {
       for (const id of createdSlotIds.filter(Boolean)) {
-        await runAsync(
-          'DELETE FROM meal_slots WHERE id = ?',
-          [id],
-        );
+        await runAsync("DELETE FROM meal_slots WHERE id = ?", [id]);
       }
 
       for (const id of createdTableIds.filter(Boolean)) {
-        await runAsync(
-          'DELETE FROM dining_tables WHERE id = ?',
-          [id],
-        );
+        await runAsync("DELETE FROM dining_tables WHERE id = ?", [id]);
       }
     }
   });
 
   // A missing record must return null even when the requested name is taken.
-  it('reports a missing record as null even if its new name is taken', async () => {
+  it("reports a missing record as null even if its new name is taken", async () => {
     const takenName = `Updated capacity test table ${uniqueSuffix}`;
 
     await updateDiningTable(tableId, {
@@ -661,7 +604,7 @@ describe('meal-slot and dining-table data access', () => {
   });
 });
 
-describe('slot-table assignment and capacity aggregation', () => {
+describe("slot-table assignment and capacity aggregation", () => {
   // Use dedicated fixtures with known seat counts for capacity assertions.
   const assignmentSlotName = `Assignment test slot ${uniqueSuffix}`;
 
@@ -676,9 +619,8 @@ describe('slot-table assignment and capacity aggregation', () => {
    * @param {number[]} ids
    * @returns {number[]}
    */
-  const sortIds = (ids) => [...ids].sort(
-    (firstId, secondId) => firstId - secondId,
-  );
+  const sortIds = (ids) =>
+    [...ids].sort((firstId, secondId) => firstId - secondId);
 
   /**
    * Reads the persisted assignment and its total active seat capacity.
@@ -697,10 +639,10 @@ describe('slot-table assignment and capacity aggregation', () => {
   // Create one slot, two active tables, and one inactive table.
   beforeAll(async () => {
     const slot = await createMealSlot({
-      slotDate: '2099-12-30',
+      slotDate: "2099-12-30",
       name: assignmentSlotName,
-      startTime: '12:00',
-      endTime: '13:00',
+      startTime: "12:00",
+      endTime: "13:00",
     });
 
     assignmentSlotId = slot.id;
@@ -731,38 +673,28 @@ describe('slot-table assignment and capacity aggregation', () => {
   // Remove all fixture assignments before deleting their slot and tables.
   afterAll(async () => {
     if (assignmentSlotId) {
-      await runAsync(
-        'DELETE FROM slot_tables WHERE slot_id = ?',
-        [assignmentSlotId],
-      );
+      await runAsync("DELETE FROM slot_tables WHERE slot_id = ?", [
+        assignmentSlotId,
+      ]);
 
-      await runAsync(
-        'DELETE FROM meal_slots WHERE id = ?',
-        [assignmentSlotId],
-      );
+      await runAsync("DELETE FROM meal_slots WHERE id = ?", [assignmentSlotId]);
     }
 
     for (const id of [fourSeatTableId, twoSeatTableId, inactiveTableId]) {
       if (id) {
-        await runAsync(
-          'DELETE FROM slot_tables WHERE table_id = ?',
-          [id],
-        );
+        await runAsync("DELETE FROM slot_tables WHERE table_id = ?", [id]);
 
-        await runAsync(
-          'DELETE FROM dining_tables WHERE id = ?',
-          [id],
-        );
+        await runAsync("DELETE FROM dining_tables WHERE id = ?", [id]);
       }
     }
   });
 
   // Assigned active tables must contribute their seats to the saved capacity.
-  it('assigns tables to a meal slot and calculates its total seat capacity', async () => {
-    const capacity = await setMealSlotTables(
-      assignmentSlotId,
-      [fourSeatTableId, twoSeatTableId],
-    );
+  it("assigns tables to a meal slot and calculates its total seat capacity", async () => {
+    const capacity = await setMealSlotTables(assignmentSlotId, [
+      fourSeatTableId,
+      twoSeatTableId,
+    ]);
 
     expect(capacity).toMatchObject({
       slotId: assignmentSlotId,
@@ -770,23 +702,21 @@ describe('slot-table assignment and capacity aggregation', () => {
       totalSeatCapacity: 6,
     });
 
-    expect(
-      sortIds(capacity.tables.map((table) => table.id)),
-    ).toEqual(
+    expect(sortIds(capacity.tables.map((table) => table.id))).toEqual(
       sortIds([fourSeatTableId, twoSeatTableId]),
     );
 
-    await expect(
-      getMealSlotCapacity(assignmentSlotId),
-    ).resolves.toEqual(capacity);
+    await expect(getMealSlotCapacity(assignmentSlotId)).resolves.toEqual(
+      capacity,
+    );
   });
 
   // Inactive tables remain listed but do not contribute to seat capacity.
-  it('excludes assigned inactive tables from the total seat capacity', async () => {
-    const capacity = await setMealSlotTables(
-      assignmentSlotId,
-      [fourSeatTableId, inactiveTableId],
-    );
+  it("excludes assigned inactive tables from the total seat capacity", async () => {
+    const capacity = await setMealSlotTables(assignmentSlotId, [
+      fourSeatTableId,
+      inactiveTableId,
+    ]);
 
     expect(
       capacity.tables.find((table) => table.id === inactiveTableId),
@@ -799,18 +729,15 @@ describe('slot-table assignment and capacity aggregation', () => {
   });
 
   // Deactivating an assigned table must remove its seats from capacity.
-  it('excludes an assigned table from capacity after deactivation', async () => {
-    await setMealSlotTables(
-      assignmentSlotId,
-      [twoSeatTableId],
-    );
+  it("excludes an assigned table from capacity after deactivation", async () => {
+    await setMealSlotTables(assignmentSlotId, [twoSeatTableId]);
 
     try {
       const updatedSlot = await updateMealSlot(assignmentSlotId, {
-        slotDate: '2099-12-30',
+        slotDate: "2099-12-30",
         name: assignmentSlotName,
-        startTime: '12:00',
-        endTime: '13:00',
+        startTime: "12:00",
+        endTime: "13:00",
         isActive: false,
       });
 
@@ -837,74 +764,64 @@ describe('slot-table assignment and capacity aggregation', () => {
       });
     } finally {
       // Restore active status for the remaining assignment tests.
-      await runAsync(
-        'UPDATE meal_slots SET is_active = 1 WHERE id = ?',
-        [assignmentSlotId],
-      );
+      await runAsync("UPDATE meal_slots SET is_active = 1 WHERE id = ?", [
+        assignmentSlotId,
+      ]);
 
-      await runAsync(
-        'UPDATE dining_tables SET is_active = 1 WHERE id = ?',
-        [twoSeatTableId],
-      );
+      await runAsync("UPDATE dining_tables SET is_active = 1 WHERE id = ?", [
+        twoSeatTableId,
+      ]);
     }
   });
 
   // Each assignment replaces the previous list and stores each table once.
-  it('replaces previous assignments and ignores duplicate table IDs', async () => {
-    await setMealSlotTables(
-      assignmentSlotId,
-      [fourSeatTableId, twoSeatTableId],
-    );
+  it("replaces previous assignments and ignores duplicate table IDs", async () => {
+    await setMealSlotTables(assignmentSlotId, [
+      fourSeatTableId,
+      twoSeatTableId,
+    ]);
 
-    const capacity = await setMealSlotTables(
-      assignmentSlotId,
-      [twoSeatTableId, twoSeatTableId],
-    );
+    const capacity = await setMealSlotTables(assignmentSlotId, [
+      twoSeatTableId,
+      twoSeatTableId,
+    ]);
 
-    expect(
-      capacity.tables.map((table) => table.id),
-    ).toEqual([twoSeatTableId]);
+    expect(capacity.tables.map((table) => table.id)).toEqual([twoSeatTableId]);
 
     expect(capacity.totalSeatCapacity).toBe(2);
   });
 
   // An empty table list must remove every assignment and reset capacity.
-  it('clears all assignments when no tables are requested', async () => {
-    await setMealSlotTables(
-      assignmentSlotId,
-      [fourSeatTableId],
-    );
+  it("clears all assignments when no tables are requested", async () => {
+    await setMealSlotTables(assignmentSlotId, [fourSeatTableId]);
 
-    const capacity = await setMealSlotTables(
-      assignmentSlotId,
-      [],
-    );
+    const capacity = await setMealSlotTables(assignmentSlotId, []);
 
     expect(capacity.tables).toEqual([]);
     expect(capacity.totalSeatCapacity).toBe(0);
   });
 
   // Missing table IDs must reject the update and preserve saved assignments.
-  it('preserves existing assignments when a requested table does not exist', async () => {
-    await setMealSlotTables(
-      assignmentSlotId,
-      [fourSeatTableId, twoSeatTableId],
-    );
+  it("preserves existing assignments when a requested table does not exist", async () => {
+    await setMealSlotTables(assignmentSlotId, [
+      fourSeatTableId,
+      twoSeatTableId,
+    ]);
 
     const missingTableId = -1;
 
-    const failedAssignment = setMealSlotTables(
-      assignmentSlotId,
-      [twoSeatTableId, missingTableId],
+    const failedAssignment = setMealSlotTables(assignmentSlotId, [
+      twoSeatTableId,
+      missingTableId,
+    ]);
+
+    await expect(failedAssignment).rejects.toBeInstanceOf(
+      DiningTablesNotFoundError,
     );
 
-    await expect(
-      failedAssignment,
-    ).rejects.toBeInstanceOf(DiningTablesNotFoundError);
-
     await expect(failedAssignment).rejects.toMatchObject({
-      code: 'DINING_TABLES_NOT_FOUND',
-      message: 'One or more dining tables were not found.',
+      code: "DINING_TABLES_NOT_FOUND",
+      message: "One or more dining tables were not found.",
       missingTableIds: [missingTableId],
     });
 
@@ -915,11 +832,11 @@ describe('slot-table assignment and capacity aggregation', () => {
   });
 
   // A failure during assignment persistence must roll back all partial changes.
-  it('rolls back partial changes when saving an assignment fails', async () => {
-    await setMealSlotTables(
-      assignmentSlotId,
-      [fourSeatTableId, twoSeatTableId],
-    );
+  it("rolls back partial changes when saving an assignment fails", async () => {
+    await setMealSlotTables(assignmentSlotId, [
+      fourSeatTableId,
+      twoSeatTableId,
+    ]);
 
     // Fail the second insert after deleting old rows and saving the first new row.
     await runAsync(
@@ -934,16 +851,11 @@ describe('slot-table assignment and capacity aggregation', () => {
 
     try {
       await expect(
-        setMealSlotTables(
-          assignmentSlotId,
-          [twoSeatTableId, inactiveTableId],
-        ),
-      ).rejects.toThrow('Forced assignment failure');
+        setMealSlotTables(assignmentSlotId, [twoSeatTableId, inactiveTableId]),
+      ).rejects.toThrow("Forced assignment failure");
     } finally {
       // Always remove the temporary failure trigger.
-      await runAsync(
-        'DROP TRIGGER IF EXISTS fail_slot_table_insert',
-      );
+      await runAsync("DROP TRIGGER IF EXISTS fail_slot_table_insert");
     }
 
     // The original assignment and capacity must survive the failed transaction.
@@ -954,11 +866,8 @@ describe('slot-table assignment and capacity aggregation', () => {
   });
 
   // Invalid inputs must fail without changing the persisted assignment.
-  it('rejects table IDs that are not integers without changing assignments', async () => {
-    await setMealSlotTables(
-      assignmentSlotId,
-      [fourSeatTableId],
-    );
+  it("rejects table IDs that are not integers without changing assignments", async () => {
+    await setMealSlotTables(assignmentSlotId, [fourSeatTableId]);
 
     await expect(
       setMealSlotTables(assignmentSlotId, null),
@@ -983,18 +892,14 @@ describe('slot-table assignment and capacity aggregation', () => {
   });
 
   // Capacity reads and assignment updates must return null for a missing slot.
-  it('returns null when requesting capacity for a meal slot that does not exist', async () => {
-    await expect(
-      getMealSlotCapacity(-1),
-    ).resolves.toBeNull();
+  it("returns null when requesting capacity for a meal slot that does not exist", async () => {
+    await expect(getMealSlotCapacity(-1)).resolves.toBeNull();
 
-    await expect(
-      setMealSlotTables(-1, [fourSeatTableId]),
-    ).resolves.toBeNull();
+    await expect(setMealSlotTables(-1, [fourSeatTableId])).resolves.toBeNull();
   });
 });
 
-describe('dated meal-slot configuration', () => {
+describe("dated meal-slot configuration", () => {
   // Track dated fixtures separately for cleanup.
   const slotIds = [];
   const tableIds = [];
@@ -1008,8 +913,8 @@ describe('dated meal-slot configuration', () => {
     const slot = await createMealSlot({
       slotDate,
       name: `Dated lunch ${suffix}`,
-      startTime: '12:00',
-      endTime: '13:00',
+      startTime: "12:00",
+      endTime: "13:00",
     });
 
     slotIds.push(slot.id);
@@ -1020,34 +925,25 @@ describe('dated meal-slot configuration', () => {
   // Remove dated slot assignments before deleting slots and reusable tables.
   afterAll(async () => {
     for (const id of slotIds) {
-      await runAsync(
-        'DELETE FROM slot_tables WHERE slot_id = ?',
-        [id],
-      );
+      await runAsync("DELETE FROM slot_tables WHERE slot_id = ?", [id]);
 
-      await runAsync(
-        'DELETE FROM meal_slots WHERE id = ?',
-        [id],
-      );
+      await runAsync("DELETE FROM meal_slots WHERE id = ?", [id]);
     }
 
     for (const id of tableIds) {
-      await runAsync(
-        'DELETE FROM dining_tables WHERE id = ?',
-        [id],
-      );
+      await runAsync("DELETE FROM dining_tables WHERE id = ?", [id]);
     }
   });
 
   // Identical service details must be allowed when their dates differ.
-  it('allows identical names and times on different dates', async () => {
-    const first = await createDatedSlot('2099-11-01');
-    const second = await createDatedSlot('2099-11-02');
+  it("allows identical names and times on different dates", async () => {
+    const first = await createDatedSlot("2099-11-01");
+    const second = await createDatedSlot("2099-11-02");
 
     expect(first.id).not.toBe(second.id);
 
-    expect(first.slotDate).toBe('2099-11-01');
-    expect(second.slotDate).toBe('2099-11-02');
+    expect(first.slotDate).toBe("2099-11-01");
+    expect(second.slotDate).toBe("2099-11-02");
 
     const savedSlots = await getMealSlots();
 
@@ -1055,20 +951,20 @@ describe('dated meal-slot configuration', () => {
       expect.arrayContaining([
         expect.objectContaining({
           id: first.id,
-          slotDate: '2099-11-01',
+          slotDate: "2099-11-01",
         }),
         expect.objectContaining({
           id: second.id,
-          slotDate: '2099-11-02',
+          slotDate: "2099-11-02",
         }),
       ]),
     );
   });
 
   // The same table may serve matching time slots on separate dates.
-  it('allows reusing the same table at the same time on different dates', async () => {
-    const first = await createDatedSlot('2099-11-03');
-    const second = await createDatedSlot('2099-11-04');
+  it("allows reusing the same table at the same time on different dates", async () => {
+    const first = await createDatedSlot("2099-11-03");
+    const second = await createDatedSlot("2099-11-04");
 
     const table = await createDiningTable({
       name: `Reusable dated table ${suffix}`,
@@ -1077,10 +973,7 @@ describe('dated meal-slot configuration', () => {
 
     tableIds.push(table.id);
 
-    await setMealSlotTables(
-      first.id,
-      [table.id],
-    );
+    await setMealSlotTables(first.id, [table.id]);
 
     await expect(
       setMealSlotTables(second.id, [table.id]),
@@ -1090,9 +983,9 @@ describe('dated meal-slot configuration', () => {
   });
 
   // Moving a slot must reject an identical service already present on that date.
-  it('rejects moving a slot onto an existing identical slot', async () => {
-    const first = await createDatedSlot('2099-11-05');
-    const second = await createDatedSlot('2099-11-06');
+  it("rejects moving a slot onto an existing identical slot", async () => {
+    const first = await createDatedSlot("2099-11-05");
+    const second = await createDatedSlot("2099-11-06");
 
     await expect(
       updateMealSlot(second.id, {
@@ -1109,6 +1002,6 @@ describe('dated meal-slot configuration', () => {
       (slot) => slot.id === second.id,
     );
 
-    expect(savedSlot.slotDate).toBe('2099-11-06');
+    expect(savedSlot.slotDate).toBe("2099-11-06");
   });
 });

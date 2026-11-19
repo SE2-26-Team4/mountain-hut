@@ -283,3 +283,60 @@ it.each([
     'Booking ID, date, party size, and table allocations are required.',
   );
 });
+// [REQUIREMENT] MH-08: Any change to the reservation, including its
+// cancellation, should be notified by email.
+describe('booking cancellation email content', () => {
+  it('reports the cancellation with the booking details from MH-03', () => {
+    const email = buildBookingConfirmationEmail({
+      ...createInput(),
+      // Cancellation takes precedence over an edit.
+      isEdit: true,
+      isCancellation: true,
+      requirements: [
+        { hasAllergies: true, description: 'Peanut allergy' },
+      ],
+    });
+
+    expect(email.to).toBe('mario.rossi@example.com');
+    expect(email.subject).toBe(
+      'Booking cancelled #42 - Lunch, Thursday 5 November 2026',
+    );
+
+    expect(email.text).toContain(
+      'Your table booking at the Mountain Hut has been cancelled and your seats have been released.',
+    );
+    expect(email.text).toContain('Booking reference: #42');
+    expect(email.text).toContain('Name: Mario Rossi');
+    expect(email.text).toContain('Date: Thursday 5 November 2026');
+    expect(email.text).toContain('Meal service: Lunch, 12:00-14:00');
+    expect(email.text).toContain('Party size: 5');
+    expect(email.text).toContain('Kind regards,');
+
+    // Released seats, party requirements and the success check are omitted.
+    expect(email.text).not.toContain('Table allocation');
+    expect(email.text).not.toContain('Peanut allergy');
+    expect(email.html).not.toContain('Table allocation');
+    expect(email.html).not.toContain('Peanut allergy');
+    expect(email.html).not.toContain('cid:booking-success-check');
+
+    expect(email.html).toContain('Your booking is cancelled');
+    expect(email.html).toContain('We hope to welcome you another time.');
+    expect(email.html).toContain('src="cid:mountain-hut-logo"');
+  });
+
+  // Updated bookings keep the confirmation layout.
+  it('keeps the allocation and success check for an updated booking', () => {
+    const email = buildBookingConfirmationEmail({
+      ...createInput(),
+      isEdit: true,
+    });
+
+    expect(email.subject).toBe(
+      'Booking updated #42 - Lunch, Thursday 5 November 2026',
+    );
+    expect(email.text).toContain('Table allocation:');
+    expect(email.text).toContain('See you soon,');
+    expect(email.html).toContain('cid:booking-success-check');
+    expect(email.html).toContain('We look forward to welcoming you.');
+  });
+});
