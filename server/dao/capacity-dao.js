@@ -540,6 +540,19 @@ export async function getMealSlotCapacity(slotId) {
 }
 
 /**
+ * @param {TransactionQueries} queries
+ * @param {string} sourceWeekStart
+ * @param {Array<{ start: string, status: string }>} weeks
+ */
+async function saveScheduleCopyHistory(queries, sourceWeekStart, weeks) {
+  await queries.runAsync(
+    `INSERT INTO schedule_copy_history (source_start, weeks_json)
+     VALUES (?, ?)`,
+    [sourceWeekStart, JSON.stringify(weeks)],
+  );
+}
+
+/**
  * Returns saved copy operations, newest first.
  */
 export async function getScheduleCopyHistory() {
@@ -760,6 +773,12 @@ export async function copyWeeklySchedule({
         tableIds: assignedTables.map(({ tableId }) => tableId),
       });
     }
+
+    await saveScheduleCopyHistory(
+      { runAsync, getAsync, allAsync },
+      sourceWeekStart,
+      [{ start: destinationWeekStart, status: "copied" }],
+    );
 
     return copiedSlots;
   });
