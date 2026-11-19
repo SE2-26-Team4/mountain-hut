@@ -208,6 +208,144 @@ describe("meal-slot and capacity API", () => {
     expect(await CapacityDAO.getScheduleCopyHistory()).toEqual(historyBefore);
   });
 
+  it("copies available weeks and records excluded and booked weeks", async () => {
+    const source = "2097-10-01";
+    const destinations = ["2097-11-01", "2097-11-08", "2097-11-15"];
+    const [available, excluded, booked] = destinations;
+
+    const makeLunch = async (slotDate) => {
+      const slot = await createMealSlot({
+        slotDate,
+        name: `Lunch ${uniqueSuffix}`,
+        startTime: "12:00",
+        endTime: "13:00",
+      });
+
+      createdSlotIds.push(slot.id);
+      return slot;
+    };
+
+    await makeLunch(source);
+    const excludedSlot = await makeLunch(excluded);
+    const bookedSlot = await makeLunch(booked);
+
+    const booking = await runAsync(
+      `INSERT INTO bookings (hiker_id, booking_date, slot_id, party_size)
+       SELECT id, ?, ?, 2 FROM users WHERE email = ?`,
+      [booked, bookedSlot.id, hikerEmail],
+    );
+
+    try {
+      const response = await employeeAgent
+        .post("/api/capacity/meal-slots/copy-weeks")
+        .send({
+          mode: "series",
+          sourceWeekStart: source,
+          destinations,
+          excludedWeeks: [excluded],
+          previewBookedWeeks: [booked],
+        });
+
+      expect(response.status).toBe(201);
+
+      const { mealSlots, weeks } = response.body;
+      expect(mealSlots).toHaveLength(1);
+      createdSlotIds.push(mealSlots[0].id);
+      expect(mealSlots[0].slotDate).toBe(available);
+
+      expect(weeks).toMatchObject([
+        { start: available, status: "copied" },
+        { start: excluded, status: "excluded" },
+        {
+          start: booked,
+          status: "booked",
+          bookings: [{ bookingId: booking.lastID }],
+        },
+      ]);
+
+      expect(
+        await CapacityDAO.getMealSlotCapacity(excludedSlot.id),
+      ).toBeTruthy();
+      expect(await CapacityDAO.getMealSlotCapacity(bookedSlot.id)).toBeTruthy();
+
+      const history = await employeeAgent.get("/api/capacity/schedule-copies");
+      expect(history.status).toBe(200);
+      expect(history.body.copies[0]).toMatchObject({
+        sourceWeekStart: source,
+        weeks,
+      });
+    } finally {
+      await runAsync("DELETE FROM bookings WHERE id = ?", [booking.lastID]);
+    }
+  });
+
+  it("rolls back the series when a previewed booking is cancelled", async () => {
+    const source = "2096-03-01";
+    const first = "2096-04-01";
+    const second = "2096-04-08";
+
+    const makeSlot = async (slotDate, name) => {
+      const slot = await createMealSlot({
+        slotDate,
+        name,
+        startTime: "12:00",
+        endTime: "13:00",
+      });
+
+      createdSlotIds.push(slot.id);
+      return slot;
+    };
+
+    await makeSlot(source, "Source lunch");
+    const original = await makeSlot(first, "Original lunch");
+    await setMealSlotTables(original.id, [tableId]);
+
+    const protectedSlot = await makeSlot(second, "Booked lunch");
+    const booking = await runAsync(
+      `INSERT INTO bookings (hiker_id, booking_date, slot_id, party_size)
+       SELECT id, ?, ?, 2 FROM users WHERE email = ?`,
+      [second, protectedSlot.id, hikerEmail],
+    );
+
+    try {
+      const preview = await employeeAgent
+        .get("/api/capacity/schedule-copies/preview")
+        .query({ from: first, to: "2096-04-14" });
+
+      expect(preview.status).toBe(200);
+      expect(preview.body.bookings).toMatchObject([
+        { bookingId: booking.lastID, slotDate: second },
+      ]);
+
+      await runAsync("UPDATE bookings SET status = 'cancelled' WHERE id = ?", [
+        booking.lastID,
+      ]);
+
+      const slotsBefore = await CapacityDAO.getMealSlots();
+      const historyBefore = await CapacityDAO.getScheduleCopyHistory();
+
+      const response = await employeeAgent
+        .post("/api/capacity/meal-slots/copy-weeks")
+        .send({
+          mode: "series",
+          sourceWeekStart: source,
+          destinations: [first, second],
+          excludedWeeks: [],
+          previewBookedWeeks: [second],
+        });
+
+      expect(response.status).toBe(409);
+      expect(response.body.error.code).toBe("SCHEDULE_PREVIEW_CHANGED");
+      expect(await CapacityDAO.getMealSlots()).toEqual(slotsBefore);
+
+      const capacity = await CapacityDAO.getMealSlotCapacity(original.id);
+      expect(capacity.tables.map((table) => table.id)).toEqual([tableId]);
+      expect(await CapacityDAO.getScheduleCopyHistory()).toEqual(historyBefore);
+    } finally {
+      await runAsync("DELETE FROM bookings WHERE id = ?", [booking.lastID]);
+    }
+  });
+
   it("copies a non-empty weekly schedule through the staff API", async () => {
     const sourceSlot = await createMealSlot({
       slotDate: "2097-07-09",
