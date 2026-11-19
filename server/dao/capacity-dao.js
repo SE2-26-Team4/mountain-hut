@@ -540,6 +540,46 @@ export async function getMealSlotCapacity(slotId) {
 }
 
 /**
+ * Reads existing slots and confirmed bookings for a destination date range.
+ * Both ends of the range are inclusive.
+ *
+ * @param {string} from
+ * @param {string} to
+ */
+export async function getScheduleCopyPreview(from, to) {
+  return withTransaction(async ({ allAsync }) => {
+    const scheduledDays = await allAsync(
+      `SELECT DISTINCT slot_date AS date
+       FROM meal_slots
+       WHERE slot_date BETWEEN ? AND ?
+       ORDER BY slot_date`,
+      [from, to],
+    );
+
+    const bookings = await allAsync(
+      `SELECT
+         b.id AS bookingId,
+         b.booking_date AS bookingDate,
+         b.party_size AS partySize,
+         s.slot_date AS slotDate,
+         s.name AS slotName,
+         s.start_time AS startTime
+       FROM meal_slots AS s
+       JOIN bookings AS b ON b.slot_id = s.id
+       WHERE s.slot_date BETWEEN ? AND ?
+         AND b.status = 'confirmed'
+       ORDER BY s.slot_date, s.start_time, b.id`,
+      [from, to],
+    );
+
+    return {
+      scheduledDates: scheduledDays.map((row) => row.date),
+      bookings,
+    };
+  });
+}
+
+/**
  * Replaces a destination week with a copy of a source week.
  * The source records and reusable dining tables are never modified.
  * Cancelled bookings of the destination week are deleted with its slots.

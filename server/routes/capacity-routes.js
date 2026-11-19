@@ -15,6 +15,7 @@ import {
   TableSlotConflictError,
   DuplicateMealSlotError,
   WeeklyScheduleConflictError,
+  getScheduleCopyPreview,
   copyWeeklySchedule,
 } from "../dao/capacity-dao.js";
 import { requireStaff } from "../middleware/require-role.js";
@@ -167,6 +168,40 @@ router.get(
           ).toISOString(),
         })),
     });
+  }),
+);
+
+/**
+ * @param {unknown} value
+ * @returns {value is string}
+ */
+function isPreviewDate(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const date = new Date(`${value}T00:00:00Z`);
+
+  return (
+    Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
+  );
+}
+
+router.get(
+  "/capacity/schedule-copies/preview",
+  requireStaff,
+  asyncRoute(async (req, res) => {
+    const { from, to } = req.query;
+
+    if (!isPreviewDate(from) || !isPreviewDate(to) || from > to) {
+      return sendValidationError(
+        res,
+        new Error("Choose a valid destination date range."),
+      );
+    }
+
+    const preview = await getScheduleCopyPreview(from, to);
+    return res.json(preview);
   }),
 );
 
