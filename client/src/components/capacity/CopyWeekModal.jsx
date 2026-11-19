@@ -1,16 +1,50 @@
 import { useState } from "react";
-import { Alert, Col, Form, Modal, Row } from "react-bootstrap";
+import { Alert, Form, Modal } from "react-bootstrap";
 
 import {
   addCalendarDays,
+  addCalendarMonths,
   formatScheduleRange,
   isCalendarDate,
-  previewScheduleCopies,
   startOfWeek,
-  weeksOverlap,
+  weekBandEdges,
 } from "../../utils/weekly-schedule.js";
-import ScheduleRepeatFields from "./ScheduleRepeatFields.jsx";
-import ScheduleInfo from "./ScheduleInfo.jsx";
+import useScheduleCopyPreview from "../../hooks/useScheduleCopyPreview.js";
+
+const DAY_MS = 86_400_000;
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+const monthFormatter = new Intl.DateTimeFormat("en-GB", {
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+const weekdayFormatter = new Intl.DateTimeFormat("en-GB", {
+  weekday: "long",
+  timeZone: "UTC",
+});
+
+/** @param {string} date */
+function firstOfMonth(date) {
+  return `${date.slice(0, 7)}-01`;
+}
+
+/** @param {string} from @param {string} to */
+function daysBetween(from, to) {
+  return (Date.parse(to) - Date.parse(from)) / DAY_MS;
+}
+
+/** @param {string} month */
+function getMonthDays(month) {
+  const firstCell = startOfWeek(month);
+  const nextMonth = addCalendarMonths(month, 1);
+  const rows = Math.ceil(daysBetween(firstCell, nextMonth) / 7);
+
+  return Array.from({ length: rows * 7 }, (_, index) =>
+    addCalendarDays(firstCell, index),
+  );
+}
 
 /**
  * @param {{
@@ -18,92 +52,319 @@ import ScheduleInfo from "./ScheduleInfo.jsx";
  *   saving: boolean,
  *   error: string,
  *   onHide: () => void,
- *   onCopy: (sourceWeekStart: string, destinationWeekStart: string) => Promise<"refresh-preview" | void>,
+ *   onClearError: () => void,
+ *   onCopy: (source: string, destination: string) => Promise<"refresh-preview" | void>,
+ *   onCopyWeeks?: (
+ *     source: string,
+ *     destinations: string[],
+ *     excludedWeeks: string[],
+ *     previewBookedWeeks: string[]
+ *   ) => Promise<"refresh-preview" | void>,
  * }} props
  */
-export default function CopyWeekModal({ date, saving, error, onHide, onCopy }) {
-  const [source, setSource] = useState(() => startOfWeek(date));
-  const [destination, setDestination] = useState(() =>
-    addCalendarDays(startOfWeek(date), 7),
-  );
-  const [rule, setRule] = useState({
-    repeat: "once",
-    interval: "3",
-    end: "never",
-    endDate: "",
-    copies: "",
-    months: "",
-  });
+export default function CopyWeekModal({
+  date,
+  saving,
+  error,
+  onHide,
+  onClearError,
+  onCopy,
+  onCopyWeeks,
+}) {
+  const [source, setSource] = useState("");
+  const [destination, setDestination] = useState("");
+  const [repeat, setRepeat] = useState(false);
+  const [endMode, setEndMode] = useState("date");
+  const [endDate, setEndDate] = useState("");
+  const [copyCount, setCopyCount] = useState("2");
 
-  const isOneWeek = rule.repeat === "once";
+  const [visibleMonth, setVisibleMonth] = useState(() =>
+    firstOfMonth(isCalendarDate(date) ? date : new Date().toISOString()),
+  );
+
+  const [viewChoice, setViewChoice] = useState(
+    /** @type {"month" | "year" | null} */ (null),
+  );
+
+  const [excluded, setExcluded] = useState(
+    /** @type {Set<string>} */ (new Set()),
+  );
+
   const validSource = isCalendarDate(source);
   const validDestination = isCalendarDate(destination);
-  const overlap =
-    validSource && validDestination && weeksOverlap(source, destination);
+  const monthDays = getMonthDays(visibleMonth);
 
-  const preview = previewScheduleCopies(destination, rule);
+  let totalWeeks = 0;
 
-  // TODO(MH-09): Connect recurring copies to the recurrence API.
-  // Count the first destination week as copy 1. For date and calendar month
-  // limits, include each whole week whose start falls within the period.
-  //
-  // Proposed behavior for finite repeats: check every destination week
-  // before making changes. If any week has a confirmed booking, reject the
-  // entire series and report the blocked week. Apply successful copies
-  // in one transaction.
-  //
-  // Proposed behavior for Never: skip weeks with confirmed bookings, record
-  // each skipped week and its reason in Schedule copies, and continue on
-  // the next date in the original recurrence.
-  //
-  // Enable recurrence submission when the API supports these rules.
-  const canCopy =
-    isOneWeek && validSource && validDestination && !overlap && !saving;
+  if (validDestination) {
+    if (!repeat) {
+      totalWeeks = 1;
+    } else if (endMode === "count") {
+      const count = Number(copyCount);
+      if (Number.isSafeInteger(count) && count > 0) totalWeeks = count;
+    } else if (isCalendarDate(endDate) && endDate >= destination) {
+      totalWeeks = Math.floor(daysBetween(destination, endDate) / 7) + 1;
+    }
+  }
+
+  if (
+    totalWeeks > 0 &&
+    totalWeeks * 7 - 1 > daysBetween(destination, "9999-12-31")
+  ) {
+    totalWeeks = 0;
+  }
+
+  const lastDay =
+    totalWeeks > 0 ? addCalendarDays(destination, totalWeeks * 7 - 1) : "";
+
+  const preview = useScheduleCopyPreview(destination, lastDay);
+
+  const bookingsByWeek = new Map(
+    /** @type {[string, NonNullable<typeof preview.data>["bookings"]][]} */ ([]),
+  );
+
+  for (const booking of preview.data?.bookings ?? []) {
+    const start = weekForDay(booking.slotDate);
+    if (!start) continue;
+
+    const bookings = bookingsByWeek.get(start) ?? [];
+    bookings.push(booking);
+    bookingsByWeek.set(start, bookings);
+  }
+
+  const excludedWeeks = repeat
+    ? [...excluded].filter(
+        (start) =>
+          start >= destination &&
+          start <= lastDay &&
+          !bookingsByWeek.has(start),
+      )
+    : [];
+
+  const excludedCount = excludedWeeks.length;
+  const bookedCount = bookingsByWeek.size;
+  const selectedCount = totalWeeks - excludedCount - bookedCount;
+
+  const replacedDates = (preview.data?.scheduledDates ?? []).filter((day) => {
+    const start = weekForDay(day);
+    return (
+      start && !bookingsByWeek.has(start) && !(repeat && excluded.has(start))
+    );
+  });
+
+  const view = viewChoice ?? (totalWeeks > 6 ? "year" : "month");
+
+  /** @param {string} day */
+  function weekForDay(day) {
+    if (!lastDay || day < destination || day > lastDay) return null;
+
+    // Each block starts on the weekday chosen for the first destination.
+    const offset = daysBetween(destination, day) % 7;
+    return addCalendarDays(day, -offset);
+  }
+
+  const overlapsSource =
+    validSource &&
+    totalWeeks > 0 &&
+    Array.from({ length: 7 }, (_, i) => addCalendarDays(source, i)).some(
+      (day) => {
+        const start = weekForDay(day);
+        return (
+          start !== null &&
+          !bookingsByWeek.has(start) &&
+          (!repeat || !excluded.has(start))
+        );
+      },
+    );
+
+  const canSave =
+    validSource &&
+    Boolean(preview.data) &&
+    selectedCount > 0 &&
+    !overlapsSource &&
+    !saving &&
+    (!repeat || Boolean(onCopyWeeks));
+
+  /** @param {string} value */
+  function changeDestination(value) {
+    setDestination(value);
+    setExcluded(new Set());
+
+    if (isCalendarDate(value)) {
+      setVisibleMonth(firstOfMonth(value));
+    }
+  }
+
+  /** @param {string} start */
+  function toggleWeek(start) {
+    onClearError();
+    setExcluded((previous) => {
+      const next = new Set(previous);
+      if (next.has(start)) next.delete(start);
+      else next.add(start);
+      return next;
+    });
+  }
+
+  /** @param {import("react").FormEvent} event */
+  async function submit(event) {
+    event.preventDefault();
+    if (!canSave) return;
+
+    if (!repeat) {
+      const result = await onCopy(source, destination);
+      if (result === "refresh-preview") preview.refresh();
+      return;
+    }
+
+    if (onCopyWeeks) {
+      const destinations = Array.from({ length: totalWeeks }, (_, index) =>
+        addCalendarDays(destination, index * 7),
+      );
+
+      const result = await onCopyWeeks(source, destinations, excludedWeeks, [
+        ...bookingsByWeek.keys(),
+      ]);
+
+      if (result === "refresh-preview") preview.refresh();
+    }
+  }
+
+  let calendarHelp = "Choose the first destination week to preview it here.";
+
+  if (validDestination) {
+    if (!repeat) {
+      calendarHelp = formatScheduleRange(
+        destination,
+        addCalendarDays(destination, 6),
+      );
+    } else if (totalWeeks === 0) {
+      calendarHelp =
+        endMode === "date"
+          ? "Choose an end date to preview the destination weeks."
+          : "Enter the number of copies to preview the destination weeks.";
+    } else {
+      const weekday = weekdayFormatter.format(new Date(destination));
+      calendarHelp = `Each copy starts on ${weekday}. Uncheck a week to skip all seven days.`;
+    }
+  }
+
+  /** @param {string} day @param {number} index */
+  function renderDay(day, index) {
+    const number = Number(day.slice(-2));
+    const start = weekForDay(day);
+    const classes = ["copy-calendar__day"];
+
+    if (!start) {
+      if (firstOfMonth(day) !== visibleMonth) {
+        classes.push("copy-calendar__day--outside");
+      }
+
+      return (
+        <span key={day} className={classes.join(" ")}>
+          {number}
+        </span>
+      );
+    }
+
+    const end = addCalendarDays(start, 6);
+    const range = formatScheduleRange(start, end);
+    classes.push(weekBandEdges(day, start, index % 7));
+    if (bookingsByWeek.has(start)) {
+      const showLock = day === start || index === 0;
+
+      return (
+        <span
+          key={day}
+          className={`${classes.join(" ")} copy-calendar__day--booked`}
+          title={`${range} · Confirmed booking`}
+          aria-label={`${day}, week blocked by a confirmed booking`}
+        >
+          {showLock && <i className="bi bi-lock-fill" aria-hidden="true" />}
+          {number}
+        </span>
+      );
+    }
+    const included = !repeat || !excluded.has(start);
+
+    classes.push(
+      included
+        ? "copy-calendar__day--included"
+        : "copy-calendar__day--excluded",
+    );
+
+    if (day === start || index % 7 === 0) {
+      classes.push("copy-calendar__day--left");
+    }
+
+    if (day === end || index % 7 === 6) {
+      classes.push("copy-calendar__day--right");
+    }
+
+    if (!repeat) {
+      return (
+        <span key={day} className={classes.join(" ")} title={range}>
+          {number}
+        </span>
+      );
+    }
+
+    // A week crossing into the visible grid can also be toggled here.
+    const showCheck = day === start || index === 0;
+
+    return (
+      <button
+        key={day}
+        type="button"
+        className={classes.join(" ")}
+        title={range}
+        aria-label={`${range}, ${included ? "included" : "excluded"}`}
+        aria-pressed={included}
+        tabIndex={showCheck ? 0 : -1}
+        onClick={() => toggleWeek(start)}
+      >
+        {showCheck && (
+          <span className="copy-calendar__check" aria-hidden="true">
+            {included ? "✓" : ""}
+          </span>
+        )}
+        {number}
+      </button>
+    );
+  }
 
   return (
     <Modal
       show
       centered
       scrollable
-      dialogClassName="cap-schedule-dialog"
+      size="lg"
+      dialogClassName="cap-schedule-dialog copy-calendar"
+      aria-labelledby="copy-week-title"
       onHide={saving ? undefined : onHide}
       backdrop={saving ? "static" : true}
       keyboard={!saving}
-      aria-labelledby="copy-week-title"
     >
       <Form
         className="cap-schedule-modal-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (canCopy) void onCopy(source, destination);
-        }}
+        onSubmit={submit}
+        onChange={onClearError}
       >
         <Modal.Header closeButton={!saving}>
           <Modal.Title id="copy-week-title">Copy weekly schedule</Modal.Title>
         </Modal.Header>
 
         <Modal.Body>
-          <p className="text-secondary">
-            Copy meal slots and table assignments to another week.
-          </p>
-
-          <fieldset disabled={saving}>
-            <Row className="g-3">
-              <Col xs={12} sm={6}>
-                <Form.Group controlId="copy-week-source">
-                  <div>
-                    <Form.Label>Source week starts</Form.Label>
-                    <ScheduleInfo label="About the source week">
-                      Choose the first day of the seven-day schedule you want to
-                      copy. The copy includes meal slots and their table
-                      assignments.
-                    </ScheduleInfo>
-                  </div>
+          <fieldset disabled={saving} className="copy-calendar__fieldset">
+            <div className="copy-calendar__layout">
+              <div className="copy-calendar__settings">
+                <Form.Group controlId="copy-source">
+                  <Form.Label>Source week starts</Form.Label>
                   <Form.Control
                     type="date"
+                    required
                     value={source}
                     onChange={(event) => setSource(event.target.value)}
-                    required
                   />
                   {validSource && (
                     <Form.Text>
@@ -111,109 +372,343 @@ export default function CopyWeekModal({ date, saving, error, onHide, onCopy }) {
                     </Form.Text>
                   )}
                 </Form.Group>
-              </Col>
 
-              <Col xs={12} sm={6}>
-                <Form.Group controlId="copy-week-destination">
-                  <div>
-                    <Form.Label>Destination week starts</Form.Label>
-                    <ScheduleInfo label="About the destination week">
-                      Choose where the first copy starts. For example, a week
-                      starting on 16 November covers 16–22 November. The source
-                      and destination must be at least seven days apart.
-                    </ScheduleInfo>
-                  </div>
+                <Form.Group controlId="copy-destination">
+                  <Form.Label>First destination week</Form.Label>
                   <Form.Control
                     type="date"
-                    value={destination}
-                    onChange={(event) => setDestination(event.target.value)}
-                    isInvalid={overlap}
-                    aria-describedby={overlap ? "copy-week-overlap" : undefined}
                     required
+                    value={destination}
+                    onChange={(event) => changeDestination(event.target.value)}
                   />
-                  <Form.Control.Feedback id="copy-week-overlap" type="invalid">
-                    Choose weeks that are at least seven days apart.
-                  </Form.Control.Feedback>
                 </Form.Group>
-              </Col>
-            </Row>
 
-            <ScheduleRepeatFields
-              value={rule}
-              destination={destination}
-              onChange={setRule}
-            />
-          </fieldset>
+                <Form.Check
+                  id="copy-repeat-weekly"
+                  label="Repeat every week"
+                  checked={repeat}
+                  onChange={(event) => setRepeat(event.target.checked)}
+                />
 
-          {error && <Alert variant="danger">{error}</Alert>}
+                {repeat && (
+                  <>
+                    <fieldset className="copy-calendar__end-options">
+                      <legend>Ends</legend>
 
-          {preview && (
-            <div className="bg-light rounded-3 p-3 mt-3" aria-live="polite">
-              <div className="small text-secondary mb-1">
-                {isOneWeek ? "Destination week" : "Upcoming destination weeks"}
+                      <Form.Check
+                        id="copy-end-date-option"
+                        type="radio"
+                        name="copy-end-mode"
+                        label="On a date"
+                        checked={endMode === "date"}
+                        onChange={() => setEndMode("date")}
+                      />
+
+                      <Form.Check
+                        id="copy-end-count-option"
+                        type="radio"
+                        name="copy-end-mode"
+                        label="After a number of copies"
+                        checked={endMode === "count"}
+                        onChange={() => setEndMode("count")}
+                      />
+                    </fieldset>
+
+                    {endMode === "date" ? (
+                      <Form.Group controlId="copy-end-date">
+                        <Form.Label>End date</Form.Label>
+                        <Form.Control
+                          type="date"
+                          required
+                          min={destination || undefined}
+                          value={endDate}
+                          onChange={(event) => setEndDate(event.target.value)}
+                        />
+                        <Form.Text>
+                          Includes each week that starts on or before this date.
+                        </Form.Text>
+                      </Form.Group>
+                    ) : (
+                      <Form.Group controlId="copy-count">
+                        <Form.Label>Number of copies</Form.Label>
+                        <Form.Control
+                          type="number"
+                          min={1}
+                          step={1}
+                          required
+                          value={copyCount}
+                          onChange={(event) => setCopyCount(event.target.value)}
+                        />
+                        <Form.Text>
+                          The first destination counts as copy 1.
+                        </Form.Text>
+                      </Form.Group>
+                    )}
+                  </>
+                )}
               </div>
 
-              {isOneWeek ? (
-                <strong className="d-block">{preview.weeks[0]}</strong>
-              ) : (
-                <ul className="mb-0 ps-3">
-                  {preview.weeks.map((week) => (
-                    <li key={week}>{week}</li>
-                  ))}
-                </ul>
-              )}
+              <section
+                className="copy-calendar__preview"
+                aria-labelledby="destination-calendar-title"
+              >
+                <h5 id="destination-calendar-title">
+                  {repeat ? "Destination weeks" : "Destination week"}
+                </h5>
 
-              {preview.total === Infinity && (
-                <p className="small text-secondary mt-2 mb-0">
-                  Repeats until stopped.
-                </p>
-              )}
+                <p className="copy-calendar__help">{calendarHelp}</p>
+                <div className="copy-calendar__panel">
+                  <div
+                    className="copy-calendar__view"
+                    role="group"
+                    aria-label="Calendar view"
+                  >
+                    <button
+                      type="button"
+                      className="cap-outline"
+                      aria-pressed={view === "month"}
+                      onClick={() => setViewChoice("month")}
+                    >
+                      Month
+                    </button>
+                    <button
+                      type="button"
+                      className="cap-outline"
+                      aria-pressed={view === "year"}
+                      onClick={() => setViewChoice("year")}
+                    >
+                      Year
+                    </button>
+                  </div>
 
-              {Number.isFinite(preview.total) &&
-                preview.total > preview.weeks.length && (
-                  <p className="small text-secondary mt-2 mb-0">
-                    Showing the first {preview.weeks.length} of {preview.total}{" "}
-                    copies.
+                  <div className="copy-calendar__navigation">
+                    <button
+                      type="button"
+                      className="cap-outline"
+                      aria-label={
+                        view === "year"
+                          ? "Previous 12 months"
+                          : "Previous month"
+                      }
+                      onClick={() =>
+                        setVisibleMonth((month) =>
+                          addCalendarMonths(month, view === "year" ? -12 : -1),
+                        )
+                      }
+                    >
+                      ‹
+                    </button>
+
+                    <strong aria-live="polite">
+                      {monthFormatter.format(new Date(visibleMonth))}
+                      {view === "year" &&
+                        ` – ${monthFormatter.format(new Date(addCalendarMonths(visibleMonth, 11)))}`}
+                    </strong>
+
+                    <button
+                      type="button"
+                      className="cap-outline"
+                      aria-label={
+                        view === "year" ? "Next 12 months" : "Next month"
+                      }
+                      onClick={() =>
+                        setVisibleMonth((month) =>
+                          addCalendarMonths(month, view === "year" ? 12 : 1),
+                        )
+                      }
+                    >
+                      ›
+                    </button>
+                  </div>
+
+                  {view === "month" ? (
+                    <div className="copy-calendar__grid">
+                      {WEEKDAYS.map((day) => (
+                        <span key={day} className="copy-calendar__weekday">
+                          {day}
+                        </span>
+                      ))}
+                      {monthDays.map(renderDay)}
+                    </div>
+                  ) : (
+                    <>
+                      <p className="copy-calendar__help">
+                        Select a month to review its weeks.
+                      </p>
+
+                      <div className="copy-calendar__year">
+                        {Array.from({ length: 12 }, (_, offset) => {
+                          const month = addCalendarMonths(visibleMonth, offset);
+                          const label = monthFormatter.format(new Date(month));
+
+                          return (
+                            <button
+                              key={month}
+                              type="button"
+                              className="copy-calendar__mini"
+                              aria-label={`Open ${label}`}
+                              onClick={() => {
+                                setVisibleMonth(month);
+                                setViewChoice("month");
+                              }}
+                            >
+                              <strong>{label}</strong>
+
+                              <span
+                                className="copy-calendar__mini-grid"
+                                aria-hidden="true"
+                              >
+                                {WEEKDAYS.map((day) => (
+                                  <small key={day}>{day[0]}</small>
+                                ))}
+
+                                {getMonthDays(month).map((day, index) => {
+                                  if (firstOfMonth(day) !== month) {
+                                    return <span key={day} />;
+                                  }
+
+                                  const start = weekForDay(day);
+                                  let className = "";
+
+                                  if (start && bookingsByWeek.has(start)) {
+                                    className = "copy-calendar__day--booked";
+                                  } else if (
+                                    start &&
+                                    repeat &&
+                                    excluded.has(start)
+                                  ) {
+                                    className = "copy-calendar__day--excluded";
+                                  } else if (start) {
+                                    className = "copy-calendar__day--included";
+                                  }
+
+                                  if (start) {
+                                    className += ` ${weekBandEdges(day, start, index % 7, true)}`;
+                                  }
+
+                                  return (
+                                    <span key={day} className={className}>
+                                      {Number(day.slice(-2))}
+                                    </span>
+                                  );
+                                })}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+                {preview.loading && (
+                  <p role="status">Checking destination weeks…</p>
+                )}
+
+                {preview.error && (
+                  <Alert variant="danger">
+                    <p>{preview.error}</p>
+                    <button
+                      type="button"
+                      className="cap-outline"
+                      onClick={preview.refresh}
+                    >
+                      Try again
+                    </button>
+                  </Alert>
+                )}
+
+                {preview.data && (
+                  <p className="copy-calendar__summary" aria-live="polite">
+                    {selectedCount} {selectedCount === 1 ? "week" : "weeks"}{" "}
+                    selected
+                    {excludedCount > 0 &&
+                      ` · ${excludedCount} excluded by staff`}
+                    {bookedCount > 0 && ` · ${bookedCount} blocked by bookings`}
                   </p>
                 )}
+
+                {bookingsByWeek.size > 0 && (
+                  <details>
+                    <summary>
+                      View confirmed bookings ({preview.data?.bookings.length})
+                    </summary>
+                    {[...bookingsByWeek].map(([start, bookings]) => (
+                      <div key={start}>
+                        <strong>
+                          {formatScheduleRange(
+                            start,
+                            addCalendarDays(start, 6),
+                          )}
+                        </strong>
+                        <ul>
+                          {bookings.map((booking) => (
+                            <li key={booking.bookingId}>
+                              {booking.bookingDate} · {booking.slotName} ·{" "}
+                              {booking.startTime}
+                              {" · "}Booking #{booking.bookingId} ·{" "}
+                              {booking.partySize} guests
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </details>
+                )}
+
+                {replacedDates.length > 0 && (
+                  <details className="copy-calendar__warning-details">
+                    <summary>
+                      Existing slots will be replaced on {replacedDates.length}{" "}
+                      {replacedDates.length === 1 ? "date" : "dates"}
+                    </summary>
+                    <ul>
+                      {replacedDates.map((day) => (
+                        <li key={day}>{day}</li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+                {overlapsSource && (
+                  <Alert variant="warning" className="copy-calendar__notice">
+                    {repeat
+                      ? "A selected week overlaps the source week. Exclude it or change the dates."
+                      : "Choose source and destination weeks at least seven days apart."}
+                  </Alert>
+                )}
+
+                {repeat && !onCopyWeeks && (
+                  <p className="copy-calendar__notice copy-calendar__help">
+                    Weekly selection preview. Saving multiple weeks is not
+                    connected yet.
+                  </p>
+                )}
+
+                {error && (
+                  <Alert variant="danger" className="copy-calendar__notice">
+                    {error}
+                  </Alert>
+                )}
+              </section>
             </div>
-          )}
-
-          <Alert variant="warning" className="mt-3 mb-0">
-            {isOneWeek
-              ? "Copying replaces the destination week. A confirmed booking blocks the entire copy."
-              : rule.end === "never"
-                ? "Weeks with confirmed bookings are skipped. The recurrence continues on its regular schedule."
-                : "If any destination week has a confirmed booking, the entire series is blocked."}
-
-            <ScheduleInfo label="How confirmed bookings affect schedule copies">
-              {isOneWeek
-                ? "For example, if Saturday lunch has a confirmed booking, the entire destination week stays unchanged."
-                : rule.end === "never"
-                  ? "Schedule copies shows which week was skipped and why. For example, if you copy every two weeks and the week starting 30 November is blocked, the next copy still starts on 14 December."
-                  : "Every destination week is checked before any changes are made. For example, if the third of four weeks has a confirmed booking, all four weeks stay unchanged."}
-            </ScheduleInfo>
-          </Alert>
-
-          {!isOneWeek && (
-            <p className="small text-secondary mt-3 mb-0">
-              Coming soon. Repeating copies are not available yet.
-            </p>
-          )}
+          </fieldset>
         </Modal.Body>
 
         <Modal.Footer>
           <button
             type="button"
             className="cap-outline"
-            onClick={onHide}
             disabled={saving}
+            onClick={onHide}
           >
             Cancel
           </button>
 
-          <button type="submit" className="cap-primary" disabled={!canCopy}>
-            {saving ? "Copying…" : isOneWeek ? "Copy week" : "Copy schedule"}
+          <button type="submit" className="cap-primary" disabled={!canSave}>
+            {saving
+              ? "Copying…"
+              : repeat
+                ? `Copy ${selectedCount} ${selectedCount === 1 ? "week" : "weeks"}`
+                : "Copy week"}
           </button>
         </Modal.Footer>
       </Form>
