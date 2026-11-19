@@ -210,7 +210,38 @@ async function getScheduleCopyPreview(from, to, signal) {
   });
 }
 
+/**
+ * @typedef {Awaited<ReturnType<typeof getScheduleCopyPreview>>["bookings"][number]} CopyBooking
+ */
+
+/**
+ * @typedef {{
+ *   start: string,
+ *   status: "copied" | "excluded" | "booked",
+ *   bookings?: CopyBooking[]
+ * }} SavedCopyWeek
+ */
+
+/**
+ * @typedef {{
+ *   id: number,
+ *   sourceWeekStart: string,
+ *   createdAt: string,
+ *   weeks: SavedCopyWeek[]
+ * }} SavedScheduleCopy
+ */
+
+/**
+ * @param {AbortSignal} [signal]
+ * @returns {Promise<SavedScheduleCopy[]>}
+ */
+async function getScheduleCopyHistory(signal) {
+  const data = await request("/capacity/schedule-copies", { signal });
+  return data.copies;
+}
+
 const CapacityAPI = {
+  getScheduleCopyHistory,
   getScheduleCopyPreview,
   getConfiguration,
   copyWeeklySchedule,
