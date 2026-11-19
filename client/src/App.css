@@ -4722,3 +4722,54 @@ button.copy-calendar__day:focus-visible,
     scrollbar-gutter: stable;
   }
 }
+
+/* ==========================================================================
+   ScheduleCopyHistoryModal — components/capacity/ScheduleCopyHistoryModal.jsx
+   ========================================================================== */
+
+.copy-history__list {
+  gap: var(--mh-space-2);
+  padding: var(--mh-space-1);
+}
+
+.copy-history__card {
+  display: grid;
+  gap: var(--mh-space-1);
+  width: 100%;
+  padding: var(--mh-space-3);
+  border: var(--mh-border-width) solid var(--mh-border);
+  border-radius: var(--mh-radius-md);
+  background: var(--mh-white);
+  color: var(--cap-ink);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.copy-history__card strong {
+  font-size: var(--mh-text-md);
+  font-weight: var(--mh-weight-semibold);
+}
+
+.copy-history__card span,
+.copy-history__card small {
+  font-size: var(--mh-text-sm);
+}
+
+.copy-history__card small {
+  color: var(--copy-muted);
+}
+
+.copy-history__card:hover {
+  background: var(--mh-cream);
+}
+
+.copy-history__card[aria-pressed="true"] {
+  border-color: var(--copy-accent);
+  background: var(--copy-selected-bg);
+}
+
+.copy-history__card:focus-visible {
+  outline: var(--mh-border-width-accent) solid var(--mh-navy);
+  outline-offset: var(--mh-border-width);
+}
