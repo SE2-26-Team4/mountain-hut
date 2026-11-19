@@ -528,7 +528,7 @@ export default function CopyWeekModal({
                           {day}
                         </span>
                       ))}
-                      {monthDays.map(renderDay)}
+                      {monthDays.map((day, index) => renderDay(day, index))}
                     </div>
                   ) : (
                     <>
