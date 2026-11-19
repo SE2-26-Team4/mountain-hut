@@ -10,11 +10,12 @@ import {
 
 import {
   createHiker,
+  findAccountByEmail,
   getHikerById,
   getUserByEmail,
   getUserById,
-  isEmailRegistered,
   searchHikers,
+  upgradeTemporaryHiker,
 } from '../../dao/auth-dao.js';
 import {
   getAsync,
@@ -320,30 +321,117 @@ describe('hiker data access for staff bookings', () => {
     });
   });
 
-  describe('isEmailRegistered', () => {
-    it('detects emails of hikers and staff, ignoring letter case', async () => {
+  describe('findAccountByEmail', () => {
+    it('finds hikers and staff, ignoring letter case', async () => {
       await expect(
         withTransaction((queries) =>
-          isEmailRegistered(queries, fullHikerEmail.toUpperCase()),
+          findAccountByEmail(queries, fullHikerEmail.toUpperCase()),
         ),
-      ).resolves.toBe(true);
+      ).resolves.toEqual({
+        id: fullHikerId,
+        role: 'hiker',
+        isTemporary: false,
+      });
 
       await expect(
         withTransaction((queries) =>
-          isEmailRegistered(queries, staffEmail),
+          findAccountByEmail(queries, staffEmail),
         ),
-      ).resolves.toBe(true);
+      ).resolves.toEqual({
+        id: staffId,
+        role: 'employee',
+        isTemporary: false,
+      });
     });
 
-    it('returns false for an unused email', async () => {
+    it('reports a temporary hiker who left an email', async () => {
+      const email = `temporary-email-${searchSuffix}@example.com`;
+      const { lastID } = await runAsync(
+        `INSERT INTO users (full_name, email, role, is_temporary)
+         VALUES (?, ?, 'hiker', 1)`,
+        [`Temporary Email ${searchSuffix}`, email],
+      );
+
+      createdIds.push(lastID);
+
+      await expect(
+        withTransaction((queries) => findAccountByEmail(queries, email)),
+      ).resolves.toEqual({ id: lastID, role: 'hiker', isTemporary: true });
+    });
+
+    it('returns undefined for an unused email', async () => {
       await expect(
         withTransaction((queries) =>
-          isEmailRegistered(
+          findAccountByEmail(
             queries,
             `unused-${searchSuffix}@example.com`,
           ),
         ),
-      ).resolves.toBe(false);
+      ).resolves.toBeUndefined();
+    });
+  });
+
+  describe('upgradeTemporaryHiker', () => {
+    it('turns a temporary hiker into a full account, keeping missing details', async () => {
+      const email = `upgrade-${searchSuffix}@example.com`;
+      const { lastID } = await runAsync(
+        `INSERT INTO users (full_name, email, role, phone, notes, is_temporary)
+         VALUES (?, ?, 'hiker', '+390000000099', 'Walk-in', 1)`,
+        [`Upgrade Walkin ${searchSuffix}`, email],
+      );
+
+      createdIds.push(lastID);
+
+      const hiker = await withTransaction((queries) =>
+        upgradeTemporaryHiker(queries, lastID, {
+          fullName: `Upgraded Hiker ${searchSuffix}`,
+          email,
+          phone: null,
+          notes: null,
+          emergencyContact: 'Marco, +39 333 1111111',
+          passwordHash,
+          isTemporary: false,
+          mustChangePassword: true,
+        }),
+      );
+
+      expect(hiker).toEqual({
+        id: lastID,
+        fullName: `Upgraded Hiker ${searchSuffix}`,
+        email,
+        phone: '+390000000099',
+        notes: 'Walk-in',
+        emergencyContact: 'Marco, +39 333 1111111',
+        isTemporary: false,
+        mustChangePassword: true,
+      });
+
+      // The converted account can now be found by the login.
+      await expect(getUserByEmail(email)).resolves.toMatchObject({
+        id: lastID,
+        password_hash: passwordHash,
+        is_temporary: 0,
+        must_change_password: 1,
+      });
+    });
+
+    it('does not change an account that is not temporary', async () => {
+      await withTransaction((queries) =>
+        upgradeTemporaryHiker(queries, fullHikerId, {
+          fullName: 'Changed name',
+          email: fullHikerEmail,
+          phone: null,
+          notes: null,
+          emergencyContact: null,
+          passwordHash: 'other-hash',
+          isTemporary: false,
+          mustChangePassword: true,
+        }),
+      );
+
+      await expect(
+        withTransaction((queries) => getHikerById(queries, fullHikerId)),
+      ).resolves.toEqual(fullHikerProfile());
     });
   });
 

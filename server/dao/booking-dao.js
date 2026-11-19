@@ -5,7 +5,12 @@ import {
   getMealEndTimestamp,
   getMealStartTimestamp,
 } from "../services/booking-time.js";
-import { createHiker, getHikerById, isEmailRegistered } from "./auth-dao.js";
+import {
+  createHiker,
+  findAccountByEmail,
+  getHikerById,
+  upgradeTemporaryHiker,
+} from "./auth-dao.js";
 
 /**
  * Data types used to create and retrieve bookings.
@@ -551,7 +556,8 @@ export async function createBooking(
 /* STAFF BOOKINGS */
 
 /**
- * Inserts a hiker created by staff once the email is known to be free.
+ * Inserts a hiker created by staff when the email is free, or turns the
+ * temporary hiker with the same email into a full account.
  * It must run inside an open transaction.
  *
  * @param {TransactionQueries} queries
@@ -559,18 +565,36 @@ export async function createBooking(
  * @returns {Promise<HikerDTO>}
  */
 async function insertNewHiker(queries, newHiker) {
-  // Temporary hikers have no email, so only full accounts can conflict.
-  if (
-    newHiker.email !== null &&
-    (await isEmailRegistered(queries, newHiker.email))
-  ) {
-    throw new BookingError(
-      "EMAIL_ALREADY_REGISTERED",
-      "An account with this email already exists.",
-    );
+  // Temporary hikers without an email cannot conflict with other accounts.
+  if (newHiker.email === null) {
+    return createHiker(queries, newHiker);
   }
 
-  return createHiker(queries, newHiker);
+  const existingAccount = await findAccountByEmail(queries, newHiker.email);
+
+  if (!existingAccount) {
+    return createHiker(queries, newHiker);
+  }
+
+  // [REQUIREMENT] MH-07: If the hiker is missing, it is possible to enter the full
+  // details and create a regular hiker profile that can later use the system web
+  // interface. A temporary hiker who left this email is the same person, so the
+  // profile becomes a full account and keeps its bookings.
+  if (!newHiker.isTemporary && existingAccount.isTemporary) {
+    return upgradeTemporaryHiker(queries, existingAccount.id, newHiker);
+  }
+
+  // [REQUIREMENT] MH-07: The hiker can be already present in the system
+  // (can be matched by name, phone or email): staff must select that hiker.
+  let message = "An account with this email already exists.";
+
+  if (newHiker.isTemporary && existingAccount.role === "hiker") {
+    message = existingAccount.isTemporary
+      ? "A temporary hiker with this email already exists. Select them under Existing."
+      : "A registered hiker with this email already exists. Select them under Existing.";
+  }
+
+  throw new BookingError("EMAIL_ALREADY_REGISTERED", message);
 }
 
 /**

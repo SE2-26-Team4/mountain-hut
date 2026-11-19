@@ -6,7 +6,10 @@ import {
 
 import {
   generateInitialPassword,
+  generateResetToken,
   hashPassword,
+  hashResetToken,
+  isAcceptableNewPassword,
   verifyPassword,
 } from '../../services/password.js';
 
@@ -126,5 +129,46 @@ describe('initial password generation', () => {
     await expect(
       verifyPassword(password, storedHash),
     ).resolves.toBe(true);
+  });
+});
+
+// The password change and the password reset share the same rules.
+describe('new password rules', () => {
+  it.each([
+    ['8 characters', 'a'.repeat(8)],
+    ['128 characters', 'a'.repeat(128)],
+  ])('accepts a confirmed password of %s', (_label, password) => {
+    expect(isAcceptableNewPassword(password, password)).toBe(true);
+  });
+
+  it.each([
+    ['too short', 'a'.repeat(7), 'a'.repeat(7)],
+    ['too long', 'a'.repeat(129), 'a'.repeat(129)],
+    ['not confirmed', 'Password123!', 'Password124!'],
+    ['not text', 12345678, 12345678],
+  ])('rejects a password that is %s', (_label, password, confirmation) => {
+    expect(isAcceptableNewPassword(password, confirmation)).toBe(false);
+  });
+});
+
+// Reset links carry a random token whose hash is stored.
+describe('password reset tokens', () => {
+  it('generates 256 random bits as URL-safe text', () => {
+    const tokens = new Set(
+      Array.from({ length: 20 }, () => generateResetToken()),
+    );
+
+    expect(tokens.size).toBe(20);
+
+    for (const token of tokens) {
+      expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    }
+  });
+
+  it('hashes a token with SHA-256', () => {
+    expect(hashResetToken('token')).toBe(
+      '3c469e9d6c5875d37a43f353d4f88e61fcf812c66eee3457465a40b0da4153e0',
+    );
+    expect(hashResetToken('token')).not.toBe(hashResetToken('token2'));
   });
 });

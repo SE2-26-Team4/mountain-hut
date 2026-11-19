@@ -617,3 +617,108 @@ describe('registering a hiker without a booking', () => {
     ).toBe(0);
   });
 });
+
+describe('temporary hikers who left an email', () => {
+  const temporaryEmail = `walk-in-${uniqueSuffix}@example.com`;
+
+  it('turns the temporary hiker into a full account that keeps its bookings', async () => {
+    const { hiker: temporary } = await createStaffBooking(
+      staffBooking({
+        newHiker: temporaryHikerRecord({ email: temporaryEmail }),
+      })
+    );
+
+    const upgraded = await registerHiker(
+      newHikerRecord({
+        fullName: `Registered Walk-in ${uniqueSuffix}`,
+        email: temporaryEmail.toUpperCase(),
+        phone: null,
+      })
+    );
+
+    expect(upgraded).toEqual({
+      id: temporary.id,
+      fullName: `Registered Walk-in ${uniqueSuffix}`,
+      email: temporaryEmail.toUpperCase(),
+      // The phone left by the walk-in is kept when no new one is given.
+      phone: '+41791234567',
+      notes: 'Registered mountain guide',
+      emergencyContact: 'Anna +39 333 7654321',
+      isTemporary: false,
+      mustChangePassword: true,
+    });
+
+    expect(await getBookingsByHiker(temporary.id)).toHaveLength(1);
+
+    const account = await getUserByEmail(temporaryEmail);
+
+    expect(account).toMatchObject({ id: temporary.id, is_temporary: 0 });
+    await expect(
+      verifyPassword(initialPassword, account.password_hash)
+    ).resolves.toBe(true);
+  });
+
+  it('keeps the hiker temporary when the booking of the new account is rejected', async () => {
+    const { hiker: temporary } = await createStaffBooking(
+      staffBooking({
+        newHiker: temporaryHikerRecord({ email: temporaryEmail }),
+      })
+    );
+
+    // The same person cannot book the same slot twice.
+    await expect(
+      createStaffBooking(
+        staffBooking({
+          newHiker: newHikerRecord({ email: temporaryEmail }),
+        }, { partySize: 1 })
+      )
+    ).rejects.toMatchObject({ code: 'DUPLICATE_BOOKING' });
+
+    expect(
+      await getAsync(
+        'SELECT is_temporary, password_hash FROM users WHERE id = ?',
+        [temporary.id]
+      )
+    ).toEqual({ is_temporary: 1, password_hash: null });
+  });
+
+  it.each([
+    [
+      'another temporary hiker',
+      () => registerHiker(temporaryHikerRecord({ email: temporaryEmail })),
+      'A temporary hiker with this email already exists. Select them under Existing.',
+    ],
+    [
+      'a registered hiker',
+      async () => {},
+      'A registered hiker with this email already exists. Select them under Existing.',
+      seededHikerEmail,
+    ],
+    [
+      'a staff account',
+      async () => {},
+      'An account with this email already exists.',
+      seededEmployeeEmail,
+    ],
+  ])(
+    'asks staff to select the existing hiker when the email belongs to %s',
+    async (_label, createOwner, message, email = temporaryEmail) => {
+      await createOwner();
+
+      await expect(
+        createStaffBooking(
+          staffBooking({
+            newHiker: temporaryHikerRecord({
+              fullName: `Second Walk-in ${uniqueSuffix}`,
+              email,
+            }),
+          })
+        )
+      ).rejects.toMatchObject({ code: 'EMAIL_ALREADY_REGISTERED', message });
+
+      expect(
+        await countUsersNamed(`Second Walk-in ${uniqueSuffix}`)
+      ).toBe(0);
+    }
+  );
+});

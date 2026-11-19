@@ -1,6 +1,68 @@
 import { Col, Form, Row } from "react-bootstrap";
 
+import { formatCount } from "../../utils/formatCount.js";
 import BookingRequestFields from "../booking/BookingRequestFields.jsx";
+
+/**
+ * Free seats of the selected meal slot.
+ *
+ * @typedef {(
+ *   { status: "idle" } |
+ *   { status: "loading" } |
+ *   { status: "error" } |
+ *   { status: "ready", seats: number }
+ * )} SeatAvailability
+ */
+
+/**
+ * Tells staff how many seats are free before they confirm the booking.
+ *
+ * @param {{ availability: SeatAvailability, partySize: number }} props
+ */
+function SeatAvailabilityText({ availability, partySize }) {
+  if (availability.status === "idle") return null;
+
+  if (availability.status === "loading") {
+    return (
+      <Form.Text id="staff-booking-seats" role="status">
+        Checking available seats…
+      </Form.Text>
+    );
+  }
+
+  if (availability.status === "error") {
+    return (
+      <Form.Text id="staff-booking-seats" className="text-danger" role="alert">
+        Could not load the available seats.
+      </Form.Text>
+    );
+  }
+
+  const { seats } = availability;
+
+  if (seats === 0) {
+    return (
+      <Form.Text id="staff-booking-seats" className="text-danger" role="alert">
+        No seats are available for this meal slot.
+      </Form.Text>
+    );
+  }
+
+  if (partySize > seats) {
+    return (
+      <Form.Text id="staff-booking-seats" className="text-danger" role="alert">
+        Only {formatCount(seats, "seat")} available for{" "}
+        {formatCount(partySize, "guest")}.
+      </Form.Text>
+    );
+  }
+
+  return (
+    <Form.Text id="staff-booking-seats" role="status">
+      {formatCount(seats, "seat")} available.
+    </Form.Text>
+  );
+}
 
 /** @param {{
  *   bookingDate: string,
@@ -16,6 +78,7 @@ import BookingRequestFields from "../booking/BookingRequestFields.jsx";
  *   setPartySize: (value: string) => void,
  *   loadingSlots: boolean,
  *   slotsForDate: import("../../models/models.js").MealSlotDTO[],
+ *   seatAvailability: SeatAvailability,
  * }} props */
 export default function StaffBookingDetails({
   bookingDate,
@@ -31,6 +94,7 @@ export default function StaffBookingDetails({
   setPartySize,
   loadingSlots,
   slotsForDate,
+  seatAvailability,
 }) {
   return (
     <fieldset className="mt-4 border-top pt-3">
@@ -60,6 +124,11 @@ export default function StaffBookingDetails({
               value={slotId}
               onChange={(event) => setSlotId(event.target.value)}
               disabled={loadingSlots || slotsForDate.length === 0}
+              aria-describedby={
+                seatAvailability.status === "idle"
+                  ? undefined
+                  : "staff-booking-seats"
+              }
               required
             >
               <option value="">
@@ -84,6 +153,11 @@ export default function StaffBookingDetails({
                 {slotLoadError}
               </Form.Text>
             )}
+
+            <SeatAvailabilityText
+              availability={seatAvailability}
+              partySize={Number(partySize)}
+            />
           </Form.Group>
         </Col>
 

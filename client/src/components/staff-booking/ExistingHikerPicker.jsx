@@ -1,5 +1,29 @@
 import { Form } from "react-bootstrap";
 
+import StatusBadge from "../common/StatusBadge.jsx";
+
+/**
+ * Shows the details staff use to recognise a hiker: name, email and phone,
+ * and whether the hiker is temporary (no web access).
+ *
+ * @param {{ hiker: import("../../models/models.js").HikerDTO }} props
+ */
+function HikerSummary({ hiker }) {
+  const contacts = [hiker.email, hiker.phone].filter(Boolean).join(" · ");
+
+  return (
+    <>
+      <span className="d-flex flex-wrap align-items-center gap-2">
+        <strong>{hiker.fullName}</strong>
+        {hiker.isTemporary && <StatusBadge>Temporary</StatusBadge>}
+      </span>
+      <small className="d-block text-body-secondary">
+        {contacts || "No email or phone"}
+      </small>
+    </>
+  );
+}
+
 /** @param {{
  *   selectedHiker: import("../../models/models.js").HikerDTO | null,
  *   searchResults: import("../../models/models.js").HikerDTO[],
@@ -25,12 +49,7 @@ export default function ExistingHikerPicker({
       {selectedHiker ? (
         <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 rounded border p-3">
           <div>
-            <strong className="d-block">{selectedHiker.fullName}</strong>
-            {selectedHiker.email && (
-              <small className="text-body-secondary">
-                {selectedHiker.email}
-              </small>
-            )}
+            <HikerSummary hiker={selectedHiker} />
           </div>
 
           <button
@@ -97,12 +116,7 @@ export default function ExistingHikerPicker({
                     className="list-group-item list-group-item-action"
                     onClick={() => onSelect(hiker)}
                   >
-                    <strong className="d-block">{hiker.fullName}</strong>
-                    {hiker.email && (
-                      <small className="text-body-secondary">
-                        {hiker.email}
-                      </small>
-                    )}
+                    <HikerSummary hiker={hiker} />
                   </button>
                 ))}
               </div>

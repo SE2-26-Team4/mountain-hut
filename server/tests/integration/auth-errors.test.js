@@ -11,12 +11,14 @@ import {
 
 // Create shared DAO mocks before the mocked modules are imported.
 const mocks = vi.hoisted(() => ({
+  changeUserPassword: vi.fn(),
   getUserByEmail: vi.fn(),
   getUserById: vi.fn(),
 }));
 
 // Replace database account lookups with controlled test responses.
 vi.mock('../../dao/auth-dao.js', () => ({
+  changeUserPassword: mocks.changeUserPassword,
   getUserByEmail: mocks.getUserByEmail,
   getUserById: mocks.getUserById,
 }));
@@ -270,6 +272,86 @@ describe('authentication errors', () => {
     expect(response.status).toBe(400);
     expect(response.body.error.code).toBe('INVALID_CREDENTIALS');
     expect(response.body).not.toHaveProperty('user');
+  });
+});
+
+// First-login password change for hikers created by staff (MH-07).
+describe('password change errors', () => {
+  const sessionUser = {
+    id: 321,
+    full_name: 'Password Change Hiker',
+    email: 'password-change@example.com',
+    role: 'hiker',
+    mustChangePassword: true,
+  };
+
+  const passwords = {
+    currentPassword: 'InitialPassword123!',
+    newPassword: 'ReplacementPassword123!',
+    confirmPassword: 'ReplacementPassword123!',
+  };
+
+  /** @param {Record<string, unknown>} [requestProperties] */
+  function changePassword(requestProperties = {}) {
+    const { testApp, errorHandler } = createRouteTestApp({
+      isAuthenticated: () => true,
+      user: sessionUser,
+      ...requestProperties,
+    });
+
+    return {
+      errorHandler,
+      response: request(testApp)
+        .put('/api/sessions/current/password')
+        .send(passwords),
+    };
+  }
+
+  it('requires a session user', async () => {
+    const { response } = changePassword({ user: undefined });
+
+    expect((await response).status).toBe(401);
+    expect((await response).body.error.code).toBe('UNAUTHENTICATED');
+    expect(mocks.getUserByEmail).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['the account no longer exists', undefined],
+    ['the account has no password', { ...sessionUser, password_hash: null }],
+  ])('rejects the change when %s', async (_label, account) => {
+    mocks.getUserByEmail.mockResolvedValueOnce(account);
+
+    const { response } = changePassword();
+
+    expect((await response).status).toBe(401);
+    expect((await response).body.error.message).toBe(
+      'The current password is incorrect.',
+    );
+    expect(mocks.changeUserPassword).not.toHaveBeenCalled();
+  });
+
+  it('reports an account removed while the password changes', async () => {
+    mocks.getUserByEmail.mockResolvedValueOnce({
+      ...sessionUser,
+      password_hash: await hashPassword(passwords.currentPassword),
+    });
+    mocks.changeUserPassword.mockResolvedValueOnce(undefined);
+
+    const { response } = changePassword();
+
+    expect((await response).status).toBe(404);
+    expect((await response).body.error.code).toBe('ACCOUNT_NOT_FOUND');
+  });
+
+  it('forwards a database failure', async () => {
+    const failure = new Error('Simulated database failure');
+
+    mocks.getUserByEmail.mockRejectedValueOnce(failure);
+
+    const { response, errorHandler } = changePassword();
+
+    expect((await response).status).toBe(500);
+    expect(errorHandler.mock.calls[0][0]).toBe(failure);
   });
 });
 

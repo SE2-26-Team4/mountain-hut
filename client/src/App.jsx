@@ -12,6 +12,7 @@ import MyBookingsPage from './pages/MyBookingsPage.jsx';
 import StaffAccessNotice from './components/auth/StaffAccessNotice.jsx';
 import ChangePasswordForm from './components/auth/ChangePasswordForm.jsx';
 import StaffBookingPage from "./pages/StaffBookingPage.jsx";
+import ResetPasswordPage from "./pages/ResetPasswordPage.jsx";
 
 /**
  * @param {Object} props
@@ -96,6 +97,8 @@ function App() {
           <Route path="/staff/bookings" element={<StaffBookingPage />} />
 
           <Route path="/my-bookings" element={<MyBookingsPage />} />
+
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
           <Route
             path="*"

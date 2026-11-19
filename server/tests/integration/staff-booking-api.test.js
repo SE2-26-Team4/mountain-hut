@@ -395,6 +395,113 @@ describe('POST /api/staff/hikers', () => {
     expect(response.status).toBe(400);
     expect(response.body.error.code).toBe("INVALID_HIKER");
   });
+
+  it("registers a full hiker without phone", async () => {
+    const response = await employeeAgent
+      .post("/api/staff/hikers")
+      .send(newHikerInput({ phone: null }));
+
+    expect(response.status).toBe(201);
+    expect(response.body.hiker.phone).toBeNull();
+  });
+
+  it.each([
+    ["a null", null],
+    ["a blank", "   "],
+  ])("treats %s temporary hiker email as missing", async (_label, email) => {
+    const response = await employeeAgent
+      .post("/api/staff/hikers")
+      .send(temporaryHikerInput({ email }));
+
+    expect(response.status).toBe(201);
+    expect(response.body.hiker).toMatchObject({
+      email: null,
+      isTemporary: true,
+    });
+  });
+
+  it("keeps the account when the initial password email fails", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    emailMocks.send.mockRejectedValue(new Error("Email provider down"));
+
+    try {
+      const response = await employeeAgent
+        .post("/api/staff/hikers")
+        .send(newHikerInput());
+
+      expect(response.status).toBe(201);
+      expect(response.body.passwordSent).toBe(false);
+      expect(
+        await getAsync("SELECT id FROM users WHERE id = ?", [
+          response.body.hiker.id,
+        ]),
+      ).toEqual({ id: response.body.hiker.id });
+      expect(consoleError).toHaveBeenCalledWith(
+        "Hiker account saved, but initial password email could not be sent:",
+        expect.any(Error),
+      );
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("turns a temporary hiker with the same email into a full account", async () => {
+    const email = `staff-api-upgrade-${uniqueSuffix}@example.com`;
+
+    const temporary = await employeeAgent.post("/api/staff/bookings").send(
+      staffBooking(temporaryHikerInput(), { confirmationEmail: email }),
+    );
+
+    expect(temporary.status).toBe(201);
+    emailMocks.send.mockClear();
+
+    const response = await employeeAgent
+      .post("/api/staff/hikers")
+      .send(newHikerInput({ email: email.toUpperCase() }));
+
+    expect(response.status).toBe(201);
+    expect(response.body.hiker).toMatchObject({
+      id: temporary.body.hiker.id,
+      fullName: newHikerInput().fullName,
+      email,
+      phone: "+393337654321",
+      isTemporary: false,
+      mustChangePassword: true,
+    });
+    expect(response.body.passwordSent).toBe(true);
+    expect(emailMocks.send).toHaveBeenCalledWith(
+      expect.objectContaining({ to: email }),
+    );
+
+    // The booking made as a walk-in now belongs to the full account.
+    const booking = await getAsync(
+      "SELECT hiker_id AS hikerId FROM bookings WHERE id = ?",
+      [temporary.body.booking.id],
+    );
+    expect(booking).toEqual({ hikerId: temporary.body.hiker.id });
+  });
+
+  it("asks staff to select a temporary hiker entered again with the same email", async () => {
+    const email = `staff-api-again-${uniqueSuffix}@example.com`;
+
+    await employeeAgent
+      .post("/api/staff/hikers")
+      .send(temporaryHikerInput({ email }));
+
+    const response = await employeeAgent
+      .post("/api/staff/hikers")
+      .send(temporaryHikerInput({ email }));
+
+    expect(response.status).toBe(409);
+    expect(response.body.error).toEqual({
+      code: "EMAIL_ALREADY_REGISTERED",
+      message:
+        "A temporary hiker with this email already exists. Select them under Existing.",
+    });
+  });
 });
 
 describe("POST /api/staff/bookings", () => {
@@ -479,6 +586,19 @@ describe("POST /api/staff/bookings", () => {
     expect(response.body.booking.hikerId).toBe(response.body.hiker.id);
     expect(response.body.emailSent).toBe(false);
     expect(emailMocks.send).not.toHaveBeenCalled();
+  });
+
+  it("treats a null confirmation email as missing", async () => {
+    const response = await employeeAgent
+      .post("/api/staff/bookings")
+      .send(staffBooking(temporaryHikerInput(), { confirmationEmail: null }));
+
+    expect(response.status).toBe(201);
+    expect(response.body).toMatchObject({
+      hiker: { email: null, isTemporary: true },
+      emailRecipient: null,
+      emailSent: false,
+    });
   });
 
   it("stores a temporary hiker email and sends both booking requests", async () => {

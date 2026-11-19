@@ -184,6 +184,7 @@ export async function initializeDatabase() {
     "bookings",
     "booking_table_allocations",
     "schedule_copy_history",
+    "password_reset_tokens",
   ];
 
   const placeholders = expectedTables.map(() => "?").join(", ");

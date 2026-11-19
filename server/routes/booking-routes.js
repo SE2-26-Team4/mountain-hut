@@ -457,7 +457,8 @@ router.post(
 
     let temporaryRecipient = null;
 
-    if (confirmationEmail !== undefined) {
+    // A null confirmation email is the same as leaving it out.
+    if (confirmationEmail !== undefined && confirmationEmail !== null) {
       const email =
         typeof confirmationEmail === "string" ? confirmationEmail.trim() : "";
 

@@ -9,6 +9,7 @@ import passport from './config/passport.js';
 import authRoutes from './routes/auth-routes.js';
 import bookingRoutes from './routes/booking-routes.js';
 import capacityRoutes from './routes/capacity-routes.js';
+import passwordResetRoutes from './routes/password-reset-routes.js';
 
 const app = express();
 
@@ -64,6 +65,10 @@ app.get('/api/health', (_req, res) => {
 /* AUTHENTICATION ROUTES */
 
 app.use('/api', authRoutes);
+
+/* PASSWORD RECOVERY ROUTES */
+
+app.use('/api', passwordResetRoutes);
 
 /* BOOKING ROUTES */
 

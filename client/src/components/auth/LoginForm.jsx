@@ -31,6 +31,7 @@ const AREA_COPY = {
  * @param {'hiker' | 'staff'} [props.area]
  * @param {string} [props.title]
  * @param {string} [props.description]
+ * @param {() => void} [props.onForgotPassword] - Shows the password recovery form.
  */
 function LoginForm({
   isSubmitting,
@@ -39,6 +40,7 @@ function LoginForm({
   area = 'hiker',
   title = AREA_COPY[area].title,
   description = AREA_COPY[area].description,
+  onForgotPassword,
 }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -190,6 +192,19 @@ function LoginForm({
               />
             </button>
           </div>
+
+          {area === 'hiker' && onForgotPassword && (
+            <div className="text-end mt-2">
+              <button
+                type="button"
+                className="mh-auth-link"
+                disabled={isSubmitting}
+                onClick={onForgotPassword}
+              >
+                Forgot your password?
+              </button>
+            </div>
+          )}
         </Form.Group>
 
         <Button
