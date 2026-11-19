@@ -1240,4 +1240,90 @@ describe("MH-09 weekly copy requests", () => {
 
     expect(result.status).toBe(400);
   });
+
+  it.each([{}, { mode: "series" }])(
+    "rejects an empty source with options %j",
+    async (options) => {
+      const result = await employeeAgent.post(path).send({
+        ...base,
+        sourceWeekStart: "2093-02-01",
+        ...options,
+      });
+
+      expect(result.status).toBe(409);
+      expect(result.body.error.message).toBe(
+        "The source week has no time slots to copy.",
+      );
+    },
+  );
+
+  it("copies selected non-consecutive weeks and records one operation", async () => {
+    const slot = await createMealSlot({
+      slotDate: source,
+      name: "Lunch",
+      startTime: "12:00",
+      endTime: "13:00",
+    });
+    createdSlotIds.push(slot.id);
+
+    const destinations = [first, "2095-03-15"];
+    const result = await employeeAgent.post(path).send({
+      sourceWeekStart: source,
+      destinations,
+    });
+
+    expect(result.status).toBe(201);
+    const copiedSlots = result.body.mealSlots;
+    createdSlotIds.push(...copiedSlots.map((item) => item.id));
+    expect(copiedSlots.map((item) => item.slotDate)).toEqual(destinations);
+
+    const [latest] = await CapacityDAO.getScheduleCopyHistory();
+    expect(latest.sourceWeekStart).toBe(source);
+    expect(latest.weeks).toEqual(
+      destinations.map((start) => ({ start, status: "copied" })),
+    );
+  });
+
+  it("rolls back selected weeks when the last one is booked", async () => {
+    const sourceWeekStart = "2094-02-01";
+    const destinations = ["2094-03-01", "2094-03-08"];
+
+    const makeSlot = async (slotDate) => {
+      const slot = await createMealSlot({
+        slotDate,
+        name: "Dinner",
+        startTime: "18:00",
+        endTime: "19:00",
+      });
+      createdSlotIds.push(slot.id);
+      return slot;
+    };
+
+    await makeSlot(sourceWeekStart);
+    await makeSlot(destinations[0]);
+    const booked = await makeSlot(destinations[1]);
+
+    const booking = await runAsync(
+      `INSERT INTO bookings (hiker_id, booking_date, slot_id, party_size)
+       SELECT id, ?, ?, 2 FROM users WHERE email = ?`,
+      [booked.slotDate, booked.id, hikerEmail],
+    );
+
+    try {
+      const slotsBefore = await CapacityDAO.getMealSlots();
+      const historyBefore = await CapacityDAO.getScheduleCopyHistory();
+
+      const result = await employeeAgent.post(path).send({
+        sourceWeekStart,
+        destinations,
+      });
+
+      expect(result.status).toBe(409);
+      expect(result.body.error.code).toBe("WEEKLY_SCHEDULE_CONFLICT");
+      expect(await CapacityDAO.getMealSlots()).toEqual(slotsBefore);
+      expect(await CapacityDAO.getScheduleCopyHistory()).toEqual(historyBefore);
+    } finally {
+      await runAsync("DELETE FROM bookings WHERE id = ?", [booking.lastID]);
+    }
+  });
 });
