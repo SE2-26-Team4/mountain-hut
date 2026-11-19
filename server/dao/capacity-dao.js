@@ -623,21 +623,32 @@ export async function getScheduleCopyPreview(from, to) {
  * @throws {WeeklyScheduleConflictError} If destination slots have confirmed bookings.
  * @throws {DuplicateMealSlotError} If a copied slot conflicts with another slot.
  */
-export async function copyWeeklySchedule({
-  sourceWeekStart,
-  destinationWeekStart,
-}) {
+export async function copyWeeklySchedule(input) {
+  return withTransaction(async (queries) => {
+    const slots = await copyWeekWithinTransaction(input, queries);
+
+    await saveScheduleCopyHistory(queries, input.sourceWeekStart, [
+      { start: input.destinationWeekStart, status: "copied" },
+    ]);
+
+    return slots;
+  });
+}
+
+/**
+ * @param {{sourceWeekStart: string, destinationWeekStart: string}} input
+ * @param {TransactionQueries} queries
+ */
+async function copyWeekWithinTransaction(
+  { sourceWeekStart, destinationWeekStart },
+  { runAsync, getAsync, allAsync },
+) {
   const sourceWeekEnd = addCalendarDays(sourceWeekStart, 7);
   const destinationWeekEnd = addCalendarDays(destinationWeekStart, 7);
 
-  return withTransaction(async ({
-    runAsync,
-    getAsync,
-    allAsync,
-  }) => {
-    /** @type {MealSlotRow[]} */
-    const sourceSlots = await allAsync(
-      `SELECT
+  /** @type {MealSlotRow[]} */
+  const sourceSlots = await allAsync(
+    `SELECT
          id,
          name,
          slot_date AS slotDate,
@@ -648,146 +659,132 @@ export async function copyWeeklySchedule({
        WHERE slot_date >= ?
          AND slot_date < ?
        ORDER BY slot_date, start_time, id`,
-      [sourceWeekStart, sourceWeekEnd],
-    );
+    [sourceWeekStart, sourceWeekEnd],
+  );
 
-    if (sourceSlots.length === 0) {
-      const error = new CapacityConflictError();
-      error.message = "The source week has no time slots to copy.";
-      throw error;
-    }
+  if (sourceSlots.length === 0) {
+    const error = new CapacityConflictError();
+    error.message = "The source week has no time slots to copy.";
+    throw error;
+  }
 
-    const destinationSlots = await allAsync(
-      `SELECT id
+  const destinationSlots = await allAsync(
+    `SELECT id
        FROM meal_slots
        WHERE slot_date >= ?
          AND slot_date < ?`,
-      [destinationWeekStart, destinationWeekEnd],
-    );
+    [destinationWeekStart, destinationWeekEnd],
+  );
 
-    if (destinationSlots.length > 0) {
-      const destinationIds = destinationSlots.map((slot) => slot.id);
-      const placeholders = destinationIds.map(() => '?').join(', ');
+  if (destinationSlots.length > 0) {
+    const destinationIds = destinationSlots.map((slot) => slot.id);
+    const placeholders = destinationIds.map(() => "?").join(", ");
 
-      // [REQUIREMENT] MH-09: It is not possible to copy a weekly schedule onto an existing schedule unless there are not reservations, in this case it completely replaces the existing one
-      // Cancelled bookings are no longer reservations, so only confirmed ones block the copy.
-      const booking = await getAsync(
-        `SELECT 1
+    // [REQUIREMENT] MH-09: Replace the entire destination week only if it has no confirmed bookings.
+    // Cancelled bookings are no longer reservations, so only confirmed ones block the copy.
+    const booking = await getAsync(
+      `SELECT 1
          FROM bookings
          WHERE slot_id IN (${placeholders})
            AND status = 'confirmed'
          LIMIT 1`,
-        destinationIds,
-      );
+      destinationIds,
+    );
 
-      if (booking) {
-        throw new WeeklyScheduleConflictError();
-      }
+    if (booking) {
+      throw new WeeklyScheduleConflictError();
+    }
 
-      // bookings.slot_id has no cascading delete, so remove the remaining
-      // cancelled bookings and their table allocations before the slots.
-      await runAsync(
-        `DELETE FROM booking_table_allocations
+    // bookings.slot_id has no cascading delete, so remove the remaining
+    // cancelled bookings and their table allocations before the slots.
+    await runAsync(
+      `DELETE FROM booking_table_allocations
          WHERE booking_id IN (
            SELECT id
            FROM bookings
            WHERE slot_id IN (${placeholders})
              AND status = 'cancelled'
          )`,
-        destinationIds,
-      );
-      await runAsync(
-        `DELETE FROM bookings
+      destinationIds,
+    );
+    await runAsync(
+      `DELETE FROM bookings
          WHERE slot_id IN (${placeholders})
            AND status = 'cancelled'`,
-        destinationIds,
-      );
-      await runAsync(
-        `DELETE FROM slot_tables
+      destinationIds,
+    );
+    await runAsync(
+      `DELETE FROM slot_tables
          WHERE slot_id IN (${placeholders})`,
-        destinationIds,
-      );
-      await runAsync(
-        `DELETE FROM meal_slots
+      destinationIds,
+    );
+    await runAsync(
+      `DELETE FROM meal_slots
          WHERE id IN (${placeholders})`,
-        destinationIds,
-      );
-    }
+      destinationIds,
+    );
+  }
 
-    const copiedSlots = [];
+  const copiedSlots = [];
 
-    for (const sourceSlot of sourceSlots) {
-      const sourceDate = new Date(
-        `${sourceSlot.slotDate}T00:00:00Z`,
-      );
-      const sourceStart = new Date(
-        `${sourceWeekStart}T00:00:00Z`,
-      );
-      const dayOffset = Math.round(
-        (sourceDate.getTime() - sourceStart.getTime()) /
-          (24 * 60 * 60 * 1000),
-      );
-      const destinationDate = addCalendarDays(
-        destinationWeekStart,
-        dayOffset,
-      );
+  // [REQUIREMENT] MH-09: Copy each source slot and its table assignments to the corresponding destination day.
+  for (const sourceSlot of sourceSlots) {
+    const sourceDate = new Date(`${sourceSlot.slotDate}T00:00:00Z`);
+    const sourceStart = new Date(`${sourceWeekStart}T00:00:00Z`);
+    const dayOffset = Math.round(
+      (sourceDate.getTime() - sourceStart.getTime()) / (24 * 60 * 60 * 1000),
+    );
+    const destinationDate = addCalendarDays(destinationWeekStart, dayOffset);
 
-      await assertMealSlotAvailable(
-        getAsync,
+    await assertMealSlotAvailable(
+      getAsync,
+      destinationDate,
+      sourceSlot.name,
+      sourceSlot.startTime,
+      sourceSlot.endTime,
+    );
+
+    const result = await runAsync(
+      `INSERT INTO meal_slots (
+           slot_date, name, start_time, end_time, is_active
+         )
+         VALUES (?, ?, ?, ?, ?)`,
+      [
         destinationDate,
         sourceSlot.name,
         sourceSlot.startTime,
         sourceSlot.endTime,
-      );
+        sourceSlot.isActive,
+      ],
+    );
 
-      const result = await runAsync(
-        `INSERT INTO meal_slots (
-           slot_date, name, start_time, end_time, is_active
-         )
-         VALUES (?, ?, ?, ?, ?)`,
-        [
-          destinationDate,
-          sourceSlot.name,
-          sourceSlot.startTime,
-          sourceSlot.endTime,
-          sourceSlot.isActive,
-        ],
-      );
-
-      const assignedTables = await allAsync(
-        `SELECT table_id AS tableId
+    const assignedTables = await allAsync(
+      `SELECT table_id AS tableId
          FROM slot_tables
          WHERE slot_id = ?
          ORDER BY table_id`,
-        [sourceSlot.id],
-      );
-
-      for (const { tableId } of assignedTables) {
-        await runAsync(
-          `INSERT INTO slot_tables (slot_id, table_id)
-           VALUES (?, ?)`,
-          [result.lastID, tableId],
-        );
-      }
-
-      copiedSlots.push({
-        ...normalizeMealSlot({
-          ...sourceSlot,
-          id: result.lastID,
-          slotDate: destinationDate,
-        }),
-        tableIds: assignedTables.map(({ tableId }) => tableId),
-      });
-    }
-
-    await saveScheduleCopyHistory(
-      { runAsync, getAsync, allAsync },
-      sourceWeekStart,
-      [{ start: destinationWeekStart, status: "copied" }],
+      [sourceSlot.id],
     );
 
-    return copiedSlots;
-  });
+    for (const { tableId } of assignedTables) {
+      await runAsync(
+        `INSERT INTO slot_tables (slot_id, table_id)
+           VALUES (?, ?)`,
+        [result.lastID, tableId],
+      );
+    }
+
+    copiedSlots.push({
+      ...normalizeMealSlot({
+        ...sourceSlot,
+        id: result.lastID,
+        slotDate: destinationDate,
+      }),
+      tableIds: assignedTables.map(({ tableId }) => tableId),
+    });
+  }
+
+  return copiedSlots;
 }
 
 /* UPDATE */
