@@ -18,7 +18,7 @@ import ScheduleInfo from "./ScheduleInfo.jsx";
  *   saving: boolean,
  *   error: string,
  *   onHide: () => void,
- *   onCopy: (sourceWeekStart: string, destinationWeekStart: string) => Promise<void>,
+ *   onCopy: (sourceWeekStart: string, destinationWeekStart: string) => Promise<"refresh-preview" | void>,
  * }} props
  */
 export default function CopyWeekModal({ date, saving, error, onHide, onCopy }) {
