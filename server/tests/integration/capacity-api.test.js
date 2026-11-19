@@ -1158,8 +1158,80 @@ describe("capacity API name conflicts", () => {
 });
 
 describe("MH-09 weekly copy requests", () => {
+  const path = "/api/capacity/meal-slots/copy-weeks";
+  const source = "2095-02-01";
   const first = "2095-03-01";
   const second = "2095-03-08";
+  const base = { sourceWeekStart: source, destinations: [first, second] };
+
+  it.each([
+    ["missing body", undefined, "Select at least one destination week."],
+    [
+      "unknown mode",
+      { ...base, mode: "monthly" },
+      "Unknown schedule copy mode.",
+    ],
+    [
+      "empty list",
+      { ...base, destinations: [] },
+      "Select at least one destination week.",
+    ],
+    [
+      "invalid source",
+      { ...base, sourceWeekStart: "2095-02-30" },
+      "Choose a valid source week.",
+    ],
+    [
+      "exclusions without series mode",
+      { ...base, excludedWeeks: [first] },
+      "Week exclusions require series mode.",
+    ],
+    [
+      "duplicate weeks",
+      { ...base, destinations: [first, first] },
+      "Destination weeks must be distinct.",
+    ],
+    [
+      "unrelated exclusion",
+      { ...base, mode: "series", excludedWeeks: [source] },
+      "Invalid destination week selection.",
+    ],
+    [
+      "booked and excluded",
+      {
+        ...base,
+        mode: "series",
+        excludedWeeks: [first],
+        previewBookedWeeks: [first],
+      },
+      "A booked week cannot also be manually excluded.",
+    ],
+    [
+      "no available weeks",
+      { ...base, mode: "series", excludedWeeks: [first, second] },
+      "Select at least one available destination week.",
+    ],
+    [
+      "invalid destination",
+      { ...base, destinations: ["bad-date"] },
+      "Choose a valid destination week.",
+    ],
+    [
+      "gap in series",
+      { ...base, mode: "series", destinations: [first, "2095-03-15"] },
+      "Send every week of the series in calendar order.",
+    ],
+    [
+      "different weekdays",
+      { ...base, destinations: [first, "2095-03-09"] },
+      "Destination weeks must start on the same weekday.",
+    ],
+  ])("rejects %s", async (_label, body, message) => {
+    const result = await employeeAgent.post(path).send(body);
+
+    expect(result.status).toBe(400);
+    expect(result.body.error.message).toBe(message);
+  });
 
   it("rejects a reversed preview range", async () => {
     const result = await employeeAgent
