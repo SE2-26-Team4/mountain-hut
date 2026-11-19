@@ -242,7 +242,39 @@ async function getScheduleCopyHistory(signal) {
   return data.copies;
 }
 
+/**
+ * @param {string} sourceWeekStart
+ * @param {string[]} destinations
+ * @param {string[]} excludedWeeks
+ * @param {string[]} previewBookedWeeks
+ * @returns {Promise<{
+ *   mealSlots: ConfiguredMealSlot[],
+ *   weeks: Array<{
+ *     start: string,
+ *     status: "copied" | "excluded" | "booked"
+ *   }>
+ * }>}
+ */
+async function copyScheduleSeries(
+  sourceWeekStart,
+  destinations,
+  excludedWeeks,
+  previewBookedWeeks,
+) {
+  return request("/capacity/meal-slots/copy-weeks", {
+    method: "POST",
+    body: JSON.stringify({
+      mode: "series",
+      sourceWeekStart,
+      destinations,
+      excludedWeeks,
+      previewBookedWeeks,
+    }),
+  });
+}
+
 const CapacityAPI = {
+  copyScheduleSeries,
   getScheduleCopyHistory,
   getScheduleCopyPreview,
   getConfiguration,
