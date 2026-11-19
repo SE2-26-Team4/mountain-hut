@@ -674,6 +674,92 @@ export async function copySelectedWeeks(sourceWeekStart, destinations) {
 }
 
 /**
+ * Saves a weekly series and its actual outcome in one transaction.
+ *
+ * @param {string} sourceWeekStart
+ * @param {string[]} destinations All candidate week starts, in calendar order.
+ * @param {string[]} excludedWeeks Weeks explicitly excluded by staff.
+ * @param {string[]} previewBookedWeeks Weeks shown as locked in the preview.
+ */
+export async function copyScheduleSeries(
+  sourceWeekStart,
+  destinations,
+  excludedWeeks,
+  previewBookedWeeks,
+) {
+  const excluded = new Set(excludedWeeks);
+  const previewBooked = new Set(previewBookedWeeks);
+
+  return withTransaction(async (queries) => {
+    const sourceSlot = await queries.getAsync(
+      `SELECT id
+       FROM meal_slots
+       WHERE slot_date BETWEEN ? AND ?
+       LIMIT 1`,
+      [sourceWeekStart, addCalendarDays(sourceWeekStart, 6)],
+    );
+
+    if (!sourceSlot) {
+      const error = new CapacityConflictError();
+      error.message = "The source week has no time slots to copy.";
+      throw error;
+    }
+
+    const mealSlots = [];
+    const weeks = [];
+
+    for (const start of destinations) {
+      if (excluded.has(start)) {
+        weeks.push({ start, status: "excluded" });
+        continue;
+      }
+
+      const bookings = await queries.allAsync(
+        `SELECT
+           b.id AS bookingId,
+           b.booking_date AS bookingDate,
+           b.party_size AS partySize,
+           s.slot_date AS slotDate,
+           s.name AS slotName,
+           s.start_time AS startTime
+         FROM meal_slots AS s
+         JOIN bookings AS b ON b.slot_id = s.id
+         WHERE s.slot_date BETWEEN ? AND ?
+           AND b.status = 'confirmed'
+         ORDER BY s.slot_date, s.start_time, b.id`,
+        [start, addCalendarDays(start, 6)],
+      );
+
+      if (bookings.length > 0) {
+        weeks.push({ start, status: "booked", bookings });
+        continue;
+      }
+
+      if (previewBooked.has(start)) {
+        const error = new CapacityConflictError();
+        error.code = "SCHEDULE_PREVIEW_CHANGED";
+        error.message =
+          `The week starting ${start} is now available. ` +
+          "Review your selection before copying.";
+        throw error;
+      }
+
+      const slots = await copyWeekWithinTransaction(
+        { sourceWeekStart, destinationWeekStart: start },
+        queries,
+      );
+
+      for (const slot of slots) mealSlots.push(slot);
+      weeks.push({ start, status: "copied" });
+    }
+
+    await saveScheduleCopyHistory(queries, sourceWeekStart, weeks);
+
+    return { mealSlots, weeks };
+  });
+}
+
+/**
  * @param {{sourceWeekStart: string, destinationWeekStart: string}} input
  * @param {TransactionQueries} queries
  */
