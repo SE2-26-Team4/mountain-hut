@@ -78,14 +78,12 @@ async function request(path, options = {}) {
  */
 async function getConfiguration() {
   /** @type {{ mealSlots: MealSlotDTO[], diningTables: DiningTableDTO[] }} */
-  const { mealSlots, diningTables } = await request('/capacity');
+  const { mealSlots, diningTables } = await request("/capacity");
 
   const mealSlotsWithTables = await Promise.all(
     mealSlots.map(async (mealSlot) => {
       /** @type {{ capacity: MealSlotCapacityDTO }} */
-      const { capacity } = await request(
-        `/capacity/meal-slots/${mealSlot.id}`,
-      );
+      const { capacity } = await request(`/capacity/meal-slots/${mealSlot.id}`);
 
       return {
         ...mealSlot,
@@ -106,8 +104,8 @@ async function getConfiguration() {
  */
 async function createMealSlot(mealSlot) {
   /** @type {{ mealSlot: MealSlotDTO }} */
-  const data = await request('/capacity/meal-slots', {
-    method: 'POST',
+  const data = await request("/capacity/meal-slots", {
+    method: "POST",
     body: JSON.stringify(mealSlot),
   });
 
@@ -122,7 +120,7 @@ async function createMealSlot(mealSlot) {
 async function updateMealSlot(slotId, mealSlot) {
   /** @type {{ mealSlot: MealSlotDTO }} */
   const data = await request(`/capacity/meal-slots/${slotId}`, {
-    method: 'PUT',
+    method: "PUT",
     body: JSON.stringify(mealSlot),
   });
 
@@ -135,8 +133,8 @@ async function updateMealSlot(slotId, mealSlot) {
  */
 async function createDiningTable(diningTable) {
   /** @type {{ diningTable: DiningTableDTO }} */
-  const data = await request('/capacity/dining-tables', {
-    method: 'POST',
+  const data = await request("/capacity/dining-tables", {
+    method: "POST",
     body: JSON.stringify(diningTable),
   });
 
@@ -151,7 +149,7 @@ async function createDiningTable(diningTable) {
 async function updateDiningTable(tableId, diningTable) {
   /** @type {{ diningTable: DiningTableDTO }} */
   const data = await request(`/capacity/dining-tables/${tableId}`, {
-    method: 'PUT',
+    method: "PUT",
     body: JSON.stringify(diningTable),
   });
 
@@ -166,13 +164,10 @@ async function updateDiningTable(tableId, diningTable) {
  * @returns {Promise<MealSlotCapacityDTO>}
  */
 async function saveMealSlotTables(slotId, tableIds) {
-  const data = await request(
-    `/capacity/meal-slots/${slotId}/tables`,
-    {
-      method: 'PUT',
-      body: JSON.stringify({ tableIds }),
-    },
-  );
+  const data = await request(`/capacity/meal-slots/${slotId}/tables`, {
+    method: "PUT",
+    body: JSON.stringify({ tableIds }),
+  });
 
   return data.capacity;
 }
@@ -185,6 +180,18 @@ async function copyWeeklySchedule(dates) {
   return request("/capacity/meal-slots/copy-week", {
     method: "POST",
     body: JSON.stringify(dates),
+  });
+}
+
+/**
+ * @param {string} sourceWeekStart
+ * @param {string[]} destinations
+ * @returns {Promise<{ mealSlots: ConfiguredMealSlot[] }>}
+ */
+async function copySelectedWeeks(sourceWeekStart, destinations) {
+  return request("/capacity/meal-slots/copy-weeks", {
+    method: "POST",
+    body: JSON.stringify({ sourceWeekStart, destinations }),
   });
 }
 
@@ -210,36 +217,6 @@ async function getScheduleCopyPreview(from, to, signal) {
   return request(`/capacity/schedule-copies/preview?${query}`, {
     signal,
   });
-}
-
-/**
- * @typedef {Awaited<ReturnType<typeof getScheduleCopyPreview>>["bookings"][number]} CopyBooking
- */
-
-/**
- * @typedef {{
- *   start: string,
- *   status: "copied" | "excluded" | "booked",
- *   bookings?: CopyBooking[]
- * }} SavedCopyWeek
- */
-
-/**
- * @typedef {{
- *   id: number,
- *   sourceWeekStart: string,
- *   createdAt: string,
- *   weeks: SavedCopyWeek[]
- * }} SavedScheduleCopy
- */
-
-/**
- * @param {AbortSignal} [signal]
- * @returns {Promise<SavedScheduleCopy[]>}
- */
-async function getScheduleCopyHistory(signal) {
-  const data = await request("/capacity/schedule-copies", { signal });
-  return data.copies;
 }
 
 /**
@@ -273,17 +250,48 @@ async function copyScheduleSeries(
   });
 }
 
+/**
+ * @typedef {Awaited<ReturnType<typeof getScheduleCopyPreview>>["bookings"][number]} CopyBooking
+ */
+
+/**
+ * @typedef {{
+ *   start: string,
+ *   status: "copied" | "excluded" | "booked",
+ *   bookings?: CopyBooking[]
+ * }} SavedCopyWeek
+ */
+
+/**
+ * @typedef {{
+ *   id: number,
+ *   sourceWeekStart: string,
+ *   createdAt: string,
+ *   weeks: SavedCopyWeek[]
+ * }} SavedScheduleCopy
+ */
+
+/**
+ * @param {AbortSignal} [signal]
+ * @returns {Promise<SavedScheduleCopy[]>}
+ */
+async function getScheduleCopyHistory(signal) {
+  const data = await request("/capacity/schedule-copies", { signal });
+  return data.copies;
+}
+
 const CapacityAPI = {
-  copyScheduleSeries,
-  getScheduleCopyHistory,
-  getScheduleCopyPreview,
   getConfiguration,
-  copyWeeklySchedule,
   createMealSlot,
   updateMealSlot,
   createDiningTable,
   updateDiningTable,
   saveMealSlotTables,
+  copyWeeklySchedule,
+  copySelectedWeeks,
+  getScheduleCopyPreview,
+  getScheduleCopyHistory,
+  copyScheduleSeries,
 };
 
 export { CapacityApiError };
