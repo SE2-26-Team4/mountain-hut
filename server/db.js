@@ -1,8 +1,8 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-import sqlite3 from 'sqlite3';
+import sqlite3 from "sqlite3";
 
 /* DATABASE TYPES */
 
@@ -24,9 +24,9 @@ import sqlite3 from 'sqlite3';
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 
 const defaultDatabaseFile =
-  process.env.NODE_ENV === 'test'
-    ? 'mountain-hut-test.sqlite'
-    : 'mountain-hut.sqlite';
+  process.env.NODE_ENV === "test"
+    ? "mountain-hut-test.sqlite"
+    : "mountain-hut.sqlite";
 
 // Docker can override the path to use persistent storage.
 const databasePath =
@@ -34,7 +34,7 @@ const databasePath =
 
 fs.mkdirSync(path.dirname(databasePath), { recursive: true });
 
-const schemaPath = path.join(currentDirectory, 'mountain-hut-schema.sql');
+const schemaPath = path.join(currentDirectory, "mountain-hut-schema.sql");
 const database = new sqlite3.Database(databasePath);
 
 /* DATABASE QUERY HELPERS */
@@ -134,7 +134,7 @@ let transactionQueue = Promise.resolve();
  */
 export function withTransaction(callback) {
   const operation = transactionQueue.then(async () => {
-    await execAsync('BEGIN IMMEDIATE');
+    await execAsync("BEGIN IMMEDIATE");
 
     try {
       const result = await callback({
@@ -143,12 +143,12 @@ export function withTransaction(callback) {
         allAsync,
       });
 
-      await execAsync('COMMIT');
+      await execAsync("COMMIT");
 
       return result;
     } catch (error) {
       try {
-        await execAsync('ROLLBACK');
+        await execAsync("ROLLBACK");
       } catch {
         // Preserve the original error if rollback also fails.
       }
@@ -174,18 +174,19 @@ export function withTransaction(callback) {
  * @returns {Promise<void>}
  */
 export async function initializeDatabase() {
-  await runAsync('PRAGMA foreign_keys = ON');
+  await runAsync("PRAGMA foreign_keys = ON");
 
   const expectedTables = [
-    'users',
-    'meal_slots',
-    'dining_tables',
-    'slot_tables',
-    'bookings',
-    'booking_table_allocations',
+    "users",
+    "meal_slots",
+    "dining_tables",
+    "slot_tables",
+    "bookings",
+    "booking_table_allocations",
+    "schedule_copy_history",
   ];
 
-  const placeholders = expectedTables.map(() => '?').join(', ');
+  const placeholders = expectedTables.map(() => "?").join(", ");
 
   const existingTables = await allAsync(
     `SELECT name
@@ -200,11 +201,11 @@ export async function initializeDatabase() {
       throw new Error(`Database schema file not found: ${schemaPath}`);
     }
 
-    const schema = fs.readFileSync(schemaPath, 'utf8');
+    const schema = fs.readFileSync(schemaPath, "utf8");
 
     await execAsync(schema);
 
-    console.log('Mountain Hut database schema initialized.');
+    console.log("Mountain Hut database schema initialized.");
 
     return;
   }
@@ -215,7 +216,7 @@ export async function initializeDatabase() {
     );
   }
 
-  console.log('Mountain Hut database schema is ready.');
+  console.log("Mountain Hut database schema is ready.");
 }
 
 export default database;

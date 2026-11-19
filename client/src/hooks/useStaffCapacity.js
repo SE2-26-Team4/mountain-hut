@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import CapacityAPI from "../API/capacity-api.js";
+import CapacityAPI, { CapacityApiError } from "../API/capacity-api.js";
 import { addCalendarDays } from "../utils/weekly-schedule.js";
 
 /**
@@ -739,23 +739,29 @@ export default function useStaffCapacity() {
     if (!isSaving) setIsCopyWeekOpen(false);
   }
 
-  // TODO(MH-09): Keep copyWeek for a single destination week.
-  // Add a separate submit action when the recurrence API is available.
-  // For finite repeats, the server should validate every destination week
-  // before applying the copy so a conflict cannot leave a partial result.
-  /** @param {string} sourceWeekStart @param {string} destinationWeekStart */
-  async function copyWeek(sourceWeekStart, destinationWeekStart) {
+  function clearCopyWeekError() {
+    setCopyWeekError("");
+  }
+
+  /**
+   * @param {string} sourceWeekStart
+   * @param {string} destinationWeekStart
+   * @param {{
+   *   destinations: string[],
+   *   excludedWeeks: string[],
+   *   previewBookedWeeks: string[]
+   * }} [series]
+   */
+  async function copyWeek(sourceWeekStart, destinationWeekStart, series) {
     if (isSaving) return;
 
     const sourceWeekEnd = addCalendarDays(sourceWeekStart, 7);
+    const hasSourceSlots = mealSlots.some(
+      (slot) =>
+        slot.slotDate >= sourceWeekStart && slot.slotDate < sourceWeekEnd,
+    );
 
-    // An empty source would replace the destination with an empty schedule.
-    if (
-      !mealSlots.some(
-        (slot) =>
-          slot.slotDate >= sourceWeekStart && slot.slotDate < sourceWeekEnd,
-      )
-    ) {
+    if (!hasSourceSlots) {
       setCopyWeekError("The source week has no time slots to copy.");
       return;
     }
@@ -764,28 +770,68 @@ export default function useStaffCapacity() {
     setIsSaving(true);
 
     try {
-      // [REQUIREMENT] MH-09: Copy meal slots and table assignments to another week.
-      const { mealSlots: copiedSlots } = await CapacityAPI.copyWeeklySchedule({
-        sourceWeekStart,
-        destinationWeekStart,
-      });
-      const destinationWeekEnd = addCalendarDays(destinationWeekStart, 7);
+      const result = series
+        ? await CapacityAPI.copyScheduleSeries(
+            sourceWeekStart,
+            series.destinations,
+            series.excludedWeeks,
+            series.previewBookedWeeks,
+          )
+        : {
+            ...(await CapacityAPI.copyWeeklySchedule({
+              sourceWeekStart,
+              destinationWeekStart,
+            })),
+            weeks: [{ start: destinationWeekStart, status: "copied" }],
+          };
 
-      setMealSlots((current) => [
-        ...current.filter(
-          (slot) =>
-            slot.slotDate < destinationWeekStart ||
-            slot.slotDate >= destinationWeekEnd,
-        ),
-        ...copiedSlots,
-      ]);
-      setSelectedDate(destinationWeekStart);
-      setSelectedSlotId("");
-      setSelectedTableIds([]);
+      const copied = result.weeks.filter((week) => week.status === "copied");
+      const booked = result.weeks.filter((week) => week.status === "booked");
+      const excluded = result.weeks.filter(
+        (week) => week.status === "excluded",
+      );
+
+      if (copied.length > 0) {
+        const replacedDays = new Set(
+          copied.flatMap(({ start }) =>
+            Array.from({ length: 7 }, (_, day) => addCalendarDays(start, day)),
+          ),
+        );
+
+        setMealSlots((current) => [
+          ...current.filter((slot) => !replacedDays.has(slot.slotDate)),
+          ...result.mealSlots,
+        ]);
+
+        setSelectedDate(copied[0].start);
+        setSelectedSlotId("");
+        setSelectedTableIds([]);
+      }
+
+      const feedback = [
+        `${copied.length} ${copied.length === 1 ? "week" : "weeks"} copied`,
+      ];
+
+      if (booked.length > 0) {
+        feedback.push(`${booked.length} skipped due to confirmed bookings`);
+      }
+
+      if (excluded.length > 0) {
+        feedback.push(`${excluded.length} excluded by staff`);
+      }
+
+      setFeedbackMessage(`${feedback.join(" · ")}.`);
       setIsCopyWeekOpen(false);
-      setFeedbackMessage("Weekly schedule copied successfully.");
     } catch (error) {
       setCopyWeekError(getErrorMessage(error));
+
+      if (
+        error instanceof CapacityApiError &&
+        (error.code === "SCHEDULE_PREVIEW_CHANGED" ||
+          error.code === "WEEKLY_SCHEDULE_CONFLICT")
+      ) {
+        return "refresh-preview";
+      }
     } finally {
       setIsSaving(false);
     }
@@ -855,6 +901,7 @@ export default function useStaffCapacity() {
     copyWeekError,
     openCopyWeek,
     closeCopyWeek,
+    clearCopyWeekError,
     copyWeek,
   };
 }

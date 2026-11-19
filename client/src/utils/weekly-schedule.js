@@ -142,3 +142,33 @@ export function previewScheduleCopies(destination, rule) {
 
   return { weeks, total };
 }
+
+/**
+ * Returns the rounded edges of a visible seven-day calendar band.
+ *
+ * @param {string} day
+ * @param {string} weekStart
+ * @param {number} column Calendar column, Monday = 0.
+ * @param {boolean} [clipAtMonth] True when adjacent-month days are hidden.
+ */
+export function weekBandEdges(day, weekStart, column, clipAtMonth = false) {
+  const classes = [];
+  const nextDay = addCalendarDays(day, 1);
+
+  const startsVisibleMonth = clipAtMonth && day.endsWith("-01");
+  const endsVisibleMonth = clipAtMonth && nextDay.endsWith("-01");
+
+  if (day === weekStart || column === 0 || startsVisibleMonth) {
+    classes.push("copy-calendar__day--left");
+  }
+
+  if (
+    day === addCalendarDays(weekStart, 6) ||
+    column === 6 ||
+    endsVisibleMonth
+  ) {
+    classes.push("copy-calendar__day--right");
+  }
+
+  return classes.join(" ");
+}
