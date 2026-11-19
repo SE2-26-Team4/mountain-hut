@@ -89,4 +89,11 @@ CREATE INDEX idx_bookings_date_slot_status
 CREATE INDEX idx_booking_allocations_table
   ON booking_table_allocations(table_id);
 
+CREATE TABLE schedule_copy_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_start TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  weeks_json TEXT NOT NULL
+);
+
 COMMIT;

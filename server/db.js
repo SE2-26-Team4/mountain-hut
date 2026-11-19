@@ -174,18 +174,19 @@ export function withTransaction(callback) {
  * @returns {Promise<void>}
  */
 export async function initializeDatabase() {
-  await runAsync('PRAGMA foreign_keys = ON');
+  await runAsync("PRAGMA foreign_keys = ON");
 
   const expectedTables = [
-    'users',
-    'meal_slots',
-    'dining_tables',
-    'slot_tables',
-    'bookings',
-    'booking_table_allocations',
+    "users",
+    "meal_slots",
+    "dining_tables",
+    "slot_tables",
+    "bookings",
+    "booking_table_allocations",
+    "schedule_copy_history",
   ];
 
-  const placeholders = expectedTables.map(() => '?').join(', ');
+  const placeholders = expectedTables.map(() => "?").join(", ");
 
   const existingTables = await allAsync(
     `SELECT name
