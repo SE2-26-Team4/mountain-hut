@@ -186,7 +186,32 @@ async function copyWeeklySchedule(dates) {
   });
 }
 
+/**
+ * @param {string} from First destination day, inclusive.
+ * @param {string} to Last destination day, inclusive.
+ * @param {AbortSignal} [signal]
+ * @returns {Promise<{
+ *   scheduledDates: string[],
+ *   bookings: Array<{
+ *     bookingId: number,
+ *     bookingDate: string,
+ *     partySize: number,
+ *     slotDate: string,
+ *     slotName: string,
+ *     startTime: string
+ *   }>
+ * }>}
+ */
+async function getScheduleCopyPreview(from, to, signal) {
+  const query = new URLSearchParams({ from, to });
+
+  return request(`/capacity/schedule-copies/preview?${query}`, {
+    signal,
+  });
+}
+
 const CapacityAPI = {
+  getScheduleCopyPreview,
   getConfiguration,
   copyWeeklySchedule,
   createMealSlot,
