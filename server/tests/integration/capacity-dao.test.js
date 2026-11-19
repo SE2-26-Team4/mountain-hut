@@ -183,13 +183,19 @@ describe('meal-slot and dining-table data access', () => {
     }
   });
 
-  it('does not replace a destination week that contains bookings', async () => {
+  it("does not replace a destination week that contains bookings", async () => {
     const suffix = `${Date.now()}-${Math.random()}`;
+    const sourceSlot = await createMealSlot({
+      slotDate: "2098-03-02",
+      name: `Source lunch ${suffix}`,
+      startTime: "12:00",
+      endTime: "13:00",
+    });
     const destinationSlot = await createMealSlot({
-      slotDate: '2098-04-07',
+      slotDate: "2098-04-07",
       name: `Booked destination slot ${suffix}`,
-      startTime: '18:00',
-      endTime: '20:00',
+      startTime: "18:00",
+      endTime: "20:00",
     });
     const hiker = await runAsync(
       `INSERT INTO users (full_name, email, password_hash, role)
@@ -197,7 +203,7 @@ describe('meal-slot and dining-table data access', () => {
       [
         `Weekly copy hiker ${suffix}`,
         `weekly-copy-${suffix}@example.com`,
-        'test-password-hash',
+        "test-password-hash",
       ],
     );
     const booking = await runAsync(
@@ -211,36 +217,32 @@ describe('meal-slot and dining-table data access', () => {
     try {
       await expect(
         copyWeeklySchedule({
-          sourceWeekStart: '2098-03-02',
-          destinationWeekStart: '2098-04-06',
+          sourceWeekStart: "2098-03-02",
+          destinationWeekStart: "2098-04-06",
         }),
       ).rejects.toBeInstanceOf(WeeklyScheduleConflictError);
 
       const unchanged = await getMealSlots();
-      expect(
-        unchanged.some((slot) => slot.id === destinationSlot.id),
-      ).toBe(true);
+      expect(unchanged.some((slot) => slot.id === destinationSlot.id)).toBe(
+        true,
+      );
     } finally {
       await runAsync(
-        'DELETE FROM booking_table_allocations WHERE booking_id = ?',
+        "DELETE FROM booking_table_allocations WHERE booking_id = ?",
         [booking.lastID],
       );
-      await runAsync(
-        'DELETE FROM bookings WHERE id = ?',
-        [booking.lastID],
-      );
-      await runAsync(
-        'DELETE FROM slot_tables WHERE slot_id = ?',
-        [destinationSlot.id],
-      );
-      await runAsync(
-        'DELETE FROM meal_slots WHERE id = ?',
-        [destinationSlot.id],
-      );
-      await runAsync(
-        'DELETE FROM users WHERE id = ?',
-        [hiker.lastID],
-      );
+      await runAsync("DELETE FROM bookings WHERE id = ?", [booking.lastID]);
+
+      await runAsync("DELETE FROM slot_tables WHERE slot_id IN (?, ?)", [
+        destinationSlot.id,
+        sourceSlot.id,
+      ]);
+      await runAsync("DELETE FROM meal_slots WHERE id IN (?, ?)", [
+        destinationSlot.id,
+        sourceSlot.id,
+      ]);
+
+      await runAsync("DELETE FROM users WHERE id = ?", [hiker.lastID]);
     }
   });
 

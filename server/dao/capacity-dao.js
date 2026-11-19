@@ -651,6 +651,12 @@ export async function copyWeeklySchedule({
       [sourceWeekStart, sourceWeekEnd],
     );
 
+    if (sourceSlots.length === 0) {
+      const error = new CapacityConflictError();
+      error.message = "The source week has no time slots to copy.";
+      throw error;
+    }
+
     const destinationSlots = await allAsync(
       `SELECT id
        FROM meal_slots

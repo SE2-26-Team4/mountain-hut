@@ -163,20 +163,49 @@ afterAll(async () => {
 });
 
 describe("meal-slot and capacity API", () => {
-  it('copies a weekly schedule through the staff API', async () => {
+  it("rejects an empty source week and preserves the destination and copy history", async () => {
+    const destinationSlot = await createMealSlot({
+      slotDate: "2097-02-04",
+      name: `Existing lunch ${uniqueSuffix}`,
+      startTime: "12:00",
+      endTime: "13:00",
+    });
+
+    createdSlotIds.push(destinationSlot.id);
+    await setMealSlotTables(destinationSlot.id, [tableId]);
+
+    const historyBefore = await CapacityDAO.getScheduleCopyHistory();
+
     const response = await employeeAgent
-      .post('/api/capacity/meal-slots/copy-week')
+      .post("/api/capacity/meal-slots/copy-week")
       .send({
-        sourceWeekStart: '2097-01-05',
-        destinationWeekStart: '2097-02-02',
+        sourceWeekStart: "2097-01-05",
+        destinationWeekStart: "2097-02-02",
       });
 
-    expect(response.status).toBe(201);
-    expect(response.body).toMatchObject({
-      sourceWeekStart: '2097-01-05',
-      destinationWeekStart: '2097-02-02',
-      mealSlots: [],
+    expect(response.status).toBe(409);
+    expect(response.body.error).toMatchObject({
+      code: "CAPACITY_CONFLICT",
+      message: "The source week has no time slots to copy.",
     });
+
+    const configuration = await employeeAgent.get("/api/capacity");
+    expect(configuration.status).toBe(200);
+    expect(configuration.body.mealSlots).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: destinationSlot.id,
+          slotDate: destinationSlot.slotDate,
+          name: destinationSlot.name,
+          startTime: "12:00",
+          endTime: "13:00",
+        }),
+      ]),
+    );
+
+    const capacity = await CapacityDAO.getMealSlotCapacity(destinationSlot.id);
+    expect(capacity.tables.map((table) => table.id)).toContain(tableId);
+    expect(await CapacityDAO.getScheduleCopyHistory()).toEqual(historyBefore);
   });
 
   it("copies a non-empty weekly schedule through the staff API", async () => {
