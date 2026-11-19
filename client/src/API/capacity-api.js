@@ -20,20 +20,23 @@
  * @property {DiningTableDTO[]} diningTables
  */
 
-const API_URL = (
-  import.meta.env.VITE_API_BASE_URL ?? '/api'
-).replace(/\/$/, '');
+const API_URL = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(
+  /\/$/,
+  "",
+);
 
 class CapacityApiError extends Error {
   /**
    * @param {string} message
    * @param {number} status
+   * @param {string} [code]
    */
-  constructor(message, status) {
+  constructor(message, status, code) {
     super(message);
 
-    this.name = 'CapacityApiError';
+    this.name = "CapacityApiError";
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -47,22 +50,21 @@ class CapacityApiError extends Error {
 async function request(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
-    credentials: 'include',
+    credentials: "include",
     headers: {
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
       ...options.headers,
     },
   });
 
   const data =
-    response.status === 204
-      ? null
-      : await response.json().catch(() => null);
+    response.status === 204 ? null : await response.json().catch(() => null);
 
   if (!response.ok) {
     throw new CapacityApiError(
-      data?.error?.message ?? 'The capacity request could not be completed.',
+      data?.error?.message ?? "The capacity request could not be completed.",
       response.status,
+      data?.error?.code,
     );
   }
 
