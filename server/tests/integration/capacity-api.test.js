@@ -395,36 +395,36 @@ describe("meal-slot and capacity API", () => {
     );
   });
 
-  it('rejects an invalid destination week through the staff API', async () => {
+  it("rejects an invalid destination week through the staff API", async () => {
     const response = await employeeAgent
-      .post('/api/capacity/meal-slots/copy-week')
+      .post("/api/capacity/meal-slots/copy-week")
       .send({
-        sourceWeekStart: '2097-01-05',
-        destinationWeekStart: '2097-02-30',
+        sourceWeekStart: "2097-01-05",
+        destinationWeekStart: "2097-02-30",
       });
 
     expect(response.status).toBe(400);
     expect(response.body.error.message).toBe(
-      'A valid destination week start date in YYYY-MM-DD format is required.',
+      "A valid destination week start date in YYYY-MM-DD format is required.",
     );
   });
 
-  it('reports a destination schedule conflict', async () => {
-    vi.spyOn(CapacityDAO, 'copyWeeklySchedule').mockRejectedValueOnce(
+  it("reports a destination schedule conflict", async () => {
+    vi.spyOn(CapacityDAO, "copyWeeklySchedule").mockRejectedValueOnce(
       new WeeklyScheduleConflictError(),
     );
 
     const response = await employeeAgent
-      .post('/api/capacity/meal-slots/copy-week')
+      .post("/api/capacity/meal-slots/copy-week")
       .send({
-        sourceWeekStart: '2097-03-03',
-        destinationWeekStart: '2097-04-07',
+        sourceWeekStart: "2097-03-03",
+        destinationWeekStart: "2097-04-07",
       });
 
     expect(response.status).toBe(409);
     expect(response.body.error).toEqual({
-      code: 'WEEKLY_SCHEDULE_CONFLICT',
-      message: 'The destination week contains bookings and cannot be replaced.',
+      code: "WEEKLY_SCHEDULE_CONFLICT",
+      message: "The destination week contains bookings and cannot be replaced.",
     });
   });
 
@@ -919,7 +919,7 @@ describe("capacity API edge cases", () => {
 
   // Unexpected database errors must not expose private details to clients.
   it("returns a generic 500 response when a database read fails", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => { });
+    vi.spyOn(console, "error").mockImplementation(() => {});
 
     vi.spyOn(CapacityDAO, "getMealSlots").mockRejectedValueOnce(
       new Error("Private database detail"),
@@ -940,7 +940,7 @@ describe("capacity API edge cases", () => {
   it.each([new Error("Database failure"), "Unexpected rejection"])(
     "forwards unexpected assignment failures to the error handler: %s",
     async (failure) => {
-      vi.spyOn(console, "error").mockImplementation(() => { });
+      vi.spyOn(console, "error").mockImplementation(() => {});
 
       vi.spyOn(CapacityDAO, "setMealSlotTables").mockRejectedValueOnce(failure);
 

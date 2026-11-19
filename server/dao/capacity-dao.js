@@ -1,4 +1,4 @@
-import { withTransaction } from '../db.js';
+import { withTransaction } from "../db.js";
 
 /**
  * API data types used to configure meal slots and dining tables.
@@ -31,10 +31,10 @@ export class DiningTablesNotFoundError extends Error {
    * @param {number[]} missingTableIds
    */
   constructor(missingTableIds) {
-    super('One or more dining tables were not found.');
+    super("One or more dining tables were not found.");
 
-    this.name = 'DiningTablesNotFoundError';
-    this.code = 'DINING_TABLES_NOT_FOUND';
+    this.name = "DiningTablesNotFoundError";
+    this.code = "DINING_TABLES_NOT_FOUND";
     this.missingTableIds = missingTableIds;
   }
 }
@@ -50,8 +50,8 @@ export class DuplicateNameError extends Error {
   constructor(entity, name) {
     super(`A ${entity} named "${name}" already exists.`);
 
-    this.name = 'DuplicateNameError';
-    this.code = 'DUPLICATE_NAME';
+    this.name = "DuplicateNameError";
+    this.code = "DUPLICATE_NAME";
   }
 }
 
@@ -60,12 +60,10 @@ export class DuplicateNameError extends Error {
  */
 export class CapacityConflictError extends Error {
   constructor() {
-    super(
-      'This change conflicts with existing confirmed bookings.'
-    );
+    super("This change conflicts with existing confirmed bookings.");
 
-    this.name = 'CapacityConflictError';
-    this.code = 'CAPACITY_CONFLICT';
+    this.name = "CapacityConflictError";
+    this.code = "CAPACITY_CONFLICT";
   }
 }
 
@@ -79,11 +77,11 @@ export class TableSlotConflictError extends Error {
    */
   constructor(tableName, slotName) {
     super(
-      `Table "${tableName}" is already assigned to the active slot "${slotName}" with overlapping times.`
+      `Table "${tableName}" is already assigned to the active slot "${slotName}" with overlapping times.`,
     );
 
-    this.name = 'TableSlotConflictError';
-    this.code = 'TABLE_SLOT_CONFLICT';
+    this.name = "TableSlotConflictError";
+    this.code = "TABLE_SLOT_CONFLICT";
   }
 }
 
@@ -93,11 +91,11 @@ export class TableSlotConflictError extends Error {
 export class DuplicateMealSlotError extends Error {
   constructor() {
     super(
-      'A meal slot with the same date, name, start time and end time already exists.'
+      "A meal slot with the same date, name, start time and end time already exists.",
     );
 
-    this.name = 'DuplicateMealSlotError';
-    this.code = 'DUPLICATE_MEAL_SLOT';
+    this.name = "DuplicateMealSlotError";
+    this.code = "DUPLICATE_MEAL_SLOT";
   }
 }
 
@@ -107,12 +105,10 @@ export class DuplicateMealSlotError extends Error {
  */
 export class WeeklyScheduleConflictError extends Error {
   constructor() {
-    super(
-      'The destination week contains bookings and cannot be replaced.',
-    );
+    super("The destination week contains bookings and cannot be replaced.");
 
-    this.name = 'WeeklyScheduleConflictError';
-    this.code = 'WEEKLY_SCHEDULE_CONFLICT';
+    this.name = "WeeklyScheduleConflictError";
+    this.code = "WEEKLY_SCHEDULE_CONFLICT";
   }
 }
 
@@ -182,17 +178,14 @@ function normalizeDiningTable(table) {
  * @param {TransactionQueries} queries
  * @returns {Promise<MealSlotCapacityDTO | null>}
  */
-async function readMealSlotCapacity(
-  slotId,
-  { getAsync, allAsync }
-) {
+async function readMealSlotCapacity(slotId, { getAsync, allAsync }) {
   // Retrieve the slot's identity before loading its assigned tables.
   /** @type {{ slotId: number, slotName: string } | undefined} */
   const slot = await getAsync(
     `SELECT id AS slotId, name AS slotName
      FROM meal_slots
      WHERE id = ?`,
-    [slotId]
+    [slotId],
   );
 
   if (!slot) return null;
@@ -209,22 +202,19 @@ async function readMealSlotCapacity(
      JOIN dining_tables AS t ON t.id = st.table_id
      WHERE st.slot_id = ?
      ORDER BY t.name, t.id`,
-    [slotId]
+    [slotId],
   );
 
   // Convert database active flags to the boolean values expected by the API.
-  const normalizedTables = tables.map(
-    (table) => normalizeDiningTable(table)
-  );
+  const normalizedTables = tables.map((table) => normalizeDiningTable(table));
 
   // Return every assigned table, but count seats only from active tables.
   return {
     ...slot,
     tables: normalizedTables,
     totalSeatCapacity: normalizedTables.reduce(
-      (total, table) =>
-        total + (table.isActive ? table.seatCount : 0),
-      0
+      (total, table) => total + (table.isActive ? table.seatCount : 0),
+      0,
     ),
   };
 }
@@ -247,14 +237,11 @@ async function assertNameAvailable(getAsync, tableName, name, excludedId) {
      FROM ${tableName}
      WHERE name = ? COLLATE NOCASE
        AND id <> ?`,
-    [name, excludedId ?? 0]
+    [name, excludedId ?? 0],
   );
 
   if (existing) {
-    throw new DuplicateNameError(
-      'dining table',
-      name
-    );
+    throw new DuplicateNameError("dining table", name);
   }
 }
 
@@ -262,18 +249,17 @@ async function assertNameAvailable(getAsync, tableName, name, excludedId) {
  * Returns today's calendar date in the hut's time zone.
  */
 function getTodayInHutTimeZone() {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/Rome',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Rome",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).formatToParts(new Date());
 
   /** @param {Intl.DateTimeFormatPartTypes} type */
-  const value = (type) =>
-    parts.find((part) => part.type === type)?.value;
+  const value = (type) => parts.find((part) => part.type === type)?.value;
 
-  return `${value('year')}-${value('month')}-${value('day')}`;
+  return `${value("year")}-${value("month")}-${value("day")}`;
 }
 
 /**
@@ -300,7 +286,7 @@ async function assertNoTableSlotOverlap(
   if (tableIds.length === 0) return;
 
   // Bind one SQL parameter for each table being checked.
-  const placeholders = tableIds.map(() => '?').join(', ');
+  const placeholders = tableIds.map(() => "?").join(", ");
 
   // Strict time comparisons allow one slot to start when another ends.
   const conflict = await getAsync(
@@ -318,15 +304,12 @@ async function assertNoTableSlotOverlap(
        AND s.end_time > ?
      ORDER BY s.start_time, s.id, t.id
      LIMIT 1`,
-    [...tableIds, slotId, slotDate, endTime, startTime]
+    [...tableIds, slotId, slotDate, endTime, startTime],
   );
 
   // Report the first conflicting table and slot.
   if (conflict) {
-    throw new TableSlotConflictError(
-      conflict.tableName,
-      conflict.slotName,
-    );
+    throw new TableSlotConflictError(conflict.tableName, conflict.slotName);
   }
 }
 
@@ -359,7 +342,7 @@ async function assertMealSlotAvailable(
        AND start_time = ?
        AND end_time = ?
        AND id <> ?`,
-    [slotDate, name, startTime, endTime, excludedId ?? 0]
+    [slotDate, name, startTime, endTime, excludedId ?? 0],
   );
 
   if (existing) {
@@ -399,13 +382,7 @@ export async function createMealSlot({
 }) {
   // Keep the duplicate check and insertion in the same transaction.
   return withTransaction(async ({ runAsync, getAsync }) => {
-    await assertMealSlotAvailable(
-      getAsync,
-      slotDate,
-      name,
-      startTime,
-      endTime,
-    );
+    await assertMealSlotAvailable(getAsync, slotDate, name, startTime, endTime);
 
     // Store boolean active status as a SQLite integer.
     const result = await runAsync(
@@ -413,7 +390,7 @@ export async function createMealSlot({
         slot_date, name, start_time, end_time, is_active
       )
       VALUES (?, ?, ?, ?, ?)`,
-      [slotDate, name, startTime, endTime, isActive ? 1 : 0]
+      [slotDate, name, startTime, endTime, isActive ? 1 : 0],
     );
 
     // Read the inserted record using API property names.
@@ -428,7 +405,7 @@ export async function createMealSlot({
          is_active AS isActive
        FROM meal_slots
        WHERE id = ?`,
-      [result.lastID]
+      [result.lastID],
     );
 
     return normalizeMealSlot(slot);
@@ -442,20 +419,16 @@ export async function createMealSlot({
  * @returns {Promise<DiningTableDTO | null>}
  * @throws {DuplicateNameError} If another dining table uses the name.
  */
-export async function createDiningTable({
-  name,
-  seatCount,
-  isActive = true,
-}) {
+export async function createDiningTable({ name, seatCount, isActive = true }) {
   return withTransaction(async ({ runAsync, getAsync }) => {
     // Prevent case-insensitive duplicate table names.
-    await assertNameAvailable(getAsync, 'dining_tables', name);
+    await assertNameAvailable(getAsync, "dining_tables", name);
 
     // Save the table independently of any meal-slot assignment.
     const result = await runAsync(
       `INSERT INTO dining_tables (name, seat_count, is_active)
        VALUES (?, ?, ?)`,
-      [name, seatCount, isActive ? 1 : 0]
+      [name, seatCount, isActive ? 1 : 0],
     );
 
     // Read and normalize the newly created table.
@@ -468,7 +441,7 @@ export async function createDiningTable({
          is_active AS isActive
        FROM dining_tables
        WHERE id = ?`,
-      [result.lastID]
+      [result.lastID],
     );
 
     return normalizeDiningTable(table);
@@ -495,7 +468,7 @@ export async function getMealSlots() {
          end_time AS endTime,
          is_active AS isActive
        FROM meal_slots
-       ORDER BY start_time, id`
+       ORDER BY start_time, id`,
     );
 
     return slots.map((slot) => normalizeMealSlot(slot));
@@ -518,7 +491,7 @@ export async function getDiningTables() {
          seat_count AS seatCount,
          is_active AS isActive
        FROM dining_tables
-       ORDER BY name, id`
+       ORDER BY name, id`,
     );
 
     return tables.map((table) => normalizeDiningTable(table));
@@ -534,9 +507,7 @@ export async function getDiningTables() {
  */
 export async function getMealSlotCapacity(slotId) {
   // Open a transaction and delegate the capacity calculation to the helper.
-  return withTransaction((queries) =>
-    readMealSlotCapacity(slotId, queries)
-  );
+  return withTransaction((queries) => readMealSlotCapacity(slotId, queries));
 }
 
 /**
@@ -924,14 +895,10 @@ async function copyWeekWithinTransaction(
  */
 export async function updateMealSlot(
   slotId,
-  { slotDate, name, startTime, endTime, isActive }
+  { slotDate, name, startTime, endTime, isActive },
 ) {
   // Validate booking safety and save the update atomically.
-  return withTransaction(async ({
-    runAsync,
-    getAsync,
-    allAsync,
-  }) => {
+  return withTransaction(async ({ runAsync, getAsync, allAsync }) => {
     // Load the existing values to determine which fields are changing.
     const existingSlot = await getAsync(
       `SELECT
@@ -942,7 +909,7 @@ export async function updateMealSlot(
         is_active AS isActive
       FROM meal_slots
       WHERE id = ?`,
-      [slotId]
+      [slotId],
     );
 
     if (!existingSlot) return null;
@@ -957,7 +924,7 @@ export async function updateMealSlot(
         WHERE slot_id = ?
           AND status = 'confirmed'
         LIMIT 1`,
-        [slotId]
+        [slotId],
       );
 
       if (confirmedBooking) {
@@ -967,11 +934,9 @@ export async function updateMealSlot(
 
     // Detect changes that could disrupt current or future reservations.
     const timesChanged =
-      existingSlot.startTime !== startTime ||
-      existingSlot.endTime !== endTime;
+      existingSlot.startTime !== startTime || existingSlot.endTime !== endTime;
 
-    const isBeingDeactivated =
-      Boolean(existingSlot.isActive) && !isActive;
+    const isBeingDeactivated = Boolean(existingSlot.isActive) && !isActive;
 
     // Protect confirmed bookings dated today or later.
     if (timesChanged || isBeingDeactivated) {
@@ -982,7 +947,7 @@ export async function updateMealSlot(
           AND status = 'confirmed'
           AND booking_date >= ?
         LIMIT 1`,
-        [slotId, getTodayInHutTimeZone()]
+        [slotId, getTodayInHutTimeZone()],
       );
 
       if (confirmedBooking) {
@@ -1007,7 +972,7 @@ export async function updateMealSlot(
         `SELECT table_id AS tableId
         FROM slot_tables
         WHERE slot_id = ?`,
-        [slotId]
+        [slotId],
       );
 
       await assertNoTableSlotOverlap(
@@ -1029,7 +994,7 @@ export async function updateMealSlot(
           end_time = ?,
           is_active = ?
       WHERE id = ?`,
-      [slotDate, name, startTime, endTime, isActive ? 1 : 0, slotId]
+      [slotDate, name, startTime, endTime, isActive ? 1 : 0, slotId],
     );
 
     // Return the updated record with a boolean active flag.
@@ -1044,7 +1009,7 @@ export async function updateMealSlot(
          is_active AS isActive
        FROM meal_slots
        WHERE id = ?`,
-      [slotId]
+      [slotId],
     );
 
     return normalizeMealSlot(slot);
@@ -1062,19 +1027,19 @@ export async function updateMealSlot(
  */
 export async function updateDiningTable(
   tableId,
-  { name, seatCount, isActive }
+  { name, seatCount, isActive },
 ) {
   return withTransaction(async ({ runAsync, getAsync }) => {
     // Report a missing table before checking for a name conflict.
     const existingTable = await getAsync(
-      'SELECT id FROM dining_tables WHERE id = ?',
-      [tableId]
+      "SELECT id FROM dining_tables WHERE id = ?",
+      [tableId],
     );
 
     if (!existingTable) return null;
 
     // Allow the table to retain its own name.
-    await assertNameAvailable(getAsync, 'dining_tables', name, tableId);
+    await assertNameAvailable(getAsync, "dining_tables", name, tableId);
 
     // Reject capacity reductions below the seats already reserved per slot.
     // Deactivation is checked as a proposed capacity of zero.
@@ -1088,11 +1053,7 @@ export async function updateDiningTable(
       GROUP BY b.booking_date, b.slot_id
       HAVING SUM(a.seats_reserved) > ?
       LIMIT 1`,
-      [
-        tableId,
-        getTodayInHutTimeZone(),
-        isActive ? seatCount : 0,
-      ]
+      [tableId, getTodayInHutTimeZone(), isActive ? seatCount : 0],
     );
 
     if (conflict) {
@@ -1106,7 +1067,7 @@ export async function updateDiningTable(
            seat_count = ?,
            is_active = ?
        WHERE id = ?`,
-      [name, seatCount, isActive ? 1 : 0, tableId]
+      [name, seatCount, isActive ? 1 : 0, tableId],
     );
 
     // Retrieve and normalize the saved table.
@@ -1119,7 +1080,7 @@ export async function updateDiningTable(
          is_active AS isActive
        FROM dining_tables
        WHERE id = ?`,
-      [tableId]
+      [tableId],
     );
 
     return normalizeDiningTable(table);
@@ -1144,7 +1105,7 @@ export async function setMealSlotTables(slotId, tableIds) {
     !Array.isArray(tableIds) ||
     !tableIds.every((tableId) => Number.isInteger(tableId))
   ) {
-    throw new TypeError('Table IDs must be provided as an array of integers.');
+    throw new TypeError("Table IDs must be provided as an array of integers.");
   }
 
   // Store each table assignment only once.
@@ -1164,30 +1125,28 @@ export async function setMealSlotTables(slotId, tableIds) {
         is_active AS isActive
       FROM meal_slots
       WHERE id = ?`,
-      [slotId]
+      [slotId],
     );
 
     if (!slot) return null;
 
     // Validate every requested table before changing existing assignments.
     if (uniqueTableIds.length > 0) {
-      const placeholders = uniqueTableIds.map(() => '?').join(', ');
+      const placeholders = uniqueTableIds.map(() => "?").join(", ");
 
       /** @type {{ id: number }[]} */
       const existingTables = await allAsync(
         `SELECT id
          FROM dining_tables
          WHERE id IN (${placeholders})`,
-        uniqueTableIds
+        uniqueTableIds,
       );
 
-      const existingTableIds = new Set(
-        existingTables.map((table) => table.id)
-      );
+      const existingTableIds = new Set(existingTables.map((table) => table.id));
 
       // Identify requested IDs that are missing from the database.
       const missingTableIds = uniqueTableIds.filter(
-        (tableId) => !existingTableIds.has(tableId)
+        (tableId) => !existingTableIds.has(tableId),
       );
 
       if (missingTableIds.length > 0) {
@@ -1209,11 +1168,10 @@ export async function setMealSlotTables(slotId, tableIds) {
 
     // Restrict the booking check to tables that would be removed.
     // With an empty selection, every existing allocation is checked.
-    const retainedClause = uniqueTableIds.length > 0
-      ? `AND a.table_id NOT IN (${
-          uniqueTableIds.map(() => '?').join(', ')
-        })`
-      : '';
+    const retainedClause =
+      uniqueTableIds.length > 0
+        ? `AND a.table_id NOT IN (${uniqueTableIds.map(() => "?").join(", ")})`
+        : "";
 
     // Prevent removing tables used by confirmed bookings dated today or later.
     const conflict = await getAsync(
@@ -1225,11 +1183,7 @@ export async function setMealSlotTables(slotId, tableIds) {
         AND b.booking_date >= ?
         ${retainedClause}
       LIMIT 1`,
-      [
-        slotId,
-        getTodayInHutTimeZone(),
-        ...uniqueTableIds,
-      ]
+      [slotId, getTodayInHutTimeZone(), ...uniqueTableIds],
     );
 
     if (conflict) {
@@ -1237,16 +1191,13 @@ export async function setMealSlotTables(slotId, tableIds) {
     }
 
     // Replace the previous assignment with the complete requested set.
-    await runAsync(
-      'DELETE FROM slot_tables WHERE slot_id = ?',
-      [slotId]
-    );
+    await runAsync("DELETE FROM slot_tables WHERE slot_id = ?", [slotId]);
 
     for (const tableId of uniqueTableIds) {
       await runAsync(
         `INSERT INTO slot_tables (slot_id, table_id)
          VALUES (?, ?)`,
-        [slotId, tableId]
+        [slotId, tableId],
       );
     }
 
