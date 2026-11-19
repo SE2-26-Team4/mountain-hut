@@ -989,3 +989,16 @@ describe("capacity API name conflicts", () => {
     expect(response.body.error.code).toBe("NOT_FOUND");
   });
 });
+
+describe("MH-09 weekly copy requests", () => {
+  const first = "2095-03-01";
+  const second = "2095-03-08";
+
+  it("rejects a reversed preview range", async () => {
+    const result = await employeeAgent
+      .get("/api/capacity/schedule-copies/preview")
+      .query({ from: second, to: first });
+
+    expect(result.status).toBe(400);
+  });
+});
