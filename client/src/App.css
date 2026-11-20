@@ -170,20 +170,32 @@
   stroke-width: var(--mh-svg-stroke-width);
 }
 
+.mh-auth-input-icon > .bi {
+  font-size: var(--mh-glass-icon-size);
+  line-height: 1;
+}
+
 .mh-auth-input-wrapper > .mh-auth-password-toggle {
   position: absolute;
-  top: 50%;
-  right: var(--mh-glass-toggle-right);
+  inset-block: var(--mh-border-width);
+  inset-inline-end: var(--mh-border-width);
   z-index: var(--mh-auth-toggle-layer);
-  width: auto;
-  height: auto;
+  display: grid;
+  place-items: center;
+  width: var(--mh-glass-input-height);
   padding: 0;
-  transform: var(--mh-center-y-transform);
   border: 0;
+  border-inline-start: var(--mh-border-width) solid var(--mh-glass-input-border);
+  border-start-end-radius: var(--mh-glass-input-radius);
+  border-end-end-radius: var(--mh-glass-input-radius);
   background: transparent;
   color: var(--mh-glass-text);
-  font-size: var(--mh-text-sm);
   cursor: pointer;
+}
+
+.mh-auth-input-wrapper > .mh-auth-password-toggle:focus-visible {
+  outline: var(--mh-border-width-accent) solid currentColor;
+  outline-offset: calc(-1 * var(--mh-border-width-accent));
 }
 
 .mh-auth-password-toggle .bi {
@@ -514,6 +526,30 @@
     right: var(--mh-cap-size-12);
     background: var(--mh-cream);
     color: var(--mh-navy);
+  }
+}
+
+.mh-login-dialog--signup .mh-login-dialog-caption {
+  padding-inline: var(--mh-cap-size-24);
+}
+
+@media (min-width: 768px) {
+  .mh-login-dialog--signup .mh-login-dialog-visual {
+    flex: 0 0 var(--mh-signup-visual-width);
+    max-width: var(--mh-signup-visual-width);
+  }
+
+  .mh-login-dialog--signup .mh-login-dialog-form {
+    flex: 0 0 var(--mh-signup-form-width);
+    max-width: var(--mh-signup-form-width);
+    padding: var(--mh-cap-size-64) var(--mh-cap-size-36) var(--mh-cap-size-24);
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 767px) {
+  .mh-login-dialog--signup .mh-login-dialog-visual {
+    display: none;
   }
 }
 
@@ -4766,4 +4802,33 @@ button.copy-calendar__day:focus-visible,
 .copy-history__card:focus-visible {
   outline: var(--mh-border-width-accent) solid var(--mh-navy);
   outline-offset: var(--mh-border-width);
+}
+
+/* ==========================================================================
+   SignUpForm — components/auth/SignUpForm.jsx
+   ========================================================================== */
+
+@media (min-width: 768px) {
+  .mh-signup-name-column {
+    margin-inline-end: 50%;
+  }
+}
+
+.mh-signup-input {
+  position: relative;
+}
+
+.mh-signup-input > .form-control {
+  padding-inline-start: var(--mh-glass-input-padding-left);
+}
+
+.mh-signup-input__icon {
+  position: absolute;
+  inset-inline-start: var(--mh-glass-icon-left);
+  top: 50%;
+  transform: var(--mh-center-y-transform);
+  font-size: var(--mh-glass-icon-size);
+  line-height: 1;
+  color: var(--mh-glass-text);
+  pointer-events: none;
 }

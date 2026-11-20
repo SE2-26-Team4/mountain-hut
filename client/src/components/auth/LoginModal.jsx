@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { Col, Row } from 'react-bootstrap';
+import { useState } from "react";
+import { Col, Row } from "react-bootstrap";
 
-import ForgotPasswordForm from './ForgotPasswordForm.jsx';
-import LoginForm from './LoginForm.jsx';
+import ForgotPasswordForm from "./ForgotPasswordForm.jsx";
+import LoginForm from "./LoginForm.jsx";
+import SignUpForm from "./SignUpForm.jsx";
 
 /**
  * @typedef {import('../../API/session-api.js').LoginCredentials} LoginCredentials
@@ -15,7 +16,7 @@ import LoginForm from './LoginForm.jsx';
  * @param {string} props.feedbackMessage
  * @param {(credentials: LoginCredentials) => Promise<boolean>} props.onLogin
  * @param {() => void} props.onClose
- * @param {'login' | 'forgot-password'} [props.initialView]
+ * @param {'login' | 'forgot-password' | 'sign-up'} [props.initialView]
  */
 function LoginModal({
   isSubmitting,
@@ -23,9 +24,17 @@ function LoginModal({
   feedbackMessage,
   onLogin,
   onClose,
-  initialView = 'login',
+  initialView = "login",
 }) {
   const [view, setView] = useState(initialView);
+  const [registeredEmail, setRegisteredEmail] = useState("");
+  const [showRegistrationSuccess, setShowRegistrationSuccess] = useState(false);
+
+  const dialogLabels = {
+    login: "Sign in to Mountain Hut",
+    "forgot-password": "Reset your Mountain Hut password",
+    "sign-up": "Create your Mountain Hut account",
+  };
 
   return (
     <div
@@ -37,30 +46,26 @@ function LoginModal({
       }}
     >
       <section
-        className="mh-login-dialog"
+        className={
+          view === "sign-up"
+            ? "mh-login-dialog mh-login-dialog--signup"
+            : "mh-login-dialog"
+        }
         role="dialog"
         aria-modal="true"
-        aria-label={
-          view === 'login'
-            ? 'Sign in to Mountain Hut'
-            : 'Reset your Mountain Hut password'
-        }
+        aria-label={dialogLabels[view]}
       >
         <button
           className="mh-login-close"
           type="button"
-          aria-label="Close sign-in"
+          aria-label="Close dialog"
           onClick={onClose}
         >
           <i className="bi bi-x-lg" aria-hidden="true" />
         </button>
 
         <Row className="g-0 mh-login-dialog-row">
-          <Col
-            xs={12}
-            md={7}
-            className="mh-login-dialog-visual"
-          >
+          <Col xs={12} md={7} className="mh-login-dialog-visual">
             <img
               src="/images/login-hero.png"
               alt="Mountain hut overlooking the Alps at sunset"
@@ -74,14 +79,12 @@ function LoginModal({
                   higher horizons.
                 </h2>
 
-                <span
-                  className="mh-login-dialog-rule"
-                  aria-hidden="true"
-                />
+                <span className="mh-login-dialog-rule" aria-hidden="true" />
 
                 <p className="mh-login-dialog-tagline text-white">
-                  Sign in to check your reservations
-                  and enjoy a unique alpine experience.
+                  {view === "sign-up"
+                    ? "Create an account to book a table at the hut."
+                    : "Sign in to check your reservations and enjoy a unique alpine experience."}
                 </p>
               </div>
             </div>
@@ -90,21 +93,52 @@ function LoginModal({
           <Col
             xs={12}
             md={5}
-            className="mh-login-dialog-form d-flex align-items-center"
+            className={
+              view === "sign-up"
+                ? "mh-login-dialog-form"
+                : "mh-login-dialog-form d-flex align-items-center"
+            }
           >
-            <div className="w-100">
-              {view === 'login' ? (
-                <LoginForm
-                  isSubmitting={isSubmitting}
-                  errorMessage={errorMessage}
-                  feedbackMessage={feedbackMessage}
-                  onLogin={onLogin}
-                  onForgotPassword={() => setView('forgot-password')}
-                />
-              ) : (
-                <ForgotPasswordForm onBack={() => setView('login')} />
-              )}
-            </div>
+            {view === "login" && (
+              <LoginForm
+                isSubmitting={isSubmitting}
+                errorMessage={showRegistrationSuccess ? "" : errorMessage}
+                feedbackMessage={feedbackMessage}
+                initialEmail={registeredEmail}
+                registrationMessage={
+                  showRegistrationSuccess
+                    ? "Account created. Sign in to continue."
+                    : ""
+                }
+                onLogin={(credentials) => {
+                  setShowRegistrationSuccess(false);
+                  return onLogin(credentials);
+                }}
+                onForgotPassword={() => {
+                  setShowRegistrationSuccess(false);
+                  setView("forgot-password");
+                }}
+                onSignUp={() => {
+                  setShowRegistrationSuccess(false);
+                  setView("sign-up");
+                }}
+              />
+            )}
+
+            {view === "sign-up" && (
+              <SignUpForm
+                onBack={() => setView("login")}
+                onRegistered={(email) => {
+                  setRegisteredEmail(email);
+                  setShowRegistrationSuccess(true);
+                  setView("login");
+                }}
+              />
+            )}
+
+            {view === "forgot-password" && (
+              <ForgotPasswordForm onBack={() => setView("login")} />
+            )}
           </Col>
         </Row>
       </section>
