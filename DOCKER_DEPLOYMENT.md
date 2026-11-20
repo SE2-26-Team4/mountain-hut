@@ -49,6 +49,17 @@ or:
 
 If the file is saved elsewhere, use its full absolute path in the `docker run` command.
 
+If you do not have the file yet, create `mountain-hut.env` with the following content:
+
+```env
+SESSION_SECRET=change-me-to-a-long-random-secret
+SEED_DEMO_ACCOUNTS=true
+TEST_HIKER_EMAIL=hiker@example.com
+TEST_HIKER_PASSWORD=HikerTest123!
+RESEND_API_KEY=re_your_resend_api_key
+EMAIL_FROM=Mountain Hut <onboarding@resend.dev>
+```
+
 ## 3. Create a persistent database volume
 
 The following command creates a Docker volume for the SQLite database. The database is not included in the image:
@@ -200,7 +211,7 @@ Delete the database volume only when the saved database must be removed:
 docker volume rm mountain_hut_sqlite_data
 ```
 
-## Updating the image
+## 8. Updating the image
 
 Download the latest published version and recreate the container:
 
