@@ -244,7 +244,7 @@ export default function ResetPasswordPage() {
           />
 
           <Button
-            className="mh-primary-button mh-auth-submit w-100"
+            className="mh-primary-button mh-auth-submit w-100 d-flex align-items-center justify-content-center gap-2"
             type="submit"
             disabled={isSubmitting}
           >
