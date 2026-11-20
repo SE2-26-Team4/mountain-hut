@@ -1,4 +1,4 @@
-import { allAsync, getAsync, withTransaction } from '../db.js';
+import { allAsync, getAsync, withTransaction } from "../db.js";
 
 /**
  * Database account record used to verify login credentials.
@@ -150,7 +150,7 @@ export async function changeUserPassword(id, passwordHash) {
     // [REQUIREMENT] MH-07: Once the password has changed, recovering it
     // again needs a new reset link.
     await queries.runAsync(
-      'DELETE FROM password_reset_tokens WHERE user_id = ?',
+      "DELETE FROM password_reset_tokens WHERE user_id = ?",
       [id],
     );
   });

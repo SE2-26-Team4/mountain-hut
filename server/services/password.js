@@ -81,7 +81,7 @@ export function isAcceptableNewPassword(newPassword, confirmPassword) {
  * @returns {string}
  */
 export function generateResetToken() {
-  return randomBytes(32).toString('base64url');
+  return randomBytes(32).toString("base64url");
 }
 
 /**
@@ -92,7 +92,7 @@ export function generateResetToken() {
  * @returns {string}
  */
 export function hashResetToken(token) {
-  return createHash('sha256').update(token).digest('hex');
+  return createHash("sha256").update(token).digest("hex");
 }
 
 /**
@@ -103,20 +103,20 @@ export function hashResetToken(token) {
  */
 export async function hashPassword(password) {
   // Generate a random 16-byte salt and encode it as hexadecimal text.
-  const salt = randomBytes(16).toString('hex');
+  const salt = randomBytes(16).toString("hex");
 
   // Derive a 64-byte key from the password and salt.
   const derivedKey = await scrypt(password, salt, 64);
 
   // Store the algorithm, salt, and derived key in a single string.
-  return `scrypt$${salt}$${derivedKey.toString('hex')}`;
+  return `scrypt$${salt}$${derivedKey.toString("hex")}`;
 }
 
 /**
  * @returns {string}
  */
 export function generateInitialPassword() {
-  return randomBytes(12).toString('base64url');
+  return randomBytes(12).toString("base64url");
 }
 
 /**
@@ -129,19 +129,19 @@ export function generateInitialPassword() {
  */
 export async function verifyPassword(password, storedHash) {
   // Extract the algorithm, salt, and hexadecimal key from the stored hash.
-  const [algorithm, salt, storedKeyHex] = storedHash.split('$');
+  const [algorithm, salt, storedKeyHex] = storedHash.split("$");
 
   // Require scrypt, a 16-byte hexadecimal salt, and a 64-byte hexadecimal key.
   if (
-    algorithm !== 'scrypt' ||
-    !/^[a-f0-9]{32}$/i.test(salt ?? '') ||
-    !/^[a-f0-9]{128}$/i.test(storedKeyHex ?? '')
+    algorithm !== "scrypt" ||
+    !/^[a-f0-9]{32}$/i.test(salt ?? "") ||
+    !/^[a-f0-9]{128}$/i.test(storedKeyHex ?? "")
   ) {
     return false;
   }
 
   // Decode the stored key and derive a key from the supplied password.
-  const storedKey = Buffer.from(storedKeyHex, 'hex');
+  const storedKey = Buffer.from(storedKeyHex, "hex");
   const derivedKey = await scrypt(password, salt, storedKey.length);
 
   // Compare equal-length keys using a timing-safe comparison.
