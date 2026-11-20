@@ -297,7 +297,8 @@ function validateBookingDetails(
     );
   }
 
-  // Validate the per-guest list while accepting existing plain-text requirements.
+  // [REQUIREMENT] MH-05: Each dietary requirement has its own description and allergy flag.
+  // Older bookings can store dietary requirements as plain text.
   if (dietaryText?.startsWith("[")) {
     let entries;
 

@@ -350,6 +350,7 @@ describe("POST /api/staff/hikers", () => {
     );
   });
 
+  // [REQUIREMENT] MH-07: Staff can register a temporary hiker without creating sign-in credentials.
   it("registers a temporary hiker without email or password", async () => {
     const response = await wardenAgent
       .post("/api/staff/hikers")
@@ -653,6 +654,7 @@ describe("POST /api/staff/bookings", () => {
     }
   });
 
+  // [REQUIREMENT] MH-05: Multiple requirements are recorded separately, and only entries involving an allergy are flagged.
   it("stores separate dietary entries and flags only the allergy in the email", async () => {
     const dietaryRequirements = JSON.stringify([
       { description: "Peanut allergy", hasAllergies: true },

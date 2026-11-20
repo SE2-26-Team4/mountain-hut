@@ -24,6 +24,7 @@ export default function BookingCard({ booking, status, onCancel, onEdit }) {
   const [checkedAt, setCheckedAt] = useState(() => Date.now());
   const [showEditReason, setShowEditReason] = useState(false);
 
+  // [REQUIREMENT] MH-06: A hiker can edit a booking up to 48 hours before the original meal starts.
   const editDeadline = Date.parse(booking.editClosesAt ?? "");
   const editClosed = checkedAt > editDeadline;
   const editReasonId = `booking-edit-reason-${booking.id}`;

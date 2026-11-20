@@ -14,7 +14,7 @@ export default function MyBookingsPage() {
   }
 
   if (!user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/?signIn=1" replace />;
   }
 
   if (user.role !== "hiker") {

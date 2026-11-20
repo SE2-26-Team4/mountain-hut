@@ -139,6 +139,7 @@ function StaffCapacityContent({ user, onLogout }) {
           {staff.isCopyWeekOpen && (
             <CopyWeekModal
               date={staff.selectedDate}
+              hasSlotsInWeek={staff.hasSlotsInWeek}
               saving={staff.isSaving}
               error={staff.copyWeekError}
               onClearError={staff.clearCopyWeekError}

@@ -1257,6 +1257,7 @@ describe("MH-09 weekly copy requests", () => {
     },
   );
 
+  // [REQUIREMENT] MH-09: Staff can repeat a source week's schedule across multiple selected weeks.
   it("copies selected non-consecutive weeks and records one operation", async () => {
     const slot = await createMealSlot({
       slotDate: source,
@@ -1284,6 +1285,7 @@ describe("MH-09 weekly copy requests", () => {
     );
   });
 
+  // [REQUIREMENT] MH-09: A destination week containing a confirmed booking cannot be replaced.
   it("rolls back selected weeks when the last one is booked", async () => {
     const sourceWeekStart = "2094-02-01";
     const destinations = ["2094-03-01", "2094-03-08"];

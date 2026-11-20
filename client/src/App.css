@@ -1311,7 +1311,7 @@ button.mh-add-dietary-requirement:focus-visible {
   white-space: nowrap;
 }
 
-.cap-primary:hover {
+.cap-primary:hover:not(:disabled) {
   background: var(--mh-copper-hover);
   color: var(--mh-white);
 }
@@ -1462,6 +1462,7 @@ button.mh-add-dietary-requirement:focus-visible {
   white-space: normal;
 }
 
+.copy-calendar .cap-primary:disabled,
 .cap-reuse-controls > .cap-primary:disabled {
   background: var(--cap-orange);
   border-color: var(--cap-orange);
@@ -4215,21 +4216,6 @@ button.cap-sidebar-toggle:focus-visible {
     width: 100%;
     margin-top: 0;
   }
-}
-
-/* ==========================================================================
-   ScheduleCopyConfirmationModal — components/capacity/ScheduleCopyConfirmationModal.jsx
-   ========================================================================== */
-
-:where(#schedule-copy-confirmation-title) {
-  padding-inline: var(--mh-cap-size-24);
-}
-
-.modal-header:has(#schedule-copy-confirmation-title) > .btn-close {
-  position: absolute;
-  top: var(--mh-cap-size-16);
-  right: var(--mh-cap-size-16);
-  margin: 0;
 }
 
 /* ==========================================================================

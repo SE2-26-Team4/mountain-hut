@@ -228,6 +228,7 @@ export function buildBookingConfirmationEmail(input) {
   // Resolve table names, falling back to IDs when names are unavailable.
   const tableNames = new Map(tables.map((table) => [table.id, table.name]));
 
+  // [REQUIREMENT] MH-03: The confirmation email lists the tables assigned to the booking and the seats reserved at each one.
   const allocations = booking.allocations.map((allocation) => {
     const tableName =
       tableNames.get(allocation.tableId) ?? `Table #${allocation.tableId}`;
