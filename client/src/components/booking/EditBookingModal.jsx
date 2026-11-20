@@ -11,6 +11,7 @@ import {
 import Alert from "../common/AutoDismissAlert.jsx";
 import BookingRequestFields from "./BookingRequestFields.jsx";
 
+// [REQUIREMENT] MH-06: A hiker can change the date, meal slot, party size or requirements of a booking.
 /**
  * @param {{
  *   booking: import("../../models/models.js").BookingDTO,
@@ -70,6 +71,25 @@ export default function EditBookingModal({ booking, onClose, onSaved }) {
   const showOriginalSlot =
     bookingDate === booking.bookingDate &&
     !availableSlots.some((slot) => slot.id === booking.slotId);
+
+  function getDateHint() {
+    if (loadingSlots || slotError) return "";
+    if (!bookingDate) return "Enter a valid booking date.";
+
+    if (!showOriginalSlot && availableSlots.length === 0) {
+      return "No meal slots are available on this date. Choose another date.";
+    }
+
+    if (!slotId) return "Select a meal slot to save your changes.";
+    return "";
+  }
+
+  const dateHint = getDateHint();
+
+  const dateNeedsCorrection =
+    !loadingSlots &&
+    !slotError &&
+    (!bookingDate || (!showOriginalSlot && availableSlots.length === 0));
 
   /** @param {import("react").SubmitEvent<HTMLFormElement>} event */
   async function handleSubmit(event) {
@@ -155,6 +175,9 @@ export default function EditBookingModal({ booking, onClose, onSaved }) {
               <Form.Control
                 type="date"
                 value={bookingDate}
+                aria-describedby={
+                  dateHint ? "edit-booking-date-hint" : undefined
+                }
                 required
                 disabled={loadingSlots || Boolean(slotError)}
                 onChange={(event) => {
@@ -165,6 +188,15 @@ export default function EditBookingModal({ booking, onClose, onSaved }) {
                   );
                 }}
               />
+              <Form.Text
+                id="edit-booking-date-hint"
+                className={
+                  dateNeedsCorrection ? "d-block text-danger" : "d-block"
+                }
+                aria-live="polite"
+              >
+                {dateHint}
+              </Form.Text>
             </Form.Group>
 
             <Form.Group controlId="edit-booking-slot" className="mb-3">
