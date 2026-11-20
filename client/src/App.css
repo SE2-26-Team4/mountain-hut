@@ -4219,21 +4219,6 @@ button.cap-sidebar-toggle:focus-visible {
 }
 
 /* ==========================================================================
-   ScheduleCopyConfirmationModal — components/capacity/ScheduleCopyConfirmationModal.jsx
-   ========================================================================== */
-
-:where(#schedule-copy-confirmation-title) {
-  padding-inline: var(--mh-cap-size-24);
-}
-
-.modal-header:has(#schedule-copy-confirmation-title) > .btn-close {
-  position: absolute;
-  top: var(--mh-cap-size-16);
-  right: var(--mh-cap-size-16);
-  margin: 0;
-}
-
-/* ==========================================================================
    StaffBookingPage — pages/StaffBookingPage.jsx
    ========================================================================== */
 
