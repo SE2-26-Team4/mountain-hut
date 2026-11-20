@@ -14,11 +14,11 @@
  */
 function escapeHtml(value) {
   return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 /**
@@ -33,38 +33,32 @@ export function buildInitialPasswordEmail({
   email,
   initialPassword,
 }) {
-  if (
-    !fullName?.trim() ||
-    !email?.trim() ||
-    !initialPassword
-  ) {
-    throw new Error(
-      'Hiker name, email, and initial password are required.',
-    );
+  if (!fullName?.trim() || !email?.trim() || !initialPassword) {
+    throw new Error("Hiker name, email, and initial password are required.");
   }
 
   const name = fullName.trim();
   const recipient = email.trim();
   const signInUrl = new URL(
-    '/?signIn=1',
-    process.env.CLIENT_ORIGIN ?? 'http://localhost:5173',
+    "/?signIn=1",
+    process.env.CLIENT_ORIGIN ?? "http://localhost:5173",
   ).toString();
 
   const text = [
     `Hello ${name},`,
-    '',
-    'A Mountain Hut account has been created for you by a staff member.',
-    '',
+    "",
+    "A Mountain Hut account has been created for you by a staff member.",
+    "",
     `Email: ${recipient}`,
     `Temporary password: ${initialPassword}`,
-    '',
+    "",
     `Sign in to Mountain Hut: ${signInUrl}`,
-    '',
-    'You must change this temporary password immediately after your first sign-in.',
-    'If you did not request this account, please contact the Mountain Hut staff.',
-    '',
-    'The Mountain Hut team',
-  ].join('\n');
+    "",
+    "You must change this temporary password immediately after your first sign-in.",
+    "If you did not request this account, please contact the Mountain Hut staff.",
+    "",
+    "The Mountain Hut team",
+  ].join("\n");
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -73,26 +67,35 @@ export function buildInitialPasswordEmail({
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Your Mountain Hut account</title>
 </head>
-<body style="margin:0;padding:0;background:#f3f1ec;color:#172c38;font-family:Arial,Helvetica,sans-serif;">
+<body style="margin:0;padding:0;background-color:#f7f8fa;color:#172c38;font-family:Arial,Helvetica,sans-serif;">
   <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">
     Your Mountain Hut account is ready. Sign in with your temporary password.
   </div>
 
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+    bgcolor="#f7f8fa" style="width:100%;background-color:#f7f8fa;">
     <tr>
-      <td align="center" style="padding:32px 12px;">
+      <td align="center" bgcolor="#f7f8fa"
+        style="padding:32px 12px;background-color:#f7f8fa;">
         <table role="presentation" width="600" cellpadding="0" cellspacing="0"
           style="width:100%;max-width:600px;border-spacing:0;">
           <tr>
-            <td bgcolor="#102b3a"
-              style="padding:30px 28px 32px;border-radius:20px 20px 0 0;background:#102b3a;">
-              <p style="margin:0 0 22px;color:#ffffff;font-size:12px;font-weight:700;letter-spacing:2px;">
+            <td align="center" bgcolor="#ffffff"
+              style="padding:28px 28px 12px;border-radius:20px 20px 0 0;background:#ffffff;text-align:center;">
+              <p style="margin:0 0 20px;color:#172c38;font-size:12px;font-weight:400;letter-spacing:3px;">
                 MOUNTAIN HUT
               </p>
-              <p style="margin:0 0 10px;color:#f49461;font-size:12px;letter-spacing:1.4px;font-weight:bold;">
-                ACCOUNT CREATED
-              </p>
-              <h1 style="margin:0;color:#ffffff;font-size:28px;line-height:1.25;font-weight:600;">
+              <table role="presentation" align="center" cellpadding="0" cellspacing="0"
+                style="margin:0 auto 16px;">
+                <tr>
+                  <td align="center" valign="middle">
+                    <img src="cid:booking-success-check"
+                      width="60" height="60" alt=""
+                      style="display:block;width:60px;height:60px;border:0;">
+                  </td>
+                </tr>
+              </table>
+              <h1 style="margin:0;color:#172c38;font-size:28px;line-height:1.25;font-weight:600;">
                 Your account is ready
               </h1>
             </td>
@@ -108,7 +111,7 @@ export function buildInitialPasswordEmail({
                 Use the credentials below to sign in.
               </p>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-                style="table-layout:fixed;background:#f5f3ef;border-radius:12px;border-spacing:0;">
+                style="table-layout:fixed;background:#ffffff;border:1px solid #dce2e7;border-radius:12px;border-spacing:0;">
                 <tr>
                   <th style="padding:14px 18px;text-align:left;vertical-align:top;width:40%;font-size:14px;font-weight:400;color:#596873;border-bottom:1px solid #e3e3de;">
                     Email
@@ -130,9 +133,9 @@ export function buildInitialPasswordEmail({
                 This temporary password can be used only to sign in initially.
                 You must choose a new password before using your account.
               </p>
-              <p style="margin:0 0 24px;">
+              <p style="margin:0 0 24px;text-align:center;">
                 <a href="${escapeHtml(signInUrl)}"
-                  style="display:inline-block;padding:13px 22px;border-radius:999px;background:#c6531b;color:#ffffff;text-decoration:none;font-weight:700;">
+                  style="display:inline-block;padding:13px 22px;border-radius:999px;background:#c6531b;color:#ffffff;text-decoration:none;font-weight:400;text-align:center;">
                   Sign in to Mountain Hut
                 </a>
               </p>
@@ -140,9 +143,15 @@ export function buildInitialPasswordEmail({
                 See you soon,<br>
                 <strong>The Mountain Hut team</strong>
               </p>
-              <img src="cid:mountain-hut-logo"
-                width="84" height="49" alt="Mountain Hut"
-                style="display:block;width:84px;height:49px;margin-top:14px;border:0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="padding-top:14px;">
+                    <img src="cid:mountain-hut-logo"
+                      width="84" height="49" alt="Mountain Hut"
+                      style="display:block;width:84px;height:49px;border:0;">
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
         </table>
@@ -157,7 +166,7 @@ export function buildInitialPasswordEmail({
 
   return {
     to: recipient,
-    subject: 'Your Mountain Hut account is ready',
+    subject: "Your Mountain Hut account is ready",
     html,
     text,
   };
