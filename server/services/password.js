@@ -3,31 +3,76 @@ import {
   randomBytes,
   scrypt as scryptCallback,
   timingSafeEqual,
-} from 'node:crypto';
-import { promisify } from 'node:util';
+} from "node:crypto";
+import { promisify } from "node:util";
 
 // Convert the callback-based scrypt function into a promise-based function.
 /** @type {(password: string, salt: string, keyLength: number) => Promise<Buffer>} */
 const scrypt = promisify(scryptCallback);
 
-export const MIN_PASSWORD_LENGTH = 8;
+export const MIN_PASSWORD_LENGTH = 15;
 export const MAX_PASSWORD_LENGTH = 128;
 
 /**
- * Checks a new password and its confirmation against the password rules
- * shared by the password change and the password reset.
+ * Returns the first field error for a new password, or null when valid.
  *
+ * @param {unknown} newPassword
+ * @param {unknown} confirmPassword
+ * @returns {{ field: "password" | "confirmPassword", code: string, message: string } | null}
+ */
+export function getNewPasswordError(newPassword, confirmPassword) {
+  if (typeof newPassword !== "string" || newPassword.length === 0) {
+    return {
+      field: "password",
+      code: "PASSWORD_REQUIRED",
+      message: "Enter a password.",
+    };
+  }
+
+  const length = Array.from(newPassword).length;
+
+  if (length < MIN_PASSWORD_LENGTH) {
+    return {
+      field: "password",
+      code: "PASSWORD_TOO_SHORT",
+      message: `Use at least ${MIN_PASSWORD_LENGTH} characters.`,
+    };
+  }
+
+  if (length > MAX_PASSWORD_LENGTH) {
+    return {
+      field: "password",
+      code: "PASSWORD_TOO_LONG",
+      message: `Use ${MAX_PASSWORD_LENGTH} characters or fewer.`,
+    };
+  }
+
+  if (typeof confirmPassword !== "string" || confirmPassword.length === 0) {
+    return {
+      field: "confirmPassword",
+      code: "PASSWORD_CONFIRMATION_REQUIRED",
+      message: "Enter your password again.",
+    };
+  }
+
+  if (newPassword !== confirmPassword) {
+    return {
+      field: "confirmPassword",
+      code: "PASSWORD_MISMATCH",
+      message: "The passwords do not match.",
+    };
+  }
+
+  return null;
+}
+
+/**
  * @param {unknown} newPassword
  * @param {unknown} confirmPassword
  * @returns {boolean}
  */
 export function isAcceptableNewPassword(newPassword, confirmPassword) {
-  return (
-    typeof newPassword === 'string' &&
-    newPassword.length >= MIN_PASSWORD_LENGTH &&
-    newPassword.length <= MAX_PASSWORD_LENGTH &&
-    newPassword === confirmPassword
-  );
+  return getNewPasswordError(newPassword, confirmPassword) === null;
 }
 
 /**
