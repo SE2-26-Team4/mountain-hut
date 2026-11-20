@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Form } from 'react-bootstrap';
+import { useState } from "react";
+import { Form } from "react-bootstrap";
 
 /**
  * Password input with the lock icon and the show/hide button of the
@@ -16,6 +16,9 @@ import { Form } from 'react-bootstrap';
  * @param {number} [props.maxLength]
  * @param {boolean} [props.disabled]
  * @param {string} [props.className]
+ * @param {string} [props.hint]
+ * @param {string} [props.error]
+ * @param {() => void} [props.onBlur]
  */
 export default function PasswordField({
   controlId,
@@ -27,7 +30,10 @@ export default function PasswordField({
   minLength,
   maxLength,
   disabled = false,
-  className = 'mb-3',
+  className = "mb-3",
+  hint = "",
+  error = "",
+  onBlur,
 }) {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -37,28 +43,21 @@ export default function PasswordField({
 
       <div className="mh-auth-input-wrapper">
         <span className="mh-auth-input-icon" aria-hidden="true">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <rect x="5" y="10" width="14" height="11" rx="2" />
-
-            <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-          </svg>
+          <i className="bi bi-lock" />
         </span>
 
         <Form.Control
-          type={showPassword ? 'text' : 'password'}
+          type={showPassword ? "text" : "password"}
           autoComplete={autoComplete}
           placeholder={placeholder}
           minLength={minLength}
           maxLength={maxLength}
           value={value}
           onChange={(event) => onChange(event.target.value)}
+          onBlur={onBlur}
+          isInvalid={Boolean(error)}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={hint || error ? `${controlId}-feedback` : undefined}
           disabled={disabled}
           required
         />
@@ -66,17 +65,26 @@ export default function PasswordField({
         <button
           className="mh-auth-password-toggle"
           type="button"
-          aria-label={`${showPassword ? 'Hide' : 'Show'} ${label.toLowerCase()}`}
+          aria-label={`${showPassword ? "Hide" : "Show"} ${label.toLowerCase()}`}
           aria-pressed={showPassword}
           disabled={disabled}
           onClick={() => setShowPassword((current) => !current)}
         >
           <i
-            className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}
+            className={`bi ${showPassword ? "bi-eye-slash" : "bi-eye"}`}
             aria-hidden="true"
           />
         </button>
       </div>
+      {(hint || error) && (
+        <Form.Text
+          id={`${controlId}-feedback`}
+          className={`d-block ${error ? "text-danger" : "text-muted"}`}
+          aria-live="polite"
+        >
+          {error || hint}
+        </Form.Text>
+      )}
     </Form.Group>
   );
 }
