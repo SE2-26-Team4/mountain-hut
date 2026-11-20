@@ -431,10 +431,9 @@ export default function useBookingLogic({ user, onRequireLogin }) {
     }
   }
 
-  // Submit a booking after rechecking authentication, availability, and time.
+  // [REQUIREMENT] MH-01: A hiker can reserve seats for a selected date, meal slot and party size.
   async function handleReserve() {
     if (alreadyBooked) return;
-    if (requestsInvalid) return;
     // Block duplicate submissions immediately, before React updates state.
     if (bookingInProgressRef.current) return;
 
@@ -446,6 +445,8 @@ export default function useBookingLogic({ user, onRequireLogin }) {
 
       return;
     }
+
+    if (requestsInvalid) return;
 
     // Require an availability result with enough seats for the party.
     if (!availability || !canAccommodateParty) {

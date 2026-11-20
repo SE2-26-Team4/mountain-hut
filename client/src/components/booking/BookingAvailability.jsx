@@ -39,6 +39,15 @@ export default function BookingAvailability({ booking, isAuthenticated }) {
   const canBook =
     canAccommodateParty && !isBookingWindowClosed && !alreadyBooked;
 
+  // [REQUIREMENT] MH-04: When a party must be split across tables, the public availability result shows the free seats at each table.
+  const freeSeatsByTable = availability.tables
+    .map((table) => table.availableSeats)
+    .filter((seats) => seats > 0)
+    .sort((a, b) => b - a);
+
+  const requiresMultipleTables =
+    canBook && freeSeatsByTable.every((seats) => seats < requestedPartySize);
+
   return (
     <section
       className="mh-availability"
@@ -63,7 +72,7 @@ export default function BookingAvailability({ booking, isAuthenticated }) {
                 : isBookingWindowClosed
                   ? "Bookings are closed"
                   : canAccommodateParty
-                    ? "A table is available"
+                    ? "Seats are available"
                     : "No tables available"}
             </h2>
 
@@ -92,10 +101,17 @@ export default function BookingAvailability({ booking, isAuthenticated }) {
                 </>
               )}
             </p>
+            {requiresMultipleTables && (
+              <p className="mt-2 mb-0">
+                Your group would be seated at more than one table. Currently
+                available seats per table:{" "}
+                <strong>{freeSeatsByTable.join(" + ")}</strong>.
+              </p>
+            )}
           </div>
         </div>
 
-        {canBook && (
+        {canBook && isAuthenticated && (
           <div className="px-3 px-md-4 py-3">
             <BookingRequestFields
               requests={requests}
@@ -185,7 +201,11 @@ export default function BookingAvailability({ booking, isAuthenticated }) {
               <Button
                 className="mh-booking-confirm-button d-flex align-items-center justify-content-between w-100"
                 type="button"
-                disabled={isBooking || isBookingWindowClosed || requestsInvalid}
+                disabled={
+                  isBooking ||
+                  isBookingWindowClosed ||
+                  (isAuthenticated && requestsInvalid)
+                }
                 onClick={handleReserve}
               >
                 {isBooking ? (
