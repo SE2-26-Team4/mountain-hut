@@ -224,6 +224,158 @@ Never commit the secrets file or publish it as part of the Docker image.
 
 **Email with local Node.js:** Set both `RESEND_API_KEY` and `EMAIL_FROM` in the backend process environment. Email delivery is optional for booking persistence but is important for staff-created hiker first-login credentials. Do not publish credentials, API keys, or email-provider secrets.
 
+## Docker Hub release deployment
+
+The Docker image contains the application code and frontend build. It does not contain the secrets or the SQLite database.
+
+### Prerequisites
+
+Install Docker Desktop for Windows or macOS, or Docker Engine with Docker Compose on Linux, and start Docker.
+
+```bash
+docker --version
+docker compose version
+```
+
+### Download and run the published image
+
+Open a terminal (PowerShell on Windows, Terminal on macOS/Linux) and download the latest release:
+
+```bash
+docker pull lorebosso/mountain-hut:latest
+```
+
+If the repository is private, authenticate with Docker Hub first:
+
+```bash
+docker login
+docker pull lorebosso/mountain-hut:latest
+```
+
+Use a Docker Hub Personal Access Token instead of the account password when two-factor authentication is enabled.
+
+Save the provided secrets file with a name such as `mountain-hut.env`.
+
+Example Windows location:
+
+```text
+C:\Users\<Windows-user>\Desktop\mountain-hut.env
+```
+
+Example macOS/Linux locations:
+
+```text
+/Users/<mac-user>/Desktop/mountain-hut.env
+/home/<linux-user>/mountain-hut.env
+```
+
+The file must use `KEY=value` format and must not contain quotes around `EMAIL_FROM`:
+
+```text
+SESSION_SECRET=replace-with-a-long-random-secret
+SEED_DEMO_ACCOUNTS=true
+TEST_HIKER_EMAIL=hiker@example.com
+TEST_HIKER_PASSWORD=HikerTest123!
+TEST_EMPLOYEE_EMAIL=employee@example.com
+TEST_EMPLOYEE_PASSWORD=EmployeeTest123!
+RESEND_API_KEY=replace-with-a-valid-resend-api-key
+EMAIL_FROM=Mountain Hut <onboarding@resend.dev>
+```
+
+Never commit or include this file in the Docker image.
+
+Create the persistent SQLite volume:
+
+```bash
+docker volume create mountain_hut_sqlite_data
+```
+
+Stop and remove any existing container that uses port `8080`, or change the published port in the run command:
+
+```bash
+docker rm -f mountain-hut
+docker rm -f mountain_hut_app
+```
+
+Run the image on Windows PowerShell:
+
+```powershell
+docker run -d --name mountain-hut `
+  --env-file "$env:USERPROFILE\Desktop\mountain-hut.env" `
+  -e NODE_ENV=production `
+  -e PORT=8080 `
+  -e DB_PATH=/app/data/mountain-hut.sqlite `
+  -p 8080:8080 `
+  -v mountain_hut_sqlite_data:/app/data `
+  lorebosso/mountain-hut:latest
+```
+
+Run the image on macOS/Linux:
+
+```bash
+docker run -d --name mountain-hut \
+  --env-file /absolute/path/to/mountain-hut.env \
+  -e NODE_ENV=production \
+  -e PORT=8080 \
+  -e DB_PATH=/app/data/mountain-hut.sqlite \
+  -p 8080:8080 \
+  -v mountain_hut_sqlite_data:/app/data \
+  lorebosso/mountain-hut:latest
+```
+
+Open <http://localhost:8080>. Check the container and application health:
+
+```bash
+docker ps
+docker logs mountain-hut
+curl http://localhost:8080/api/health
+```
+
+On Windows PowerShell, `curl.exe` can be used instead of `curl`.
+
+Stop, start, or remove the container without deleting the database:
+
+```bash
+docker stop mountain-hut
+docker start mountain-hut
+docker rm -f mountain-hut
+```
+
+Delete the database only when all saved data must be removed:
+
+```bash
+docker volume rm mountain_hut_sqlite_data
+```
+
+### Demo accounts and initial setup
+
+With `SEED_DEMO_ACCOUNTS=true`, the demo database is initialized with:
+
+| Role | Email | Password | Sign-in |
+| --- | --- | --- | --- |
+| Hiker | `hiker@example.com` | `HikerTest123!` | Home page → Sign in |
+| Employee | `employee@example.com` | `EmployeeTest123!` | Home page → employee sign-in |
+| Hiker | `s349410@studenti.polito.it` | `s349410Test123!` | Home page → Sign in |
+| Hiker | `s353204@studenti.polito.it` | `s353204Test123!` | Home page → Sign in |
+| Hiker | `s356826@studenti.polito.it` | `s356826Test123!` | Home page → Sign in |
+| Hiker | `s358411@studenti.polito.it` | `s358411Test123!` | Home page → Sign in |
+| Hiker | `s362713@studenti.polito.it` | `s362713Test123!` | Home page → Sign in |
+
+The new SQLite database has no dining tables or meal slots. On the first startup, sign in as the employee account and configure the dining tables and meal-slot schedule in the staff capacity interface. Then sign out and use a hiker account to verify availability and create a booking.
+
+If a hiker is used before the employee configures capacity, availability will be zero. This does not indicate an application failure.
+
+### Updating the release
+
+Download the latest Docker Hub release and recreate the container:
+
+```bash
+docker pull lorebosso/mountain-hut:latest
+docker rm -f mountain-hut
+```
+
+Then repeat the appropriate PowerShell or macOS/Linux `docker run` command above.
+
 ## Tests and code checks
 
 Run these commands from the **repository root** after installing dependencies with `npm --prefix server ci` and `npm --prefix client ci` (or from the respective package directory without `--prefix`):
