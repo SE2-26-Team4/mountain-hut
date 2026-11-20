@@ -191,9 +191,9 @@ afterAll(async () => {
   }
 });
 
-describe('booking availability API', () => {
-  // Verify an unauthenticated visitor can check an active slot.
-  it('returns availability to an unauthenticated visitor', async () => {
+describe("booking availability API", () => {
+  // [REQUIREMENT] MH-04: A visitor can check meal-slot availability without signing in.
+  it("returns availability to an unauthenticated visitor", async () => {
     const response = await request(app)
       .get("/api/bookings/availability")
       .query({ bookingDate, slotId });
