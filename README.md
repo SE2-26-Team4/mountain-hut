@@ -128,26 +128,26 @@ Sprint 2 covers user stories **MH-04 to MH-09**. This section summarizes the com
 
 The backend API base URL is **http://localhost:3000/api** in local development and **http://localhost:8080/api** through Docker. Paths in the table include the `/api` prefix.
 
-| Method | Endpoint | Access | Purpose |
-| --- | --- | --- | --- |
-| GET | `/api/health` | Public | Health check |
-| POST | `/api/sessions` | Public | Hiker sign-in |
-| POST | `/api/staff/sessions` | Public | Staff sign-in |
-| GET | `/api/sessions/current` | Authenticated | Current session |
-| PUT | `/api/sessions/current/password` | Authenticated | Change password, including first-login password change |
-| DELETE | `/api/sessions/current` | Authenticated | Sign out |
-| GET | `/api/meal-slots` | Public | Active meal slots |
-| GET | `/api/bookings/availability` | Public | Seat availability by date and slot |
-| POST | `/api/bookings` | Authenticated hiker | Create a reservation |
-| GET | `/api/bookings` | Authenticated hiker | List own reservations |
-| PUT | `/api/bookings/:id` | Booking owner | Edit an existing reservation |
-| DELETE | `/api/bookings/:id` | Booking owner | Cancel a reservation |
-| GET | `/api/staff/hikers` | Staff | Search for hikers |
-| POST | `/api/staff/hikers` | Staff | Register a new or temporary hiker |
-| POST | `/api/staff/bookings` | Staff | Create a booking on behalf of a hiker |
-| GET | `/api/capacity` | Staff | Read table and meal-slot configuration |
-| POST | `/api/capacity/meal-slots/copy-week` | Staff | Duplicate a weekly schedule |
-| POST / PUT / GET | `/api/capacity/...` | Staff, except documented public endpoints | Manage dining tables, meal slots, and assignments |
+| Method           | Endpoint                             | Access                                    | Purpose                                                |
+| ---------------- | ------------------------------------ | ----------------------------------------- | ------------------------------------------------------ |
+| GET              | `/api/health`                        | Public                                    | Health check                                           |
+| POST             | `/api/sessions`                      | Public                                    | Hiker sign-in                                          |
+| POST             | `/api/staff/sessions`                | Public                                    | Staff sign-in                                          |
+| GET              | `/api/sessions/current`              | Authenticated                             | Current session                                        |
+| PUT              | `/api/sessions/current/password`     | Authenticated                             | Change password, including first-login password change |
+| DELETE           | `/api/sessions/current`              | Authenticated                             | Sign out                                               |
+| GET              | `/api/meal-slots`                    | Public                                    | Active meal slots                                      |
+| GET              | `/api/bookings/availability`         | Public                                    | Seat availability by date and slot                     |
+| POST             | `/api/bookings`                      | Authenticated hiker                       | Create a reservation                                   |
+| GET              | `/api/bookings`                      | Authenticated hiker                       | List own reservations                                  |
+| PUT              | `/api/bookings/:id`                  | Booking owner                             | Edit an existing reservation                           |
+| DELETE           | `/api/bookings/:id`                  | Booking owner                             | Cancel a reservation                                   |
+| GET              | `/api/staff/hikers`                  | Staff                                     | Search for hikers                                      |
+| POST             | `/api/staff/hikers`                  | Staff                                     | Register a new or temporary hiker                      |
+| POST             | `/api/staff/bookings`                | Staff                                     | Create a booking on behalf of a hiker                  |
+| GET              | `/api/capacity`                      | Staff                                     | Read table and meal-slot configuration                 |
+| POST             | `/api/capacity/meal-slots/copy-week` | Staff                                     | Duplicate a weekly schedule                            |
+| POST / PUT / GET | `/api/capacity/...`                  | Staff, except documented public endpoints | Manage dining tables, meal slots, and assignments      |
 
 Browser requests use a session cookie; authenticated API calls must include credentials.
 
@@ -155,19 +155,19 @@ Browser requests use a session cookie; authenticated API calls must include cred
 
 The **backend does not automatically load `.env` files** when started directly with Node.js. Set the environment variables in the shell or process environment for local development. For **Docker Compose**, create a repository-root `.env` from the supplied root `.env.example`; Compose reads this file for variable substitution. Never commit real secrets.
 
-| Variable | Meaning |
-| --- | --- |
-| `PORT` | Backend port; defaults to `3000` (Docker uses `8080`) |
-| `DB_PATH` | SQLite database file path |
-| `SESSION_SECRET` | Session signing secret; use a secure value outside local demos |
-| `SEED_DEMO_ACCOUNTS` | Set to `true` to create demo accounts |
-| `TEST_HIKER_EMAIL`, `TEST_HIKER_PASSWORD` | Override demo hiker credentials |
-| `TEST_EMPLOYEE_EMAIL`, `TEST_EMPLOYEE_PASSWORD` | Override demo employee credentials |
-| `EMAIL_TEST_HIKER_EMAIL`, `EMAIL_TEST_HIKER_PASSWORD` | Optional email-test account credentials |
-| `CLIENT_ORIGIN` | Frontend origin for CORS and account links; defaults to `http://localhost:5173` locally and `http://localhost:8080` in Compose |
-| `COOKIE_SECURE` | Set to `true` when cookies must be sent only over HTTPS |
-| `RESEND_API_KEY` | API key used to deliver initial-password and booking-confirmation emails |
-| `EMAIL_FROM` | Sender address accepted by Resend |
+| Variable                                              | Meaning                                                                                                                        |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `PORT`                                                | Backend port; defaults to `3000` (Docker uses `8080`)                                                                          |
+| `DB_PATH`                                             | SQLite database file path                                                                                                      |
+| `SESSION_SECRET`                                      | Session signing secret; use a secure value outside local demos                                                                 |
+| `SEED_DEMO_ACCOUNTS`                                  | Set to `true` to create demo accounts                                                                                          |
+| `TEST_HIKER_EMAIL`, `TEST_HIKER_PASSWORD`             | Override demo hiker credentials                                                                                                |
+| `TEST_EMPLOYEE_EMAIL`, `TEST_EMPLOYEE_PASSWORD`       | Override demo employee credentials                                                                                             |
+| `EMAIL_TEST_HIKER_EMAIL`, `EMAIL_TEST_HIKER_PASSWORD` | Optional email-test account credentials                                                                                        |
+| `CLIENT_ORIGIN`                                       | Frontend origin for CORS and account links; defaults to `http://localhost:5173` locally and `http://localhost:8080` in Compose |
+| `COOKIE_SECURE`                                       | Set to `true` when cookies must be sent only over HTTPS                                                                        |
+| `RESEND_API_KEY`                                      | API key used to deliver initial-password and booking-confirmation emails                                                       |
+| `EMAIL_FROM`                                          | Sender address accepted by Resend                                                                                              |
 
 **Email with Docker Compose:** `docker-compose.yml` forwards `RESEND_API_KEY` from the environment/root `.env` and currently sets `EMAIL_FROM` to `Mountain Hut <mountain-hut@azeca.it>` inside the container. A valid API key and permission to send from that address/domain are required for delivery. Changing `EMAIL_FROM` only in the root `.env` will **not** override the hard-coded Compose value; use an appropriate local Compose override if a different verified sender is required.
 
