@@ -453,14 +453,8 @@ async function prepareNewHiker(input) {
         MAX_NAME_LENGTH,
       );
       const email = normalizeEmail(input.email);
-      const phone =
-        input.phone === undefined ||
-        input.phone === null ||
-        (typeof input.phone === 'string' &&
-          input.phone.trim().length === 0)
-          ? null
-          : normalizePhone(input.phone);
-      const notes = optionalText(input.notes, 'Notes', MAX_TEXT_LENGTH);
+      const phone = normalizePhone(input.phone);
+      const notes = optionalText(input.notes, "Notes", MAX_TEXT_LENGTH);
       const emergencyContact = optionalText(
         input.emergencyContact,
         "Emergency contact",

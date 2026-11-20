@@ -324,8 +324,8 @@ describe("GET /api/staff/hikers", () => {
   });
 });
 
-describe('POST /api/staff/hikers', () => {
-  it('registers a full hiker and emails the initial password', async () => {
+describe("POST /api/staff/hikers", () => {
+  it("registers a full hiker and emails the initial password", async () => {
     const input = newHikerInput();
 
     const response = await employeeAgent.post("/api/staff/hikers").send(input);
@@ -338,15 +338,15 @@ describe('POST /api/staff/hikers', () => {
       isTemporary: false,
       mustChangePassword: true,
     });
-    expect(response.body.hiker).not.toHaveProperty('passwordHash');
+    expect(response.body.hiker).not.toHaveProperty("passwordHash");
     expect(response.body.passwordSent).toBe(true);
-    expect(response.body).not.toHaveProperty('initialPassword');
+    expect(response.body).not.toHaveProperty("initialPassword");
     expect(emailMocks.send).toHaveBeenCalledWith(
       expect.objectContaining({
         to: input.email,
-        subject: 'Your Mountain Hut account is ready',
-        text: expect.stringContaining('Temporary password:'),
-      })
+        subject: "Your Mountain Hut account is ready",
+        text: expect.stringContaining("Temporary password:"),
+      }),
     );
   });
 
@@ -396,13 +396,17 @@ describe('POST /api/staff/hikers', () => {
     expect(response.body.error.code).toBe("INVALID_HIKER");
   });
 
-  it("registers a full hiker without phone", async () => {
+  it.each([
+    ["missing", undefined],
+    ["null", null],
+    ["blank", "   "],
+  ])("rejects a new hiker account with a %s phone", async (_label, phone) => {
     const response = await employeeAgent
       .post("/api/staff/hikers")
-      .send(newHikerInput({ phone: null }));
+      .send(newHikerInput({ phone }));
 
-    expect(response.status).toBe(201);
-    expect(response.body.hiker.phone).toBeNull();
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("INVALID_HIKER");
   });
 
   it.each([
@@ -451,9 +455,9 @@ describe('POST /api/staff/hikers', () => {
   it("turns a temporary hiker with the same email into a full account", async () => {
     const email = `staff-api-upgrade-${uniqueSuffix}@example.com`;
 
-    const temporary = await employeeAgent.post("/api/staff/bookings").send(
-      staffBooking(temporaryHikerInput(), { confirmationEmail: email }),
-    );
+    const temporary = await employeeAgent
+      .post("/api/staff/bookings")
+      .send(staffBooking(temporaryHikerInput(), { confirmationEmail: email }));
 
     expect(temporary.status).toBe(201);
     emailMocks.send.mockClear();
@@ -529,7 +533,7 @@ describe("POST /api/staff/bookings", () => {
       hiker: { id: existingHikerId, email: existingHiker.email },
       emailSent: true,
     });
-    expect(response.body).not.toHaveProperty('initialPassword');
+    expect(response.body).not.toHaveProperty("initialPassword");
     expect(response.body.passwordSent).toBe(false);
 
     expect(emailMocks.send).toHaveBeenCalledTimes(1);
@@ -555,7 +559,7 @@ describe("POST /api/staff/bookings", () => {
       mustChangePassword: true,
     });
     expect(response.body.booking.hikerId).toBe(response.body.hiker.id);
-    expect(response.body).not.toHaveProperty('initialPassword');
+    expect(response.body).not.toHaveProperty("initialPassword");
     expect(response.body.passwordSent).toBe(true);
     expect(response.body.emailSent).toBe(true);
 
@@ -566,9 +570,9 @@ describe("POST /api/staff/bookings", () => {
     expect(emailMocks.send).toHaveBeenCalledWith(
       expect.objectContaining({
         to: input.email,
-        subject: 'Your Mountain Hut account is ready',
-        text: expect.stringContaining('Temporary password:'),
-      })
+        subject: "Your Mountain Hut account is ready",
+        text: expect.stringContaining("Temporary password:"),
+      }),
     );
   });
 
