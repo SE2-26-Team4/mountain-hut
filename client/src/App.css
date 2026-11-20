@@ -1311,7 +1311,7 @@ button.mh-add-dietary-requirement:focus-visible {
   white-space: nowrap;
 }
 
-.cap-primary:hover {
+.cap-primary:hover:not(:disabled) {
   background: var(--mh-copper-hover);
   color: var(--mh-white);
 }
@@ -1462,6 +1462,7 @@ button.mh-add-dietary-requirement:focus-visible {
   white-space: normal;
 }
 
+.copy-calendar .cap-primary:disabled,
 .cap-reuse-controls > .cap-primary:disabled {
   background: var(--cap-orange);
   border-color: var(--cap-orange);
