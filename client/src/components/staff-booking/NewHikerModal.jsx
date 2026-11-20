@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Alert, Col, Form, Modal, Row, Spinner } from "react-bootstrap";
 
 import SuccessCheck from "../common/SuccessCheck.jsx";
+import BookingAPI, { BookingApiError } from "../../API/booking-api.js";
 
 // Limits enforced by the staff hiker API.
 const MAX_TEXT_LENGTH = 500;
@@ -53,6 +54,37 @@ export default function NewHikerModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  const [resendStatus, setResendStatus] = useState(
+    /** @type {"idle" | "sending" | "sent" | "failed" | "unavailable"} */ (
+      "idle"
+    ),
+  );
+  const [resendError, setResendError] = useState("");
+
+  const isResending = resendStatus === "sending";
+
+  const handleResendEmail = async () => {
+    if (!registration || isResending || resendStatus === "unavailable") return;
+
+    setResendStatus("sending");
+    setResendError("");
+
+    try {
+      await BookingAPI.resendInitialPasswordEmail(registration.hiker.id);
+      setResendStatus("sent");
+    } catch (error) {
+      const unavailable =
+        error instanceof BookingApiError && error.status === 409;
+
+      setResendStatus(unavailable ? "unavailable" : "failed");
+      setResendError(
+        error instanceof Error
+          ? error.message
+          : "The email could not be sent. Please try again.",
+      );
+    }
+  };
+
   /**
    * @param {keyof typeof emptyDraft} field
    * @returns {(event: import("react").ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void}
@@ -64,6 +96,8 @@ export default function NewHikerModal({
   const resetForm = () => {
     setNewHikerDraft(emptyDraft);
     setErrorMessage("");
+    setResendStatus("idle");
+    setResendError("");
   };
 
   const handleCreateAccount = async () => {
@@ -104,7 +138,9 @@ export default function NewHikerModal({
       });
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Could not create the account.",
+        error instanceof Error
+          ? error.message
+          : "Could not create the account.",
       );
     } finally {
       setIsSubmitting(false);
@@ -114,7 +150,9 @@ export default function NewHikerModal({
   return (
     <Modal
       show={show}
-      onHide={onHide}
+      onHide={() => {
+        if (!isResending) onHide();
+      }}
       onEntered={() => firstNameRef.current?.focus()}
       onExited={resetForm}
       centered
@@ -131,17 +169,48 @@ export default function NewHikerModal({
 
             <p className="fw-semibold mb-2">{registration.hiker.fullName}</p>
 
-            <p className="text-body-secondary mb-0" role="status">
-              {registration.passwordSent
-                ? `The temporary password was sent to ${registration.hiker.email}. The hiker will need to change it at first sign-in.`
-                : "The account was created, but the email could not be sent."}
+            <p className="text-body-secondary mb-2">
+              {registration.hiker.email}
             </p>
+
+            <div aria-live="polite">
+              {resendError ? (
+                <p className="text-danger mb-2">{resendError}</p>
+              ) : (
+                <p className="text-body-secondary mb-2">
+                  {resendStatus === "sent"
+                    ? "A new temporary password was sent. Use the most recent email to sign in."
+                    : isResending
+                      ? "Sending a new temporary password…"
+                      : registration.passwordSent
+                        ? "The temporary password was sent. The hiker will choose a new password at first sign-in."
+                        : "The account was created, but the email could not be sent."}
+                </p>
+              )}
+            </div>
+
+            {resendStatus !== "unavailable" && (
+              <button
+                type="button"
+                className="cap-outline"
+                onClick={handleResendEmail}
+                disabled={isResending}
+              >
+                {isResending
+                  ? "Sending…"
+                  : resendStatus === "failed" ||
+                      (resendStatus === "idle" && !registration.passwordSent)
+                    ? "Retry email"
+                    : "Resend email"}
+              </button>
+            )}
           </Modal.Body>
 
           <Modal.Footer>
             <button
               type="button"
-              className="cap-primary w-100"
+              className="cap-primary w-100 d-flex align-items-center justify-content-center"
+              disabled={isResending}
               onClick={() => {
                 onContinue?.(registration.hiker);
                 onHide();

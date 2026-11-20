@@ -136,6 +136,18 @@ async function createHiker(hiker) {
 }
 
 /**
+ * Requests a new first-login email for a hiker registered by staff.
+ *
+ * @param {number} hikerId
+ * @returns {Promise<void>}
+ */
+async function resendInitialPasswordEmail(hikerId) {
+  await request(`/staff/hikers/${hikerId}/initial-password-email`, {
+    method: "POST",
+  });
+}
+
+/**
  * Creates a booking for an existing, new or temporary hiker.
  *
  * @param {CreateStaffBookingRequestDTO} booking
@@ -170,6 +182,7 @@ const BookingAPI = {
   updateBooking,
   searchHikers,
   createHiker,
+  resendInitialPasswordEmail,
   createStaffBooking,
 };
 
