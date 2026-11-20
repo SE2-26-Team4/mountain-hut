@@ -1,32 +1,27 @@
-import express from 'express';
-import request from 'supertest';
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
+import express from "express";
+import request from "supertest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Create shared DAO mocks before the mocked modules are imported.
 const mocks = vi.hoisted(() => ({
   changeUserPassword: vi.fn(),
   getUserByEmail: vi.fn(),
   getUserById: vi.fn(),
+  registerHiker: vi.fn(),
 }));
 
 // Replace database account lookups with controlled test responses.
-vi.mock('../../dao/auth-dao.js', () => ({
+vi.mock("../../dao/auth-dao.js", () => ({
   changeUserPassword: mocks.changeUserPassword,
   getUserByEmail: mocks.getUserByEmail,
   getUserById: mocks.getUserById,
+  registerHiker: mocks.registerHiker,
 }));
 
-import app from '../../app.js';
-import passport from '../../config/passport.js';
-import authRoutes from '../../routes/auth-routes.js';
-import { hashPassword } from '../../services/password.js';
+import app from "../../app.js";
+import passport from "../../config/passport.js";
+import authRoutes from "../../routes/auth-routes.js";
+import { hashPassword } from "../../services/password.js";
 
 // Clear mock implementations and call history before each test.
 beforeEach(() => {
@@ -357,41 +352,54 @@ describe('password change errors', () => {
 
 // Check that each role uses the correct login area without opening a session.
 it.each([
-  ['/api/sessions', 'employee'],
-  ['/api/sessions', 'warden'],
-  ['/api/staff/sessions', 'hiker'],
+  ["/api/sessions", "employee"],
+  ["/api/sessions", "warden"],
+  ["/api/staff/sessions", "hiker"],
 ])(
-  'rejects %s for role %s without revealing the account role',
+  "rejects %s for role %s without revealing the account role",
   async (path, role) => {
     const user = {
       id: 789,
-      full_name: 'Wrong Area',
-      email: 'area@example.com',
+      full_name: "Wrong Area",
+      email: "area@example.com",
       role,
     };
 
     // Accept credentials so the test isolates the login-area role check.
-    vi.spyOn(passport, 'authenticate').mockImplementation(
-      (_strategy, callback) =>
-        (_req, _res, _next) => callback(null, user)
+    vi.spyOn(passport, "authenticate").mockImplementation(
+      (_strategy, callback) => (_req, _res, _next) => callback(null, user),
     );
 
     const logIn = vi.fn();
     const { testApp } = createRouteTestApp({ logIn });
 
-    const response = await request(testApp)
-      .post(path)
-      .send({
-        email: user.email,
-        password: 'AreaTest123!',
-      });
+    const response = await request(testApp).post(path).send({
+      email: user.email,
+      password: "AreaTest123!",
+    });
 
     // Use the same response as invalid credentials to prevent enumeration.
     expect(response.status).toBe(401);
-    expect(response.body.error.code).toBe('INVALID_CREDENTIALS');
-    expect(response.body.error.message).toBe(
-      'Email or password is incorrect.',
-    );
+    expect(response.body.error.code).toBe("INVALID_CREDENTIALS");
+    expect(response.body.error.message).toBe("Email or password is incorrect.");
     expect(logIn).not.toHaveBeenCalled();
-  }
+  },
 );
+
+it("forwards an unexpected sign-up failure", async () => {
+  const failure = new Error("Simulated registration failure");
+  mocks.registerHiker.mockRejectedValueOnce(failure);
+
+  const { testApp, errorHandler } = createRouteTestApp({});
+  const password = "Four hikers cross the valley";
+
+  const response = await request(testApp).post("/api/hikers").send({
+    fullName: "Test Hiker",
+    email: "signup@example.com",
+    password,
+    confirmPassword: password,
+  });
+
+  expect(response.status).toBe(500);
+  expect(errorHandler.mock.calls[0][0]).toBe(failure);
+});

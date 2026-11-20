@@ -1,26 +1,19 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID } from "node:crypto";
 
-import request from 'supertest';
-import {
-  afterAll,
-  beforeAll,
-  describe,
-  expect,
-  it,
-} from 'vitest';
+import request from "supertest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import app from '../../app.js';
-import { initializeDatabase, runAsync } from '../../db.js';
-import { initializeAccounts } from '../../init/init-accounts.js';
-import { hashPassword } from '../../services/password.js';
+import app from "../../app.js";
+import { getAsync, initializeDatabase, runAsync } from "../../db.js";
+import { initializeAccounts } from "../../init/init-accounts.js";
+import { hashPassword } from "../../services/password.js";
 
 // Read the demo hiker credentials and normalize the email.
-const testEmail = (
-  process.env.TEST_HIKER_EMAIL ?? 'hiker@example.com'
-).trim().toLowerCase();
+const testEmail = (process.env.TEST_HIKER_EMAIL ?? "hiker@example.com")
+  .trim()
+  .toLowerCase();
 
-const testPassword =
-  process.env.TEST_HIKER_PASSWORD ?? 'HikerTest123!';
+const testPassword = process.env.TEST_HIKER_PASSWORD ?? "HikerTest123!";
 
 // Initialize the database and demo accounts before running the tests.
 beforeAll(async () => {
@@ -392,51 +385,218 @@ describe('session for a deleted account', () => {
       expect(changeResponse.status).toBe(200);
       expect(changeResponse.body.user.mustChangePassword).toBe(false);
 
-      const protectedResponse = await agent.get('/api/bookings');
+      const protectedResponse = await agent.get("/api/bookings");
 
       expect(protectedResponse.status).toBe(200);
 
       const oldPasswordResponse = await request(app)
-        .post('/api/sessions')
+        .post("/api/sessions")
         .send({ email, password: initialPassword });
 
       expect(oldPasswordResponse.status).toBe(401);
 
       const newPasswordResponse = await request(app)
-        .post('/api/sessions')
+        .post("/api/sessions")
         .send({ email, password: replacementPassword });
 
       expect(newPasswordResponse.status).toBe(201);
       expect(newPasswordResponse.body.user.mustChangePassword).toBe(false);
     });
 
-    it('does not allow temporary hikers to log in', async () => {
+    it("does not allow temporary hikers to log in", async () => {
       const temporaryEmail = `temporary-${randomUUID()}@example.com`;
       const result = await runAsync(
         `INSERT INTO users (full_name, role, is_temporary)
          VALUES (?, 'hiker', 1)`,
-        ['Temporary Hiker'],
+        ["Temporary Hiker"],
       );
 
       try {
         const response = await request(app)
-          .post('/api/sessions')
+          .post("/api/sessions")
           .send({ email: temporaryEmail, password: initialPassword });
 
         expect(response.status).toBe(401);
       } finally {
-        await runAsync('DELETE FROM users WHERE id = ?', [result.lastID]);
+        await runAsync("DELETE FROM users WHERE id = ?", [result.lastID]);
       }
     });
   });
 
   // Verify that a login request without a body is rejected safely.
-  it('rejects a login request without a body', async () => {
-    const response = await request(app)
-      .post('/api/sessions');
+  it("rejects a login request without a body", async () => {
+    const response = await request(app).post("/api/sessions");
 
     expect(response.status).toBe(400);
-    expect(response.body.error.code).toBe('INVALID_CREDENTIALS');
-    expect(response.body).not.toHaveProperty('user');
+    expect(response.body.error.code).toBe("INVALID_CREDENTIALS");
+    expect(response.body).not.toHaveProperty("user");
+  });
+});
+
+describe("public hiker sign-up", () => {
+  const password = "Four hikers cross the valley";
+
+  it("rejects sign-up without a body", async () => {
+    const response = await request(app).post("/api/hikers");
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("INVALID_NAME");
+  });
+
+  it.each([
+    ["long name", { fullName: "a".repeat(101) }, "INVALID_NAME"],
+    ["non-text email", { email: 42 }, "INVALID_EMAIL"],
+    ["malformed email", { email: "invalid" }, "INVALID_EMAIL"],
+    ["long email", { email: "a".repeat(250) + "@test.it" }, "INVALID_EMAIL"],
+    ["non-text phone", { phone: 12345678 }, "INVALID_PHONE"],
+    ["long phone", { phone: "1".repeat(31) }, "INVALID_PHONE"],
+  ])("rejects a %s", async (_label, overrides, code) => {
+    const response = await request(app)
+      .post("/api/hikers")
+      .send({
+        fullName: "Test Hiker",
+        email: `signup-${randomUUID()}@example.com`,
+        password,
+        confirmPassword: password,
+        ...overrides,
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe(code);
+  });
+
+  it("rejects an email already registered with different casing", async () => {
+    const response = await request(app).post("/api/hikers").send({
+      fullName: "Test Hiker",
+      email: testEmail.toUpperCase(),
+      password,
+      confirmPassword: password,
+    });
+
+    expect(response.status).toBe(409);
+    expect(response.body.error.code).toBe("EMAIL_ALREADY_REGISTERED");
+  });
+
+  // The sign-up form uses the API response to show feedback under the right field.
+  it.each([
+    {
+      label: "too short",
+      value: "a".repeat(14),
+      confirmation: "a".repeat(14),
+      field: "password",
+      code: "PASSWORD_TOO_SHORT",
+      message: "Use at least 15 characters.",
+    },
+    {
+      label: "too long",
+      value: "a".repeat(129),
+      confirmation: "a".repeat(129),
+      field: "password",
+      code: "PASSWORD_TOO_LONG",
+      message: "Use 128 characters or fewer.",
+    },
+    {
+      label: "confirmed incorrectly",
+      value: password,
+      confirmation: "Five hikers cross the valley",
+      field: "confirmPassword",
+      code: "PASSWORD_MISMATCH",
+      message: "The passwords do not match.",
+    },
+  ])(
+    "returns field feedback when the password is $label",
+    async ({ value, confirmation, field, code, message }) => {
+      const response = await request(app)
+        .post("/api/hikers")
+        .send({
+          fullName: "Maria Giulia De Luca",
+          email: `signup-${randomUUID()}@example.com`,
+          password: value,
+          confirmPassword: confirmation,
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toEqual({ field, code, message });
+    },
+  );
+
+  it.each([
+    { label: "without a phone field", input: {}, expectedPhone: null },
+    { label: "with a blank phone", input: { phone: "" }, expectedPhone: null },
+    {
+      label: "with a formatted phone",
+      input: { phone: "+39 333 123-4567" },
+      expectedPhone: "+393331234567",
+    },
+  ])(
+    "registers a hiker $label and allows sign-in",
+    async ({ input, expectedPhone }) => {
+      const email = `signup-${randomUUID()}@example.com`;
+
+      try {
+        const signup = await request(app)
+          .post("/api/hikers")
+          .send({
+            fullName: "Maria Giulia De Luca",
+            email: ` ${email.toUpperCase()} `,
+            password,
+            confirmPassword: password,
+            ...input,
+          });
+
+        expect(signup.status).toBe(201);
+        expect(signup.body).toEqual({ id: expect.any(Number) });
+
+        const saved = await getAsync(
+          "SELECT email, phone, must_change_password FROM users WHERE id = ?",
+          [signup.body.id],
+        );
+
+        expect(saved).toEqual({
+          email,
+          phone: expectedPhone,
+          must_change_password: 0,
+        });
+
+        const login = await request(app)
+          .post("/api/sessions")
+          .send({ email, password });
+
+        expect(login.status).toBe(201);
+        expect(login.body.user).toMatchObject({
+          id: signup.body.id,
+          full_name: "Maria Giulia De Luca",
+          role: "hiker",
+        });
+      } finally {
+        await runAsync("DELETE FROM users WHERE email = ? COLLATE NOCASE", [
+          email,
+        ]);
+      }
+    },
+  );
+
+  it("rejects an invalid phone without creating an account", async () => {
+    const email = `signup-${randomUUID()}@example.com`;
+
+    try {
+      const response = await request(app).post("/api/hikers").send({
+        fullName: "Maria Giulia De Luca",
+        email,
+        phone: "abc123",
+        password,
+        confirmPassword: password,
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe("INVALID_PHONE");
+
+      const saved = await getAsync("SELECT id FROM users WHERE email = ?", [
+        email,
+      ]);
+      expect(saved).toBeUndefined();
+    } finally {
+      await runAsync("DELETE FROM users WHERE email = ?", [email]);
+    }
   });
 });

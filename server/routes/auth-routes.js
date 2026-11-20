@@ -1,16 +1,18 @@
-import express from 'express';
-import passport from '../config/passport.js';
+import express from "express";
+import passport from "../config/passport.js";
 
 import {
   changeUserPassword,
   getUserByEmail,
-} from '../dao/auth-dao.js';
-import { requireAuth } from '../middleware/require-auth.js';
+  registerHiker,
+} from "../dao/auth-dao.js";
+import { requireAuth } from "../middleware/require-auth.js";
 import {
   hashPassword,
   isAcceptableNewPassword,
+  getNewPasswordError,
   verifyPassword,
-} from '../services/password.js';
+} from "../services/password.js";
 
 const router = express.Router();
 
@@ -82,10 +84,83 @@ function loginFor(area) {
   };
 }
 
-router.post('/sessions', loginFor('hiker'));
-router.post('/staff/sessions', loginFor('staff'));
+router.post("/hikers", async (req, res, next) => {
+  try {
+    const { fullName, email, phone, password, confirmPassword } =
+      req.body ?? {};
 
-router.get('/sessions/current', requireAuth, (req, res) => {
+    const name = typeof fullName === "string" ? fullName.trim() : "";
+    const address = typeof email === "string" ? email.trim().toLowerCase() : "";
+
+    if (name.length === 0 || name.length > 100) {
+      return res.status(400).json({
+        error: {
+          code: "INVALID_NAME",
+          message: "Enter a full name of up to 100 characters.",
+        },
+      });
+    }
+
+    if (address.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) {
+      return res.status(400).json({
+        error: {
+          code: "INVALID_EMAIL",
+          message: "Enter a valid email address.",
+        },
+      });
+    }
+
+    let normalizedPhone = null;
+
+    if (phone != null && !(typeof phone === "string" && phone.trim() === "")) {
+      const phoneText = typeof phone === "string" ? phone.trim() : "";
+      const number = phoneText.replace(/[\s().-]/g, "");
+
+      if (phoneText.length > 30 || !/^\+?\d{6,15}$/.test(number)) {
+        return res.status(400).json({
+          error: {
+            code: "INVALID_PHONE",
+            message: "Enter 6 to 15 digits, optionally starting with +.",
+          },
+        });
+      }
+
+      normalizedPhone = number;
+    }
+
+    const passwordError = getNewPasswordError(password, confirmPassword);
+
+    if (passwordError) {
+      return res.status(400).json({ error: passwordError });
+    }
+
+    const passwordHash = await hashPassword(password);
+    const hiker = await registerHiker(
+      name,
+      address,
+      passwordHash,
+      normalizedPhone,
+    );
+
+    if (!hiker) {
+      return res.status(409).json({
+        error: {
+          code: "EMAIL_ALREADY_REGISTERED",
+          message: "This email is already associated with an account.",
+        },
+      });
+    }
+
+    return res.status(201).json({ id: hiker.id });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/sessions", loginFor("hiker"));
+router.post("/staff/sessions", loginFor("staff"));
+
+router.get("/sessions/current", requireAuth, (req, res) => {
   return res.json({ user: req.user });
 });
 
