@@ -3304,6 +3304,18 @@ button.mh-add-dietary-requirement:focus-visible {
   outline-offset: var(--mh-cap-size-3);
 }
 
+.mh-site-header-hero .mh-site-signin {
+  border-color: var(--mh-border);
+  background: var(--mh-white);
+  color: var(--mh-profile-ink);
+}
+
+.mh-site-header-hero .mh-site-signin:hover {
+  border-color: var(--mh-border);
+  background: var(--mh-cream);
+  color: var(--mh-profile-ink);
+}
+
 @media (max-width: 767px) {
   .mh-site-header .mh-site-nav,
   .mh-site-header .mh-site-account {

@@ -1,12 +1,12 @@
-import { useState } from 'react';
-import { Col, Row, Spinner } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
+import { useState } from "react";
+import { Col, Row, Spinner } from "react-bootstrap";
+import { Link } from "react-router-dom";
 
-import { useAuth } from '../contexts/auth-context.js';
-import LoginModal from '../components/auth/LoginModal.jsx';
-import BookingForm from '../components/booking/BookingForm.jsx';
-import SiteFooter from '../components/layout/SiteFooter.jsx';
-import SiteHeader from '../components/layout/SiteHeader.jsx';
+import { useAuth } from "../contexts/auth-context.js";
+import LoginModal from "../components/auth/LoginModal.jsx";
+import BookingForm from "../components/booking/BookingForm.jsx";
+import SiteFooter from "../components/layout/SiteFooter.jsx";
+import SiteHeader from "../components/layout/SiteHeader.jsx";
 
 /**
  * @typedef {import('../API/session-api.js').LoginCredentials} LoginCredentials
@@ -14,19 +14,19 @@ import SiteHeader from '../components/layout/SiteHeader.jsx';
 
 const diningFeatures = [
   {
-    title: 'Alpine cuisine',
-    description: 'Traditional dishes with local ingredients.',
-    icon: 'fork-knife',
+    title: "Alpine cuisine",
+    description: "Traditional dishes with local ingredients.",
+    icon: "fork-knife",
   },
   {
-    title: 'Unforgettable views',
-    description: 'A unique setting over the valley.',
-    icon: 'image-alt',
+    title: "Unforgettable views",
+    description: "A unique setting over the valley.",
+    icon: "image-alt",
   },
   {
-    title: 'A warm atmosphere',
-    description: 'Cozy and welcoming, all year round.',
-    icon: 'house-heart',
+    title: "A warm atmosphere",
+    description: "Cozy and welcoming, all year round.",
+    icon: "house-heart",
   },
 ];
 
@@ -44,25 +44,29 @@ function HomePage() {
 
   // Links in account emails open the sign-in or the password recovery form.
   const [loginView, setLoginView] = useState(
-    /** @returns {'login' | 'forgot-password'} */ () =>
-      typeof window !== 'undefined' &&
-      new URLSearchParams(window.location.search).get('forgotPassword') === '1'
-        ? 'forgot-password'
-        : 'login',
+    /** @returns {'login' | 'forgot-password' | 'sign-up'} */ () =>
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("forgotPassword") === "1"
+        ? "forgot-password"
+        : "login",
   );
 
   const [isLoginOpen, setIsLoginOpen] = useState(
     () =>
-      typeof window !== 'undefined' &&
-      (loginView === 'forgot-password' ||
-        new URLSearchParams(window.location.search).get('signIn') === '1'),
+      typeof window !== "undefined" &&
+      (loginView === "forgot-password" ||
+        new URLSearchParams(window.location.search).get("signIn") === "1"),
   );
 
-  const isStaff =
-    user?.role === 'employee' || user?.role === 'warden';
+  const isStaff = user?.role === "employee" || user?.role === "warden";
 
   const handleSignIn = () => {
-    setLoginView('login');
+    setLoginView("login");
+    setIsLoginOpen(true);
+  };
+
+  const handleSignUp = () => {
+    setLoginView("sign-up");
     setIsLoginOpen(true);
   };
 
@@ -71,7 +75,7 @@ function HomePage() {
       handleSessionExpired();
     }
 
-    setLoginView('login');
+    setLoginView("login");
     setIsLoginOpen(true);
   };
 
@@ -110,14 +114,12 @@ function HomePage() {
       <SiteHeader
         user={user}
         onSignIn={handleSignIn}
+        onSignUp={handleSignUp}
         onSignOut={handleLogout}
       />
 
       <main className="mh-reservation-main">
-        <section
-          className="mh-reserve-hero"
-          aria-labelledby="reserve-title"
-        >
+        <section className="mh-reserve-hero" aria-labelledby="reserve-title">
           <picture className="mh-reserve-picture">
             <source
               media="(max-width: 767px)"
@@ -131,10 +133,7 @@ function HomePage() {
           </picture>
 
           <div className="mh-hero-content">
-            <span
-              className="mh-section-rule"
-              aria-hidden="true"
-            />
+            <span className="mh-section-rule" aria-hidden="true" />
 
             <p className="mh-hero-eyebrow">DINE</p>
 
@@ -145,26 +144,20 @@ function HomePage() {
             </p>
 
             <p className="mh-hero-description">
-              Enjoy traditional alpine cuisine in a unique setting.
-              Let us take care of the details, you just enjoy the moment.
+              Enjoy traditional alpine cuisine in a unique setting. Let us take
+              care of the details, you just enjoy the moment.
             </p>
           </div>
         </section>
 
-        <section
-          className="mh-reserve-content"
-          id="reserve"
-        >
+        <section className="mh-reserve-content" id="reserve">
           {isStaff ? (
             <div className="mh-booking-staff-notice d-flex flex-wrap align-items-center justify-content-between gap-3">
               <p className="mb-0">
                 Table reservations are available to hiker accounts only.
               </p>
 
-              <Link
-                className="mh-primary-button"
-                to="/staff/capacity"
-              >
+              <Link className="mh-primary-button" to="/staff/capacity">
                 <span>Manage dining capacity</span>
                 <span aria-hidden="true">→</span>
               </Link>
@@ -183,23 +176,16 @@ function HomePage() {
           aria-labelledby="dining-experience-title"
         >
           <Col xs={12} className="mh-experience-intro">
-            <span
-              className="mh-section-rule"
-              aria-hidden="true"
-            />
+            <span className="mh-section-rule" aria-hidden="true" />
 
-            <p className="mh-experience-eyebrow">
-              A UNIQUE DINING EXPERIENCE
-            </p>
+            <p className="mh-experience-eyebrow">A UNIQUE DINING EXPERIENCE</p>
 
-            <h2 id="dining-experience-title">
-              More than a meal
-            </h2>
+            <h2 id="dining-experience-title">More than a meal</h2>
 
             <p>
-              Local ingredients, authentic flavours and a view
-              that takes your breath away. A dining experience
-              that makes your mountain day even more special.
+              Local ingredients, authentic flavours and a view that takes your
+              breath away. A dining experience that makes your mountain day even
+              more special.
             </p>
           </Col>
 
@@ -214,10 +200,7 @@ function HomePage() {
                   key={feature.title}
                 >
                   <div className="mh-feature-icon d-flex align-items-center justify-content-center">
-                    <i
-                      className={`bi bi-${feature.icon}`}
-                      aria-hidden="true"
-                    />
+                    <i className={`bi bi-${feature.icon}`} aria-hidden="true" />
                   </div>
 
                   <h3>{feature.title}</h3>
