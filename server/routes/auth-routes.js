@@ -25,21 +25,21 @@ function loginFor(area) {
     const { email, password } = req.body ?? {};
 
     if (
-      typeof email !== 'string' ||
-      typeof password !== 'string' ||
+      typeof email !== "string" ||
+      typeof password !== "string" ||
       email.trim().length === 0 ||
       password.length === 0
     ) {
       return res.status(400).json({
         error: {
-          code: 'INVALID_CREDENTIALS',
-          message: 'Email and password are required.',
+          code: "INVALID_CREDENTIALS",
+          message: "Email and password are required.",
         },
       });
     }
 
     passport.authenticate(
-      'local',
+      "local",
       /**
        * @param {unknown} error
        * @param {Express.User | false | null | undefined} user
@@ -52,22 +52,22 @@ function loginFor(area) {
         if (!user) {
           return res.status(401).json({
             error: {
-              code: 'INVALID_CREDENTIALS',
-              message: 'Email or password is incorrect.',
+              code: "INVALID_CREDENTIALS",
+              message: "Email or password is incorrect.",
             },
           });
         }
 
         const allowed =
-          area === 'hiker'
-            ? user.role === 'hiker'
-            : user.role === 'employee' || user.role === 'warden';
+          area === "hiker"
+            ? user.role === "hiker"
+            : user.role === "employee" || user.role === "warden";
 
         if (!allowed) {
           return res.status(401).json({
             error: {
-              code: 'INVALID_CREDENTIALS',
-              message: 'Email or password is incorrect.',
+              code: "INVALID_CREDENTIALS",
+              message: "Email or password is incorrect.",
             },
           });
         }
@@ -165,36 +165,42 @@ router.get("/sessions/current", requireAuth, (req, res) => {
 });
 
 router.put(
-  '/sessions/current/password',
+  "/sessions/current/password",
   requireAuth,
   async (req, res, next) => {
     try {
       if (!req.user) {
         return res.status(401).json({
           error: {
-            code: 'UNAUTHENTICATED',
-            message: 'Login is required.',
+            code: "UNAUTHENTICATED",
+            message: "Login is required.",
           },
         });
       }
 
       const sessionUser = req.user;
-      const {
-        currentPassword,
-        newPassword,
-        confirmPassword,
-      } = req.body ?? {};
+      const { currentPassword, newPassword, confirmPassword } = req.body ?? {};
 
-      if (
-        typeof currentPassword !== 'string' ||
-        currentPassword.length === 0 ||
-        !isAcceptableNewPassword(newPassword, confirmPassword)
-      ) {
+      if (typeof currentPassword !== "string" || currentPassword.length === 0) {
         return res.status(400).json({
           error: {
-            code: 'INVALID_PASSWORD',
-            message:
-              'The new password must be 8 to 128 characters and match the confirmation.',
+            field: "currentPassword",
+            code: "INVALID_PASSWORD",
+            message: "Enter your current password.",
+          },
+        });
+      }
+
+      const passwordError = getNewPasswordError(newPassword, confirmPassword);
+
+      if (passwordError) {
+        return res.status(400).json({
+          error: {
+            ...passwordError,
+            field:
+              passwordError.field === "password"
+                ? "newPassword"
+                : "confirmPassword",
           },
         });
       }
@@ -208,8 +214,8 @@ router.put(
       ) {
         return res.status(401).json({
           error: {
-            code: 'INVALID_PASSWORD',
-            message: 'The current password is incorrect.',
+            code: "INVALID_PASSWORD",
+            message: "The current password is incorrect.",
           },
         });
       }
@@ -217,8 +223,8 @@ router.put(
       if (currentPassword === newPassword) {
         return res.status(400).json({
           error: {
-            code: 'INVALID_PASSWORD',
-            message: 'The new password must differ from the current password.',
+            code: "INVALID_PASSWORD",
+            message: "The new password must differ from the current password.",
           },
         });
       }
@@ -231,8 +237,8 @@ router.put(
       if (!updatedUser) {
         return res.status(404).json({
           error: {
-            code: 'ACCOUNT_NOT_FOUND',
-            message: 'The account could not be updated.',
+            code: "ACCOUNT_NOT_FOUND",
+            message: "The account could not be updated.",
           },
         });
       }
@@ -248,7 +254,7 @@ router.put(
   },
 );
 
-router.delete('/sessions/current', (req, res, next) => {
+router.delete("/sessions/current", (req, res, next) => {
   if (!req.isAuthenticated()) {
     return res.status(204).end();
   }
@@ -264,10 +270,10 @@ router.delete('/sessions/current', (req, res, next) => {
       }
 
       // Match the options used when setting the session cookie.
-      res.clearCookie('mountain-hut.sid', {
+      res.clearCookie("mountain-hut.sid", {
         httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.COOKIE_SECURE === 'true',
+        sameSite: "lax",
+        secure: process.env.COOKIE_SECURE === "true",
       });
 
       return res.status(204).end();

@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react';
-import { Button, Form, Spinner } from 'react-bootstrap';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useEffect, useState } from "react";
+import { Button, Form, Spinner } from "react-bootstrap";
+import { Link, useSearchParams } from "react-router-dom";
 
-import API, { SessionApiError } from '../API/session-api.js';
-import AuthPageLayout from '../components/auth/AuthPageLayout.jsx';
-import PasswordField from '../components/auth/PasswordField.jsx';
-import Alert from '../components/common/AutoDismissAlert.jsx';
+import API, { SessionApiError } from "../API/session-api.js";
+import AuthPageLayout from "../components/auth/AuthPageLayout.jsx";
+import PasswordField from "../components/auth/PasswordField.jsx";
+import Alert from "../components/common/AutoDismissAlert.jsx";
 
-const MIN_PASSWORD_LENGTH = 8;
+const MIN_PASSWORD_LENGTH = 15;
 const MAX_PASSWORD_LENGTH = 128;
 
 /**

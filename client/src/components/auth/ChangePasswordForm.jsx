@@ -87,8 +87,8 @@ export default function ChangePasswordForm({
           controlId="new-password"
           label="New password"
           autoComplete="new-password"
-          placeholder="At least 8 characters"
-          minLength={8}
+          placeholder="At least 15 characters"
+          minLength={15}
           maxLength={128}
           value={newPassword}
           onChange={setNewPassword}
@@ -100,7 +100,7 @@ export default function ChangePasswordForm({
           label="Confirm new password"
           autoComplete="new-password"
           placeholder="Repeat the new password"
-          minLength={8}
+          minLength={15}
           maxLength={128}
           value={confirmPassword}
           onChange={setConfirmPassword}

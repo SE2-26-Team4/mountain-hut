@@ -1,16 +1,16 @@
-import express from 'express';
+import express from "express";
 
-import { sendBookingConfirmationEmail } from '../services/booking-confirmation-service.js';
+import { sendBookingConfirmationEmail } from "../services/booking-confirmation-service.js";
 import {
   buildPasswordChangedEmail,
   buildPasswordResetEmail,
-} from '../services/password-reset-content.js';
+} from "../services/password-reset-content.js";
 import {
   checkPasswordResetToken,
   createPasswordResetRequest,
   PasswordResetError,
   resetPassword,
-} from '../services/password-reset-service.js';
+} from "../services/password-reset-service.js";
 
 /**
  * @typedef {import('../services/password-reset-service.js').PasswordResetRequest} PasswordResetRequest
@@ -51,7 +51,7 @@ async function sendResetLink({ account, token }) {
       }),
     );
   } catch (emailError) {
-    console.error('Password reset email could not be sent:', emailError);
+    console.error("Password reset email could not be sent:", emailError);
   }
 }
 
@@ -72,7 +72,7 @@ async function sendPasswordChangedNotice(account) {
     );
   } catch (emailError) {
     console.error(
-      'Password reset, but the notification email could not be sent:',
+      "Password reset, but the notification email could not be sent:",
       emailError,
     );
   }
@@ -81,7 +81,7 @@ async function sendPasswordChangedNotice(account) {
 // [REQUIREMENT] MH-07: In any case the hiker can recover their password via email.
 // The same answer is returned whether or not the email belongs to a hiker.
 router.post(
-  '/password-reset-requests',
+  "/password-reset-requests",
   asyncRoute(async (req, res) => {
     const resetRequest = await createPasswordResetRequest(req.body?.email);
 
@@ -93,7 +93,7 @@ router.post(
 
     return res.status(202).json({
       message:
-        'If a hiker account uses this email, we have sent a link to choose a new password. The link expires in 24 hours.',
+        "If a hiker account uses this email, we have sent a link to choose a new password. The link expires in 24 hours.",
     });
   }),
 );
@@ -101,7 +101,7 @@ router.post(
 // Check a reset link when its page opens: a link that was already used,
 // replaced or has expired cannot set a password, and a new one is needed.
 router.post(
-  '/password-reset-checks',
+  "/password-reset-checks",
   asyncRoute(async (req, res) => {
     await checkPasswordResetToken(req.body?.token);
 
@@ -111,14 +111,14 @@ router.post(
 
 // Set a new password with the token received by email.
 router.post(
-  '/password-resets',
+  "/password-resets",
   asyncRoute(async (req, res) => {
     const account = await resetPassword(req.body ?? {});
 
     await sendPasswordChangedNotice(account);
 
     return res.status(200).json({
-      message: 'Your password has been reset. You can now sign in.',
+      message: "Your password has been reset. You can now sign in.",
     });
   }),
 );
@@ -135,16 +135,17 @@ const handlePasswordResetError = (error, _req, res, _next) => {
       error: {
         code: error.code,
         message: error.message,
+        field: error.field,
       },
     });
   }
 
-  console.error('Password reset API error:', error);
+  console.error("Password reset API error:", error);
 
   return res.status(500).json({
     error: {
-      code: 'INTERNAL_SERVER_ERROR',
-      message: 'An unexpected error occurred.',
+      code: "INTERNAL_SERVER_ERROR",
+      message: "An unexpected error occurred.",
     },
   });
 };
