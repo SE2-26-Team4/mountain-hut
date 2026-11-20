@@ -461,6 +461,7 @@ describe("public hiker sign-up", () => {
     const response = await request(app).post("/api/hikers").send({
       fullName: "Test Hiker",
       email: testEmail.toUpperCase(),
+      phone: "+39 333 123-4567",
       password,
       confirmPassword: password,
     });
@@ -503,6 +504,7 @@ describe("public hiker sign-up", () => {
         .send({
           fullName: "Maria Giulia De Luca",
           email: `signup-${randomUUID()}@example.com`,
+          phone: "+39 333 123-4567",
           password: value,
           confirmPassword: confirmation,
         });
@@ -513,16 +515,80 @@ describe("public hiker sign-up", () => {
   );
 
   it.each([
-    { label: "without a phone field", input: {}, expectedPhone: null },
-    { label: "with a blank phone", input: { phone: "" }, expectedPhone: null },
+    { label: "missing", input: {} },
+    { label: "blank", input: { phone: "   " } },
+  ])("rejects a $label mobile number", async ({ input }) => {
+    const response = await request(app)
+      .post("/api/hikers")
+      .send({
+        fullName: "Test Hiker",
+        email: `signup-${randomUUID()}@example.com`,
+        password,
+        confirmPassword: password,
+        ...input,
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatchObject({
+      field: "phone",
+      code: "INVALID_PHONE",
+      message: "Enter your mobile number.",
+    });
+  });
+
+  it.each([
+    { field: "notes", value: 42, code: "INVALID_NOTES" },
+    { field: "notes", value: "a".repeat(501), code: "INVALID_NOTES" },
+    { field: "emergencyContact", value: 42, code: "INVALID_EMERGENCY_CONTACT" },
     {
-      label: "with a formatted phone",
-      input: { phone: "+39 333 123-4567" },
-      expectedPhone: "+393331234567",
+      field: "emergencyContact",
+      value: "a".repeat(501),
+      code: "INVALID_EMERGENCY_CONTACT",
     },
   ])(
-    "registers a hiker $label and allows sign-in",
-    async ({ input, expectedPhone }) => {
+    "rejects invalid $field and identifies the field",
+    async ({ field, value, code }) => {
+      const response = await request(app)
+        .post("/api/hikers")
+        .send({
+          fullName: "Test Hiker",
+          email: `signup-${randomUUID()}@example.com`,
+          phone: "+39 333 123-4567",
+          password,
+          confirmPassword: password,
+          [field]: value,
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toMatchObject({ field, code });
+    },
+  );
+
+  it.each([
+    {
+      label: "omitted",
+      input: {},
+      expectedNotes: null,
+      expectedContact: null,
+    },
+    {
+      label: "blank",
+      input: { notes: "   ", emergencyContact: "" },
+      expectedNotes: null,
+      expectedContact: null,
+    },
+    {
+      label: "provided",
+      input: {
+        notes: "  Registered mountain guide  ",
+        emergencyContact: "  Anna Rossi, +39 333 765 4321  ",
+      },
+      expectedNotes: "Registered mountain guide",
+      expectedContact: "Anna Rossi, +39 333 765 4321",
+    },
+  ])(
+    "saves the profile with optional details $label and allows sign-in",
+    async ({ input, expectedNotes, expectedContact }) => {
       const email = `signup-${randomUUID()}@example.com`;
 
       try {
@@ -531,6 +597,7 @@ describe("public hiker sign-up", () => {
           .send({
             fullName: "Maria Giulia De Luca",
             email: ` ${email.toUpperCase()} `,
+            phone: "+39 333 123-4567",
             password,
             confirmPassword: password,
             ...input,
@@ -540,13 +607,17 @@ describe("public hiker sign-up", () => {
         expect(signup.body).toEqual({ id: expect.any(Number) });
 
         const saved = await getAsync(
-          "SELECT email, phone, must_change_password FROM users WHERE id = ?",
+          `SELECT email, phone, notes, emergency_contact, must_change_password
+           FROM users
+           WHERE id = ?`,
           [signup.body.id],
         );
 
         expect(saved).toEqual({
           email,
-          phone: expectedPhone,
+          phone: "+393331234567",
+          notes: expectedNotes,
+          emergency_contact: expectedContact,
           must_change_password: 0,
         });
 

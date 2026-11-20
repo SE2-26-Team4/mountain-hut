@@ -175,7 +175,9 @@ async function resetPassword(reset) {
  * @param {{
  *   fullName: string,
  *   email: string,
- *   phone?: string,
+ *   phone: string,
+ *   notes?: string,
+ *   emergencyContact?: string,
  *   password: string,
  *   confirmPassword: string
  * }} details

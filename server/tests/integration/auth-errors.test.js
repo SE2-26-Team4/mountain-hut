@@ -382,6 +382,7 @@ it("forwards an unexpected sign-up failure", async () => {
   const response = await request(testApp).post("/api/hikers").send({
     fullName: "Test Hiker",
     email: "signup@example.com",
+    phone: "+39 333 123-4567",
     password,
     confirmPassword: password,
   });

@@ -86,8 +86,15 @@ function loginFor(area) {
 
 router.post("/hikers", async (req, res, next) => {
   try {
-    const { fullName, email, phone, password, confirmPassword } =
-      req.body ?? {};
+    const {
+      fullName,
+      email,
+      phone,
+      notes,
+      emergencyContact,
+      password,
+      confirmPassword,
+    } = req.body ?? {};
 
     const name = typeof fullName === "string" ? fullName.trim() : "";
     const address = typeof email === "string" ? email.trim().toLowerCase() : "";
@@ -110,22 +117,43 @@ router.post("/hikers", async (req, res, next) => {
       });
     }
 
-    let normalizedPhone = null;
+    const phoneText = typeof phone === "string" ? phone.trim() : "";
+    const normalizedPhone = phoneText.replace(/[\s().-]/g, "");
 
-    if (phone != null && !(typeof phone === "string" && phone.trim() === "")) {
-      const phoneText = typeof phone === "string" ? phone.trim() : "";
-      const number = phoneText.replace(/[\s().-]/g, "");
+    if (phoneText.length > 30 || !/^\+?\d{6,15}$/.test(normalizedPhone)) {
+      return res.status(400).json({
+        error: {
+          field: "phone",
+          code: "INVALID_PHONE",
+          message: phoneText
+            ? "Enter 6 to 15 digits, optionally starting with +."
+            : "Enter your mobile number.",
+        },
+      });
+    }
 
-      if (phoneText.length > 30 || !/^\+?\d{6,15}$/.test(number)) {
+    const optionalFields = [
+      { field: "notes", value: notes, code: "INVALID_NOTES" },
+      {
+        field: "emergencyContact",
+        value: emergencyContact,
+        code: "INVALID_EMERGENCY_CONTACT",
+      },
+    ];
+
+    for (const { field, value, code } of optionalFields) {
+      if (
+        value != null &&
+        (typeof value !== "string" || value.trim().length > 500)
+      ) {
         return res.status(400).json({
           error: {
-            code: "INVALID_PHONE",
-            message: "Enter 6 to 15 digits, optionally starting with +.",
+            field,
+            code,
+            message: "Enter text of up to 500 characters.",
           },
         });
       }
-
-      normalizedPhone = number;
     }
 
     const passwordError = getNewPasswordError(password, confirmPassword);
@@ -140,6 +168,8 @@ router.post("/hikers", async (req, res, next) => {
       address,
       passwordHash,
       normalizedPhone,
+      notes?.trim() || null,
+      emergencyContact?.trim() || null,
     );
 
     if (!hiker) {

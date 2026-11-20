@@ -68,6 +68,7 @@
   --mh-glass-max-height: 90dvh;
   --mh-signup-visual-width: 35%;
   --mh-signup-form-width: 65%;
+  --mh-signup-form-max-width: 52rem;
   --mh-glass-radius: 1.25rem;
   --mh-glass-overlay-padding: 1.5rem;
   --mh-glass-panel-padding: clamp(2.5rem, 4vw, 3.5rem);
