@@ -30,11 +30,33 @@ mountain-hut/
 
 **Prerequisite:** Docker with Docker Compose. From the repository root:
 
+Copy and customize the environment template first. The secrets file is optional for the demo, but `SESSION_SECRET` is required by the application in production:
+
+```powershell
+Copy-Item .env.example .env
+notepad .env
+```
+
+On macOS/Linux/Git Bash:
+
+```bash
+cp .env.example .env
+```
+
+Build and start the local source:
+
 ```bash
 docker compose up --build
 ```
 
 Open **http://localhost:8080**. The container serves both the frontend and the API.
+
+To use the already-published Docker Hub image instead:
+
+```bash
+docker compose pull app
+docker compose up -d
+```
 
 To stop the container without deleting saved bookings:
 
@@ -159,7 +181,7 @@ For Docker, copy `.env.example` to an external text file, for example `mountain-
 SESSION_SECRET=use-a-long-random-secret
 SEED_DEMO_ACCOUNTS=false
 RESEND_API_KEY=re_your_resend_api_key
-EMAIL_FROM="Mountain Hut <bookings@your-verified-domain.com>"
+EMAIL_FROM=Mountain Hut <bookings@your-verified-domain.com>
 ```
 
 Docker Compose reads this file from the host and does not copy it into the image:

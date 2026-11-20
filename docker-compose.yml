@@ -1,13 +1,15 @@
 services:
   app:
     container_name: mountain_hut_app
+    image: lorebosso/mountain-hut:latest
     build:
       context: .
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
     env_file:
-      - ${ENV_FILE:-./.env}
+      - path: ${ENV_FILE:-./.env}
+        required: false
     environment:
       NODE_ENV: production
       PORT: 8080
