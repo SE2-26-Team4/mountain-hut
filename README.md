@@ -34,7 +34,7 @@ mountain-hut/
 docker compose up --build
 ```
 
-Open **http://localhost:8080**. The container serves both the frontend and the API. Docker Compose enables demo accounts by default.
+Open **http://localhost:8080**. The container serves both the frontend and the API.
 
 To stop the container without deleting saved bookings:
 
@@ -44,7 +44,7 @@ docker compose down
 
 The database is stored in the named volume `mountain_hut_sqlite_data`. **Warning:** `docker compose down -v` removes this volume and deletes its data.
 
-The default Compose session secret and demo credentials are intended for development only. Set a secure `SESSION_SECRET` and disable `SEED_DEMO_ACCOUNTS` for non-demo deployments. For initial-password and booking emails, configure Resend as described below.
+Set secrets in an external text file and pass it to Docker. A secure `SESSION_SECRET` is required in production. For demo deployments, set `SEED_DEMO_ACCOUNTS=true`.
 
 ### Option B: Local development
 
@@ -151,7 +151,38 @@ Browser requests use a session cookie; authenticated API calls must include cred
 
 ## Environment configuration
 
-The **backend does not automatically load `.env` files** when started directly with Node.js. Set the environment variables in the shell or process environment for local development. For **Docker Compose**, create a repository-root `.env` from the supplied root `.env.example`; Compose reads this file for variable substitution. Never commit real secrets.
+The **backend does not automatically load `.env` files** when started directly with Node.js. Set the environment variables in the shell or process environment for local development.
+
+For Docker, copy `.env.example` to an external text file, for example `mountain-hut.env`, and replace the placeholder values:
+
+```text
+SESSION_SECRET=use-a-long-random-secret
+SEED_DEMO_ACCOUNTS=false
+RESEND_API_KEY=re_your_resend_api_key
+EMAIL_FROM="Mountain Hut <bookings@your-verified-domain.com>"
+```
+
+Docker Compose reads this file from the host and does not copy it into the image:
+
+```bash
+ENV_FILE=/absolute/path/to/mountain-hut.env docker compose up --build
+```
+
+To use an image published on Docker Hub:
+
+```bash
+docker pull <dockerhub-user>/<image>:<tag>
+docker run --name mountain-hut \
+  --env-file /absolute/path/to/mountain-hut.env \
+  -e NODE_ENV=production \
+  -e PORT=8080 \
+  -e DB_PATH=/app/data/mountain-hut.sqlite \
+  -p 8080:8080 \
+  -v mountain_hut_sqlite_data:/app/data \
+  <dockerhub-user>/<image>:<tag>
+```
+
+Never commit the secrets file or publish it as part of the Docker image.
 
 | Variable | Meaning |
 | --- | --- |
@@ -167,7 +198,7 @@ The **backend does not automatically load `.env` files** when started directly w
 | `RESEND_API_KEY` | API key used to deliver initial-password and booking-confirmation emails |
 | `EMAIL_FROM` | Sender address accepted by Resend |
 
-**Email with Docker Compose:** `docker-compose.yml` forwards `RESEND_API_KEY` from the environment/root `.env` and currently sets `EMAIL_FROM` to `Mountain Hut <mountain-hut@azeca.it>` inside the container. A valid API key and permission to send from that address/domain are required for delivery. Changing `EMAIL_FROM` only in the root `.env` will **not** override the hard-coded Compose value; use an appropriate local Compose override if a different verified sender is required.
+**Email with Docker:** Set `RESEND_API_KEY` and `EMAIL_FROM` in the external environment file passed with `env_file` or `--env-file`. A valid API key and permission to send from the configured verified sender are required for delivery.
 
 **Email with local Node.js:** Set both `RESEND_API_KEY` and `EMAIL_FROM` in the backend process environment. Email delivery is optional for booking persistence but is important for staff-created hiker first-login credentials. Do not publish credentials, API keys, or email-provider secrets.
 

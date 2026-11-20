@@ -19,9 +19,7 @@ WORKDIR /app/server
 ENV NODE_ENV=production
 ENV PORT=8080
 ENV DB_PATH=/app/data/mountain-hut.sqlite
-ENV SESSION_SECRET=mountain-hut-demo-session-secret-change-in-production
 ENV COOKIE_SECURE=false
-ENV SEED_DEMO_ACCOUNTS=true
 
 COPY server/package*.json ./
 RUN npm ci --omit=dev
