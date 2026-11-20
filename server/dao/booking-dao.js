@@ -278,11 +278,11 @@ async function saveBooking(
     );
   }
 
-  // [REQUIREMENT] MH-06: Changes to party size are subject to the automatic verification of availability.
+  // [REQUIREMENT] MH-06: When the party size changes, reassign seats across all active tables for the slot using the same rules as a new booking.
   // Calculate free seats for active tables assigned to this slot.
   // Only confirmed bookings for the same date and slot occupy seats.
   /** @type {{ tableId: number, availableSeats: number }[]} */
-  const availableTables = await allAsync(
+  const tables = await allAsync(
     `SELECT
        t.id AS tableId,
        t.seat_count - COALESCE((
@@ -303,31 +303,11 @@ async function saveBooking(
     [bookingDate, slotId, editBookingId ?? null, slotId],
   );
 
-  const assignedTableIds = new Set(
-    originalAllocations.map((allocation) => allocation.tableId),
-  );
-  const assignedTables = availableTables.filter((table) =>
-    assignedTableIds.has(table.tableId),
-  );
-  const assignedCapacity = assignedTables.reduce(
-    (total, table) => total + Math.max(0, table.availableSeats),
-    0,
-  );
-
-  // [REQUIREMENT] MH-06: When a hiker increases the party size and the party no longer
-  // fits at the tables already assigned, it should be treated as a new booking.
-  // The current seats are released and the tables are assigned again with the
-  // MH-01 rules.
-  const tables =
-    sameSlot && assignedCapacity >= partySize
-      ? assignedTables
-      : availableTables;
-
   // Collect the exact number of seats reserved at each selected table.
   /** @type {BookingTableAllocationDTO[]} */
   const allocations = [];
 
-  // Prefer one table with the smallest sufficient number of free seats.
+  // [REQUIREMENT] MH-01: Seat the party at one table when possible and split it across tables when necessary.
   // Use the lowest table ID to break ties.
   const singleTable = tables
     .filter((table) => table.availableSeats >= partySize)

@@ -673,9 +673,8 @@ describe("editing a booking", () => {
     );
   });
 
-  // [REQUIREMENT] MH-06: The current seats are released and the tables are assigned
-  // again with the MH-01 rules.
-  it("reassigns a larger party and releases the original table", async () => {
+  // [REQUIREMENT] MH-06: Increasing or decreasing the party size triggers a new table assignment under the MH-01 rules.
+  it("reassigns tables when the party grows and shrinks", async () => {
     const largerTable = await runAsync(
       "INSERT INTO dining_tables (name, seat_count) VALUES (?, 6)",
       [`Booking API larger table ${uniqueSuffix}`],
@@ -720,6 +719,17 @@ describe("editing a booking", () => {
           expect.objectContaining({ id: largerTableId, availableSeats: 1 }),
         ]),
       );
+
+      const reduced = await hikerAgent
+        .put(`/api/bookings/${id}`)
+        .send({ bookingDate, slotId, partySize: 2 })
+        .expect(200);
+
+      expect(reduced.body.booking).toMatchObject({
+        id,
+        partySize: 2,
+        allocations: [{ tableId, seatsReserved: 2 }],
+      });
     } finally {
       await clearTestBookings();
       await runAsync(
