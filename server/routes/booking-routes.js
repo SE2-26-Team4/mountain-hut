@@ -292,7 +292,7 @@ router.get(
   }),
 );
 
-// Expose seat availability for a date and meal slot without requiring login.
+// [REQUIREMENT] MH-04: Anyone can check seat availability for a date and meal slot without signing in.
 router.get(
   "/bookings/availability",
   asyncRoute(async (req, res) => {
@@ -426,7 +426,7 @@ router.post(
   requireStaff,
   asyncRoute(async (req, res) => {
     // The service validates the hiker type and fields.
-    // [REQUIREMENT] If a full hiker account is created, the password is randomly
+    // [REQUIREMENT] MH-07: If a full hiker account is created, the password is randomly
     // generated and sent to the hiker by email.
     const registration = await registerHikerByStaff(req.body);
     const passwordSent = await sendInitialPassword(

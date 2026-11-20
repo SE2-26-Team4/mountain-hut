@@ -32,6 +32,7 @@ const hutClock = new Intl.DateTimeFormat("en-GB", {
 
 /** @param {{ onCancel: () => void }} props */
 export default function StaffBookingForm({ onCancel }) {
+  // [REQUIREMENT] MH-07: Staff can book a meal slot until the service starts.
   const [hikerMode, setHikerMode] = useState("existing");
   const [showNewHiker, setShowNewHiker] = useState(false);
   const [newHikerRegistration, setNewHikerRegistration] = useState(
@@ -168,6 +169,7 @@ export default function StaffBookingForm({ onCancel }) {
   const hutToday = `${hutPart("year")}-${hutPart("month")}-${hutPart("day")}`;
   const hutTime = `${hutPart("hour")}:${hutPart("minute")}`;
 
+  // [REQUIREMENT] MH-07: Staff can book a meal slot until the service starts.
   const slotsForDate = mealSlots
     .filter(
       (slot) =>

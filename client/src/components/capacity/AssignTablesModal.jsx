@@ -9,6 +9,7 @@ import ScheduleInfo from "./ScheduleInfo.jsx";
  * @typedef {import('../../models/models.js').DiningTableDTO} DiningTableDTO
  */
 
+// [REQUIREMENT] MH-02: Staff choose which tables and seats are available for each meal slot.
 /**
  * @param {Object} props
  * @param {boolean} props.show

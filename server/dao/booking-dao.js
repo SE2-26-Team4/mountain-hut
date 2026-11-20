@@ -134,7 +134,7 @@ async function saveBooking(
     );
   }
 
-  // [REQUIREMENT] MH-06: Changes are admitted within 48 hours from the date booked.
+  // [REQUIREMENT] MH-06: Booking changes close 48 hours before the original meal starts.
   if (
     originalBooking &&
     Date.now() >
@@ -838,9 +838,8 @@ export async function cancelBooking(id, hikerId) {
     // Missing, already cancelled and unowned bookings are reported alike.
     if (!booking) return null;
 
-    // [REQUIREMENT] MH-08: There are no time constraints, hikers can cancel a
-    // reservation at any time. Cancellation stays open until the meal service
-    // ends; after that the seats can no longer be offered to other guests.
+    // [REQUIREMENT] MH-08: A hiker can cancel a confirmed booking to release its seats.
+    // The application accepts cancellations until the meal service ends.
     let mealEnd;
 
     try {

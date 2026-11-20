@@ -3,6 +3,7 @@ import { Button, Form } from "react-bootstrap";
 
 import { MAX_SPECIAL_REQUEST_LENGTH } from "../../utils/booking-requirements.js";
 
+// [REQUIREMENT] MH-05: A booking can include multiple dietary requirements, each with its own description and allergy flag.
 /**
  * @param {{
  *   requests: import("../../utils/booking-requirements.js").BookingRequests,
