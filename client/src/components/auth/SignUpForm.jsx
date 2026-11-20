@@ -9,34 +9,67 @@ const INITIAL_VALUES = {
   fullName: "",
   email: "",
   phone: "",
+  emergencyContact: "",
+  notes: "",
   password: "",
   confirmPassword: "",
 };
 
+const MAX_PROFILE_TEXT_LENGTH = 500;
+
 /** @typedef {keyof typeof INITIAL_VALUES} FieldName */
 /** @typedef {Partial<Record<FieldName, string>>} FieldErrors */
 
-const TEXT_FIELDS = /** @type {const} */ ([
+const PROFILE_FIELDS = /** @type {const} */ ([
   {
     name: "fullName",
     label: "Full name",
+    placeholder: "E.g. Alex Rossi",
     type: "text",
     autoComplete: "name",
+    icon: "",
     hint: "",
+    required: true,
   },
   {
     name: "email",
     label: "Email address",
+    placeholder: "name@example.com",
     type: "email",
     autoComplete: "email",
+    icon: "bi-envelope",
     hint: "",
+    required: true,
   },
   {
     name: "phone",
-    label: "Phone (optional)",
+    label: "Mobile number",
+    placeholder: "E.g. 333 123 4567",
     type: "tel",
     autoComplete: "tel",
+    icon: "bi-telephone",
     hint: "Country code, spaces and hyphens are optional.",
+    required: true,
+  },
+  {
+    name: "emergencyContact",
+    label: "Emergency contact (optional)",
+    placeholder: "E.g. Anna Rossi, +39 333 765 4321",
+    type: "text",
+    autoComplete: "off",
+    icon: "",
+    hint: "",
+    required: false,
+  },
+  {
+    name: "notes",
+    label: "Notes (optional)",
+    placeholder: "E.g. registered mountain guide",
+    type: "textarea",
+    autoComplete: "off",
+    icon: "",
+    hint: "",
+    required: false,
   },
 ]);
 
@@ -51,6 +84,7 @@ function validate(values) {
   const fullName = values.fullName.trim();
   const email = values.email.trim();
   const phone = values.phone.trim();
+  const normalizedPhone = phone.replace(/[\s().-]/g, "");
   const passwordLength = Array.from(values.password).length;
 
   if (!fullName) {
@@ -65,12 +99,18 @@ function validate(values) {
     errors.email = "Enter a valid email address.";
   }
 
-  if (phone) {
-    const number = phone.replace(/[\s().-]/g, "");
+  if (!phone) {
+    errors.phone = "Enter your mobile number.";
+  } else if (phone.length > 30 || !/^\+?\d{6,15}$/.test(normalizedPhone)) {
+    errors.phone = "Enter 6 to 15 digits, optionally starting with +.";
+  }
 
-    if (phone.length > 30 || !/^\+?\d{6,15}$/.test(number)) {
-      errors.phone = "Enter 6 to 15 digits, optionally starting with +.";
-    }
+  if (values.emergencyContact.trim().length > MAX_PROFILE_TEXT_LENGTH) {
+    errors.emergencyContact = "Use 500 characters or fewer.";
+  }
+
+  if (values.notes.trim().length > MAX_PROFILE_TEXT_LENGTH) {
+    errors.notes = "Use 500 characters or fewer.";
   }
 
   if (passwordLength === 0) {
@@ -145,7 +185,6 @@ export default function SignUpForm({ onBack, onRegistered }) {
   /** @param {import("react").SubmitEvent<HTMLFormElement>} event */
   async function handleSubmit(event) {
     event.preventDefault();
-
     if (isSubmitting) return;
 
     setSubmitted(true);
@@ -161,14 +200,18 @@ export default function SignUpForm({ onBack, onRegistered }) {
     setFormError("");
 
     const email = values.email.trim().toLowerCase();
+    const details = {
+      fullName: values.fullName.trim(),
+      email,
+      phone: values.phone.trim(),
+      emergencyContact: values.emergencyContact.trim(),
+      notes: values.notes.trim(),
+      password: values.password,
+      confirmPassword: values.confirmPassword,
+    };
 
     try {
-      await API.registerHiker({
-        ...values,
-        fullName: values.fullName.trim(),
-        email,
-        phone: values.phone.trim(),
-      });
+      await API.registerHiker(details);
     } catch (error) {
       if (error instanceof SessionApiError) {
         let field = error.field;
@@ -221,25 +264,17 @@ export default function SignUpForm({ onBack, onRegistered }) {
       )}
 
       <Form noValidate onSubmit={handleSubmit}>
-        <Row className="g-3">
-          {TEXT_FIELDS.map(({ name, label, type, autoComplete, hint }) => {
-            const error = visibleError(name);
+        <Row className="gx-3 gy-2">
+          {PROFILE_FIELDS.map((field) => {
+            const { name, label, type, autoComplete, icon, hint, required } =
+              field;
             const id = `signup-${name}`;
-            const icon = {
-              fullName: "",
-              email: "bi-envelope",
-              phone: "bi-telephone",
-            }[name];
+            const error = visibleError(name);
+            const feedback = error || hint;
+            const isNotes = name === "notes";
 
             return (
-              <Col
-                key={name}
-                xs={12}
-                md={6}
-                className={
-                  name === "fullName" ? "mh-signup-name-column" : undefined
-                }
-              >
+              <Col key={name} xs={12} md={isNotes ? 12 : 6}>
                 <Form.Group controlId={id}>
                   <Form.Label>{label}</Form.Label>
 
@@ -252,30 +287,31 @@ export default function SignUpForm({ onBack, onRegistered }) {
                     )}
 
                     <Form.Control
+                      as={isNotes ? "textarea" : "input"}
+                      type={isNotes ? undefined : type}
                       name={name}
-                      type={type}
+                      placeholder={field.placeholder}
                       autoComplete={autoComplete}
                       value={values[name]}
+                      required={required}
+                      disabled={isSubmitting}
+                      isInvalid={Boolean(error)}
+                      aria-invalid={error ? true : undefined}
+                      aria-describedby={feedback ? `${id}-feedback` : undefined}
                       onChange={(event) =>
                         updateField(name, event.target.value)
                       }
                       onBlur={() => markTouched(name)}
-                      required={name !== "phone"}
-                      disabled={isSubmitting}
-                      isInvalid={Boolean(error)}
-                      aria-invalid={error ? true : undefined}
-                      aria-describedby={
-                        error || hint ? `${id}-feedback` : undefined
-                      }
                     />
                   </div>
-                  {(error || hint) && (
+
+                  {feedback && (
                     <Form.Text
                       id={`${id}-feedback`}
                       className={`d-block ${error ? "text-danger" : "text-muted"}`}
                       aria-live="polite"
                     >
-                      {error || hint}
+                      {feedback}
                     </Form.Text>
                   )}
                 </Form.Group>
@@ -291,7 +327,7 @@ export default function SignUpForm({ onBack, onRegistered }) {
               value={values.password}
               onChange={(value) => updateField("password", value)}
               onBlur={() => markTouched("password")}
-              hint="Use at least 15 characters. Spaces are allowed."
+              hint="Use 15 to 128 characters. Spaces are allowed."
               error={visibleError("password")}
               disabled={isSubmitting}
               className="mb-0"
@@ -312,7 +348,7 @@ export default function SignUpForm({ onBack, onRegistered }) {
             />
           </Col>
 
-          <Col xs={12}>
+          <Col xs={12} className="pt-3">
             <Button
               type="submit"
               className="mh-primary-button mh-auth-submit w-100 d-flex justify-content-center align-items-center"

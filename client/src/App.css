@@ -134,16 +134,6 @@
   box-shadow: var(--mh-focus-ring);
 }
 
-.mh-auth-card .form-control:-webkit-autofill,
-.mh-auth-card .form-control:-webkit-autofill:hover,
-.mh-auth-card .form-control:-webkit-autofill:focus,
-.mh-auth-card .form-control:-webkit-autofill:active {
-  -webkit-text-fill-color: var(--mh-glass-text);
-  -webkit-box-shadow: inset 0 0 0 var(--mh-auth-autofill-shadow-spread)
-    var(--mh-white);
-  caret-color: var(--mh-glass-text);
-}
-
 .mh-auth-input-wrapper > .mh-auth-input-icon {
   position: absolute;
   top: 50%;
@@ -529,27 +519,33 @@
   }
 }
 
-.mh-login-dialog--signup .mh-login-dialog-caption {
-  padding-inline: var(--mh-cap-size-24);
+.mh-login-dialog--signup {
+  max-width: calc(var(--mh-signup-form-max-width) + 2 * var(--mh-space-8));
+  height: auto;
+  max-height: none;
+  align-self: safe center;
 }
 
-@media (min-width: 768px) {
-  .mh-login-dialog--signup .mh-login-dialog-visual {
-    flex: 0 0 var(--mh-signup-visual-width);
-    max-width: var(--mh-signup-visual-width);
-  }
+.mh-login-dialog--signup .mh-login-dialog-row {
+  height: auto;
+}
 
-  .mh-login-dialog--signup .mh-login-dialog-form {
-    flex: 0 0 var(--mh-signup-form-width);
-    max-width: var(--mh-signup-form-width);
-    padding: var(--mh-cap-size-64) var(--mh-cap-size-36) var(--mh-cap-size-24);
-    overflow-y: auto;
-  }
+.mh-login-dialog--signup .mh-login-dialog-form {
+  flex: 0 0 100%;
+  max-width: 100%;
+  height: auto;
+  padding: var(--mh-cap-size-36);
+  overflow: visible;
+  border-inline-start: 0;
+}
+
+.mh-login-dialog--signup .mh-auth-heading {
+  margin: var(--mh-space-6) 0;
 }
 
 @media (max-width: 767px) {
-  .mh-login-dialog--signup .mh-login-dialog-visual {
-    display: none;
+  .mh-login-dialog--signup .mh-login-dialog-form {
+    padding: var(--mh-space-6);
   }
 }
 

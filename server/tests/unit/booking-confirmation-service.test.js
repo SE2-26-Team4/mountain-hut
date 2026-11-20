@@ -23,7 +23,7 @@ import { sendBookingConfirmationEmail } from "../../services/booking-confirmatio
 const message = {
   to: "hiker@example.com",
   subject: "Your mountain hut reservation",
-  html: "<p>Confirmed</p>",
+  html: '<p>Confirmed</p><img src="cid:mountain-hut-logo"><img src="cid:booking-success-check">',
   text: "Confirmed",
 };
 
@@ -69,6 +69,26 @@ describe("booking confirmation email service", () => {
         },
       ],
     });
+  });
+
+  it("sends only the logo when the HTML references only the logo", async () => {
+    await sendBookingConfirmationEmail({
+      ...message,
+      subject: "Your Mountain Hut account",
+      html: '<p>Your temporary password</p><img src="cid:mountain-hut-logo">',
+    });
+
+    expect(mocks.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attachments: [
+          {
+            filename: "mountain-hut-email-logo.png",
+            content: expect.any(Buffer),
+            contentId: "mountain-hut-logo",
+          },
+        ],
+      }),
+    );
   });
 
   // A missing API key must prevent the provider send call.

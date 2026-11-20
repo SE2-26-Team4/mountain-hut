@@ -21,12 +21,22 @@ export default function ChangePasswordForm({
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmationTouched, setConfirmationTouched] = useState(false);
+
+  const passwordsMismatch =
+    confirmPassword !== "" && confirmPassword !== newPassword;
 
   /** @param {import('react').SubmitEvent<HTMLFormElement>} event */
   const handleSubmit = async (event) => {
     event.preventDefault();
 
     if (isSubmitting) return;
+
+    if (passwordsMismatch) {
+      setConfirmationTouched(true);
+      document.getElementById("confirm-password")?.focus();
+      return;
+    }
 
     const changed = await onSubmit({
       currentPassword,
@@ -38,6 +48,7 @@ export default function ChangePasswordForm({
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      setConfirmationTouched(false);
     }
   };
 
@@ -47,10 +58,11 @@ export default function ChangePasswordForm({
       footer={
         <button
           type="button"
-          className="mh-auth-link d-inline-block mt-3"
+          className="mh-auth-link d-inline-flex align-items-center gap-2 mt-3"
           onClick={onSignOut}
           disabled={isSubmitting}
         >
+          <i className="bi bi-box-arrow-right" aria-hidden="true" />
           Sign out
         </button>
       }
@@ -77,7 +89,7 @@ export default function ChangePasswordForm({
           controlId="current-password"
           label="Initial password"
           autoComplete="current-password"
-          placeholder="Password from the email"
+          hint="Use the temporary password from your email."
           value={currentPassword}
           onChange={setCurrentPassword}
           disabled={isSubmitting}
@@ -87,7 +99,7 @@ export default function ChangePasswordForm({
           controlId="new-password"
           label="New password"
           autoComplete="new-password"
-          placeholder="At least 15 characters"
+          hint="Use 15 to 128 characters. Spaces are allowed."
           minLength={15}
           maxLength={128}
           value={newPassword}
@@ -99,11 +111,14 @@ export default function ChangePasswordForm({
           controlId="confirm-password"
           label="Confirm new password"
           autoComplete="new-password"
-          placeholder="Repeat the new password"
-          minLength={15}
-          maxLength={128}
           value={confirmPassword}
           onChange={setConfirmPassword}
+          onBlur={() => setConfirmationTouched(true)}
+          error={
+            confirmationTouched && passwordsMismatch
+              ? "The passwords do not match."
+              : ""
+          }
           disabled={isSubmitting}
           className="mb-4"
         />

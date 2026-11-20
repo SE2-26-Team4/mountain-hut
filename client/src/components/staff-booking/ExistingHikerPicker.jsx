@@ -50,6 +50,28 @@ export default function ExistingHikerPicker({
         <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 rounded border p-3">
           <div>
             <HikerSummary hiker={selectedHiker} />
+
+            {(selectedHiker.notes || selectedHiker.emergencyContact) && (
+              <details key={selectedHiker.id} className="mt-2">
+                <summary>Hiker details</summary>
+
+                <dl className="small mt-2 mb-0 text-break">
+                  {selectedHiker.notes && (
+                    <div className="mb-2">
+                      <dt>Notes</dt>
+                      <dd className="mb-0">{selectedHiker.notes}</dd>
+                    </div>
+                  )}
+
+                  {selectedHiker.emergencyContact && (
+                    <div>
+                      <dt>Emergency contact</dt>
+                      <dd className="mb-0">{selectedHiker.emergencyContact}</dd>
+                    </div>
+                  )}
+                </dl>
+              </details>
+            )}
           </div>
 
           <button

@@ -408,9 +408,11 @@ export function buildBookingConfirmationEmail(input) {
     Your Mountain Hut booking ${escapeHtml(reference)} is ${action}.
   </div>
 
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+    bgcolor="#f7f8fa" style="width:100%;background-color:#f7f8fa;">
     <tr>
-      <td align="center" style="padding:32px 12px;">
+      <td align="center" bgcolor="#f7f8fa"
+        style="padding:32px 12px;background-color:#f7f8fa;">
         <table role="presentation" width="600" cellpadding="0" cellspacing="0"
           style="width:100%;max-width:600px;border-spacing:0;">
 
@@ -421,7 +423,7 @@ export function buildBookingConfirmationEmail(input) {
                 MOUNTAIN HUT
               </p>
 ${successCheckHtml}
-              <h1style="margin:0;color:#172c38;font-size:28px;line-height:1.25;font-weight:600;">
+              <h1 style="margin:0;color:#172c38;font-size:28px;line-height:1.25;font-weight:600;">
                 Your booking is ${action}
               </h1>
             </td>

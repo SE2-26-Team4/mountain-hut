@@ -317,20 +317,24 @@ export async function createHiker(queries, hiker) {
 }
 
 /**
- * Creates a hiker account with a password chosen during public sign-up.
- * Returns null when an account already uses the email.
+ * Creates a hiker account during public sign-up.
+ * Returns null if the email already belongs to an account.
  *
  * @param {string} fullName
  * @param {string} email
  * @param {string} passwordHash
- * @param {string | null} [phone] - Normalized phone number, if provided.
+ * @param {string} phone - Normalized mobile number.
+ * @param {string | null} [notes]
+ * @param {string | null} [emergencyContact]
  * @returns {Promise<HikerDTO | null>}
  */
 export async function registerHiker(
   fullName,
   email,
   passwordHash,
-  phone = null,
+  phone,
+  notes = null,
+  emergencyContact = null,
 ) {
   return withTransaction(async (queries) => {
     const existingAccount = await findAccountByEmail(queries, email);
@@ -344,10 +348,70 @@ export async function registerHiker(
       email,
       passwordHash,
       phone,
-      notes: null,
-      emergencyContact: null,
+      notes,
+      emergencyContact,
       isTemporary: false,
       mustChangePassword: false,
     });
+  });
+}
+
+/**
+ * Reads the credentials needed to resend a first-login email.
+ * Only full hiker accounts still using an initial password are eligible.
+ *
+ * @param {number} hikerId
+ * @returns {Promise<{
+ *   fullName: string,
+ *   email: string,
+ *   passwordHash: string
+ * } | undefined>}
+ */
+export async function getHikerForInitialPasswordResend(hikerId) {
+  return getAsync(
+    `SELECT full_name AS fullName,
+            email,
+            password_hash AS passwordHash
+       FROM users
+      WHERE id = ?
+        AND role = 'hiker'
+        AND is_temporary = 0
+        AND must_change_password = 1
+        AND email IS NOT NULL
+        AND password_hash IS NOT NULL`,
+    [hikerId],
+  );
+}
+
+/**
+ * Activates the emailed password only if the account still has
+ * the same email address and the same initial password.
+ *
+ * @param {number} hikerId
+ * @param {string} email
+ * @param {string} previousHash
+ * @param {string} newHash
+ * @returns {Promise<boolean>}
+ */
+export async function replaceInitialPasswordAfterResend(
+  hikerId,
+  email,
+  previousHash,
+  newHash,
+) {
+  return withTransaction(async ({ runAsync }) => {
+    const result = await runAsync(
+      `UPDATE users
+          SET password_hash = ?
+        WHERE id = ?
+          AND role = 'hiker'
+          AND is_temporary = 0
+          AND must_change_password = 1
+          AND email = ?
+          AND password_hash = ?`,
+      [newHash, hikerId, email, previousHash],
+    );
+
+    return result.changes === 1;
   });
 }

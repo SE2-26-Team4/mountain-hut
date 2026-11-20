@@ -65,34 +65,35 @@ function LoginModal({
         </button>
 
         <Row className="g-0 mh-login-dialog-row">
-          <Col xs={12} md={7} className="mh-login-dialog-visual">
-            <img
-              src="/images/login-hero.png"
-              alt="Mountain hut overlooking the Alps at sunset"
-            />
+          {view !== "sign-up" && (
+            <Col xs={12} md={7} className="mh-login-dialog-visual">
+              <img
+                src="/images/login-hero.png"
+                alt="Mountain hut overlooking the Alps at sunset"
+              />
 
-            <div className="mh-login-dialog-caption d-flex flex-column align-items-start">
-              <div className="mh-login-photo-message d-flex flex-column align-items-start">
-                <h2>
-                  Good food,
-                  <br />
-                  higher horizons.
-                </h2>
+              <div className="mh-login-dialog-caption d-flex flex-column align-items-start">
+                <div className="mh-login-photo-message d-flex flex-column align-items-start">
+                  <h2>
+                    Good food,
+                    <br />
+                    higher horizons.
+                  </h2>
 
-                <span className="mh-login-dialog-rule" aria-hidden="true" />
+                  <span className="mh-login-dialog-rule" aria-hidden="true" />
 
-                <p className="mh-login-dialog-tagline text-white">
-                  {view === "sign-up"
-                    ? "Create an account to book a table at the hut."
-                    : "Sign in to check your reservations and enjoy a unique alpine experience."}
-                </p>
+                  <p className="mh-login-dialog-tagline text-white">
+                    Sign in to check your reservations and enjoy a unique alpine
+                    experience.
+                  </p>
+                </div>
               </div>
-            </div>
-          </Col>
+            </Col>
+          )}
 
           <Col
             xs={12}
-            md={5}
+            md={view === "sign-up" ? 12 : 5}
             className={
               view === "sign-up"
                 ? "mh-login-dialog-form"
