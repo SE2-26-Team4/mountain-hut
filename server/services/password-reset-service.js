@@ -3,13 +3,13 @@ import {
   isPasswordResetTokenValid,
   resetPasswordWithToken,
   savePasswordResetToken,
-} from '../dao/password-reset-dao.js';
+} from "../dao/password-reset-dao.js";
 import {
   generateResetToken,
+  getNewPasswordError,
   hashPassword,
   hashResetToken,
-  isAcceptableNewPassword,
-} from './password.js';
+} from "./password.js";
 
 /**
  * @typedef {import('../dao/password-reset-dao.js').RecoverableAccount} RecoverableAccount
@@ -33,14 +33,16 @@ const MAX_TOKEN_LENGTH = 256;
 // Represent invalid reset requests with a code that the routes can report.
 export class PasswordResetError extends Error {
   /**
-   * @param {'INVALID_EMAIL' | 'INVALID_PASSWORD' | 'INVALID_RESET_TOKEN'} code
+   * @param {string} code
    * @param {string} message
+   * @param {"newPassword" | "confirmPassword"} [field]
    */
-  constructor(code, message) {
+  constructor(code, message, field) {
     super(message);
 
-    this.name = 'PasswordResetError';
+    this.name = "PasswordResetError";
     this.code = code;
+    this.field = field;
   }
 }
 
@@ -54,7 +56,7 @@ export class PasswordResetError extends Error {
  * @returns {Promise<PasswordResetRequest | null>}
  */
 export async function createPasswordResetRequest(email) {
-  const address = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  const address = typeof email === "string" ? email.trim().toLowerCase() : "";
 
   if (
     address.length === 0 ||
@@ -62,8 +64,8 @@ export async function createPasswordResetRequest(email) {
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)
   ) {
     throw new PasswordResetError(
-      'INVALID_EMAIL',
-      'A valid email address is required.',
+      "INVALID_EMAIL",
+      "A valid email address is required.",
     );
   }
 
@@ -75,7 +77,9 @@ export async function createPasswordResetRequest(email) {
 
   const token = generateResetToken();
   const now = Date.now();
-  const expiresAt = new Date(now + PASSWORD_RESET_LINK_LIFETIME_MS).toISOString();
+  const expiresAt = new Date(
+    now + PASSWORD_RESET_LINK_LIFETIME_MS,
+  ).toISOString();
 
   await savePasswordResetToken(
     account.id,
@@ -92,8 +96,8 @@ export async function createPasswordResetRequest(email) {
  */
 function invalidLinkError() {
   return new PasswordResetError(
-    'INVALID_RESET_TOKEN',
-    'This password reset link is invalid or has expired. Request a new one.',
+    "INVALID_RESET_TOKEN",
+    "This password reset link is invalid or has expired. Request a new one.",
   );
 }
 
@@ -103,7 +107,7 @@ function invalidLinkError() {
  */
 function isWellFormedToken(token) {
   return (
-    typeof token === 'string' &&
+    typeof token === "string" &&
     token.length > 0 &&
     token.length <= MAX_TOKEN_LENGTH
   );
@@ -139,10 +143,16 @@ export async function resetPassword({ token, newPassword, confirmPassword }) {
     throw invalidLinkError();
   }
 
-  if (!isAcceptableNewPassword(newPassword, confirmPassword)) {
+  const passwordError = getNewPasswordError(newPassword, confirmPassword);
+
+  if (passwordError) {
+    const field =
+      passwordError.field === "password" ? "newPassword" : "confirmPassword";
+
     throw new PasswordResetError(
-      'INVALID_PASSWORD',
-      'The new password must be 8 to 128 characters and match the confirmation.',
+      passwordError.code,
+      passwordError.message,
+      field,
     );
   }
 

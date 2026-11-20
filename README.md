@@ -89,12 +89,14 @@ Open **http://localhost:5173**. The Vite development server proxies `/api` to **
 
 When `SEED_DEMO_ACCOUNTS=true`, the backend creates missing demo accounts:
 
-| Role | Email | Password | Sign-in |
-| --- | --- | --- | --- |
-| Hiker | `hiker@example.com` | `HikerTest123!` | Home page → Sign in |
-| Employee | `employee@example.com` | `EmployeeTest123!` | `/staff/login` |
+| Role     | Email                  | Password           | Sign-in             |
+| -------- | ---------------------- | ------------------ | ------------------- |
+| Hiker    | `hiker@example.com`    | `HikerTest123!`    | Home page → Sign in |
+| Employee | `employee@example.com` | `EmployeeTest123!` | `/staff/login`      |
 
-These credentials can be overridden using `TEST_HIKER_EMAIL`, `TEST_HIKER_PASSWORD`, `TEST_EMPLOYEE_EMAIL`, and `TEST_EMPLOYEE_PASSWORD`. Public self-registration is not provided; **staff can register new hiker accounts** as part of staff booking. The database initially has no dining tables or meal slots; staff must configure them before bookings can be made.
+These credentials can be overridden using `TEST_HIKER_EMAIL`, `TEST_HIKER_PASSWORD`, `TEST_EMPLOYEE_EMAIL`, and `TEST_EMPLOYEE_PASSWORD`.
+Hikers can create an account by selecting **Sign up** on the homepage. Public registration always creates a hiker account. Staff can also register new hikers when creating a booking on their behalf.
+The database initially has no dining tables or meal slots. Staff must configure them before bookings can be made.
 
 ## Main features — Sprint 2
 

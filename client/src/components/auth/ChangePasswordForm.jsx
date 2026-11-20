@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { Button, Form, Spinner } from 'react-bootstrap';
+import { useState } from "react";
+import { Button, Form, Spinner } from "react-bootstrap";
 
-import Alert from '../common/AutoDismissAlert.jsx';
-import AuthPageLayout from './AuthPageLayout.jsx';
-import PasswordField from './PasswordField.jsx';
+import Alert from "../common/AutoDismissAlert.jsx";
+import AuthPageLayout from "./AuthPageLayout.jsx";
+import PasswordField from "./PasswordField.jsx";
 
 /**
  * @param {Object} props
@@ -18,9 +18,9 @@ export default function ChangePasswordForm({
   onSubmit,
   onSignOut,
 }) {
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   /** @param {import('react').SubmitEvent<HTMLFormElement>} event */
   const handleSubmit = async (event) => {
@@ -35,9 +35,9 @@ export default function ChangePasswordForm({
     });
 
     if (changed) {
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
     }
   };
 
@@ -87,8 +87,8 @@ export default function ChangePasswordForm({
           controlId="new-password"
           label="New password"
           autoComplete="new-password"
-          placeholder="At least 8 characters"
-          minLength={8}
+          placeholder="At least 15 characters"
+          minLength={15}
           maxLength={128}
           value={newPassword}
           onChange={setNewPassword}
@@ -100,7 +100,7 @@ export default function ChangePasswordForm({
           label="Confirm new password"
           autoComplete="new-password"
           placeholder="Repeat the new password"
-          minLength={8}
+          minLength={15}
           maxLength={128}
           value={confirmPassword}
           onChange={setConfirmPassword}
@@ -109,7 +109,7 @@ export default function ChangePasswordForm({
         />
 
         <Button
-          className="mh-primary-button mh-auth-submit w-100"
+          className="mh-primary-button mh-auth-submit w-100 d-flex align-items-center justify-content-center gap-2"
           type="submit"
           disabled={isSubmitting}
         >
@@ -119,7 +119,7 @@ export default function ChangePasswordForm({
               <span>Updating…</span>
             </>
           ) : (
-            'Update password'
+            "Update password"
           )}
         </Button>
       </Form>

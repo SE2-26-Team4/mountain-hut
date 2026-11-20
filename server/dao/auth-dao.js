@@ -315,3 +315,39 @@ export async function createHiker(queries, hiker) {
   // Read the profile back within the same transaction.
   return /** @type {HikerDTO} */ (await getHikerById(queries, result.lastID));
 }
+
+/**
+ * Creates a hiker account with a password chosen during public sign-up.
+ * Returns null when an account already uses the email.
+ *
+ * @param {string} fullName
+ * @param {string} email
+ * @param {string} passwordHash
+ * @param {string | null} [phone] - Normalized phone number, if provided.
+ * @returns {Promise<HikerDTO | null>}
+ */
+export async function registerHiker(
+  fullName,
+  email,
+  passwordHash,
+  phone = null,
+) {
+  return withTransaction(async (queries) => {
+    const existingAccount = await findAccountByEmail(queries, email);
+
+    if (existingAccount) {
+      return null;
+    }
+
+    return createHiker(queries, {
+      fullName,
+      email,
+      passwordHash,
+      phone,
+      notes: null,
+      emergencyContact: null,
+      isTemporary: false,
+      mustChangePassword: false,
+    });
+  });
+}

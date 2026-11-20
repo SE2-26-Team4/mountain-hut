@@ -15,22 +15,25 @@
  * @property {boolean} mustChangePassword
  */
 
-const API_URL = (
-  import.meta.env.VITE_API_BASE_URL ?? '/api'
-).replace(/\/$/, '');
+const API_URL = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(
+  /\/$/,
+  "",
+);
 
 class SessionApiError extends Error {
   /**
    * @param {string} message
    * @param {number} status
    * @param {string} [code]
+   * @param {string} [field] - Form field associated with the error.
    */
-  constructor(message, status, code) {
+  constructor(message, status, code, field) {
     super(message);
 
-    this.name = 'SessionApiError';
+    this.name = "SessionApiError";
     this.status = status;
     this.code = code;
+    this.field = field;
   }
 }
 
@@ -44,23 +47,22 @@ class SessionApiError extends Error {
 async function request(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
-    credentials: 'include',
+    credentials: "include",
     headers: {
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
       ...options.headers,
     },
   });
 
   const data =
-    response.status === 204
-      ? null
-      : await response.json().catch(() => null);
+    response.status === 204 ? null : await response.json().catch(() => null);
 
   if (!response.ok) {
     throw new SessionApiError(
-      data?.error?.message ?? 'The request could not be completed.',
+      data?.error?.message ?? "The request could not be completed.",
       response.status,
       data?.error?.code,
+      data?.error?.field,
     );
   }
 
@@ -72,12 +74,12 @@ async function request(path, options = {}) {
  * @param {'hiker' | 'staff'} [area]
  * @returns {Promise<SessionUser>}
  */
-async function login(credentials, area = 'hiker') {
+async function login(credentials, area = "hiker") {
   /** @type {{ user: SessionUser }} */
   const data = await request(
-    area === 'staff' ? '/staff/sessions' : '/sessions',
+    area === "staff" ? "/staff/sessions" : "/sessions",
     {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(credentials),
     },
   );
@@ -92,7 +94,7 @@ async function login(credentials, area = 'hiker') {
  */
 async function getUserInfo() {
   /** @type {{ user: SessionUser }} */
-  const data = await request('/sessions/current');
+  const data = await request("/sessions/current");
 
   return data.user;
 }
@@ -101,8 +103,8 @@ async function getUserInfo() {
  * @returns {Promise<void>}
  */
 async function logout() {
-  await request('/sessions/current', {
-    method: 'DELETE',
+  await request("/sessions/current", {
+    method: "DELETE",
   });
 }
 
@@ -112,8 +114,8 @@ async function logout() {
  */
 async function changePassword(passwords) {
   /** @type {{ user: SessionUser }} */
-  const data = await request('/sessions/current/password', {
-    method: 'PUT',
+  const data = await request("/sessions/current/password", {
+    method: "PUT",
     body: JSON.stringify(passwords),
   });
 
@@ -129,8 +131,8 @@ async function changePassword(passwords) {
  */
 async function requestPasswordReset(email) {
   /** @type {{ message: string }} */
-  const data = await request('/password-reset-requests', {
-    method: 'POST',
+  const data = await request("/password-reset-requests", {
+    method: "POST",
     body: JSON.stringify({ email }),
   });
 
@@ -145,8 +147,8 @@ async function requestPasswordReset(email) {
  * @returns {Promise<void>}
  */
 async function checkPasswordResetLink(token) {
-  await request('/password-reset-checks', {
-    method: 'POST',
+  await request("/password-reset-checks", {
+    method: "POST",
     body: JSON.stringify({ token }),
   });
 }
@@ -159,16 +161,36 @@ async function checkPasswordResetLink(token) {
  */
 async function resetPassword(reset) {
   /** @type {{ message: string }} */
-  const data = await request('/password-resets', {
-    method: 'POST',
+  const data = await request("/password-resets", {
+    method: "POST",
     body: JSON.stringify(reset),
   });
 
   return data.message;
 }
 
+/**
+ * Registers a new hiker account. The hiker can then sign in.
+ *
+ * @param {{
+ *   fullName: string,
+ *   email: string,
+ *   phone?: string,
+ *   password: string,
+ *   confirmPassword: string
+ * }} details
+ * @returns {Promise<{ id: number }>}
+ */
+async function registerHiker(details) {
+  return request("/hikers", {
+    method: "POST",
+    body: JSON.stringify(details),
+  });
+}
+
 const API = {
   login,
+  registerHiker,
   getUserInfo,
   changePassword,
   logout,

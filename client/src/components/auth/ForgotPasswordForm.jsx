@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { Alert as StatusAlert, Button, Form, Spinner } from 'react-bootstrap';
+import { useState } from "react";
+import { Alert as StatusAlert, Button, Form, Spinner } from "react-bootstrap";
 
-import API from '../../API/session-api.js';
-import Alert from '../common/AutoDismissAlert.jsx';
-import MountainLogo from '../common/MountainLogo.jsx';
+import API from "../../API/session-api.js";
+import Alert from "../common/AutoDismissAlert.jsx";
+import MountainLogo from "../common/MountainLogo.jsx";
 
 /**
  * Asks for an email link to choose a new password (MH-07).
@@ -12,10 +12,10 @@ import MountainLogo from '../common/MountainLogo.jsx';
  * @param {() => void} props.onBack - Returns to the sign-in form.
  */
 export default function ForgotPasswordForm({ onBack }) {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [sentMessage, setSentMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState("");
+  const [sentMessage, setSentMessage] = useState("");
 
   /** @param {import('react').SubmitEvent<HTMLFormElement>} event */
   const handleSubmit = async (event) => {
@@ -23,7 +23,7 @@ export default function ForgotPasswordForm({ onBack }) {
 
     if (isSubmitting) return;
 
-    setErrorMessage('');
+    setErrorMessage("");
     setIsSubmitting(true);
 
     try {
@@ -32,7 +32,7 @@ export default function ForgotPasswordForm({ onBack }) {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : 'The reset link could not be requested.',
+          : "The reset link could not be requested.",
       );
     } finally {
       setIsSubmitting(false);
@@ -73,18 +73,7 @@ export default function ForgotPasswordForm({ onBack }) {
 
             <div className="mh-auth-input-wrapper">
               <span className="mh-auth-input-icon" aria-hidden="true">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <rect x="3" y="5" width="18" height="14" rx="2" />
-
-                  <path d="m3 7 9 6 9-6" />
-                </svg>
+                <i className="bi bi-envelope" />
               </span>
 
               <Form.Control
@@ -104,7 +93,7 @@ export default function ForgotPasswordForm({ onBack }) {
           </Form.Group>
 
           <Button
-            className="mh-primary-button mh-auth-submit w-100"
+            className="mh-primary-button mh-auth-submit w-100 d-flex align-items-center justify-content-center gap-2"
             type="submit"
             disabled={isSubmitting}
           >
@@ -115,7 +104,7 @@ export default function ForgotPasswordForm({ onBack }) {
                 <span>Sending link…</span>
               </>
             ) : (
-              'Send reset link'
+              "Send reset link"
             )}
           </Button>
         </Form>

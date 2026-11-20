@@ -7,6 +7,7 @@ import {
 import {
   generateInitialPassword,
   generateResetToken,
+  getNewPasswordError,
   hashPassword,
   hashResetToken,
   isAcceptableNewPassword,
@@ -132,23 +133,97 @@ describe('initial password generation', () => {
   });
 });
 
-// The password change and the password reset share the same rules.
-describe('new password rules', () => {
+// Sign-up, password change, and reset share the same password rules.
+// Each validation error identifies the field and the message to display.
+describe("new password rules", () => {
+  const validPassword = "Four hikers cross the valley";
+
   it.each([
-    ['8 characters', 'a'.repeat(8)],
-    ['128 characters', 'a'.repeat(128)],
-  ])('accepts a confirmed password of %s', (_label, password) => {
+    ["exactly 15 characters", "a".repeat(15)],
+    ["exactly 128 characters", "a".repeat(128)],
+    ["a passphrase with spaces", validPassword],
+    ["15 Unicode characters", "🥾".repeat(15)],
+  ])("accepts %s when confirmed", (_label, password) => {
+    expect(getNewPasswordError(password, password)).toBeNull();
     expect(isAcceptableNewPassword(password, password)).toBe(true);
   });
 
   it.each([
-    ['too short', 'a'.repeat(7), 'a'.repeat(7)],
-    ['too long', 'a'.repeat(129), 'a'.repeat(129)],
-    ['not confirmed', 'Password123!', 'Password124!'],
-    ['not text', 12345678, 12345678],
-  ])('rejects a password that is %s', (_label, password, confirmation) => {
-    expect(isAcceptableNewPassword(password, confirmation)).toBe(false);
-  });
+    {
+      label: "empty password",
+      password: "",
+      confirmation: "",
+      field: "password",
+      code: "PASSWORD_REQUIRED",
+      message: "Enter a password.",
+    },
+    {
+      label: "non-text password",
+      password: 12345678,
+      confirmation: 12345678,
+      field: "password",
+      code: "PASSWORD_REQUIRED",
+      message: "Enter a password.",
+    },
+    {
+      label: "14 characters",
+      password: "a".repeat(14),
+      confirmation: "a".repeat(14),
+      field: "password",
+      code: "PASSWORD_TOO_SHORT",
+      message: "Use at least 15 characters.",
+    },
+    {
+      label: "14 Unicode characters",
+      password: "🥾".repeat(14),
+      confirmation: "🥾".repeat(14),
+      field: "password",
+      code: "PASSWORD_TOO_SHORT",
+      message: "Use at least 15 characters.",
+    },
+    {
+      label: "129 characters",
+      password: "a".repeat(129),
+      confirmation: "a".repeat(129),
+      field: "password",
+      code: "PASSWORD_TOO_LONG",
+      message: "Use 128 characters or fewer.",
+    },
+    {
+      label: "empty confirmation",
+      password: validPassword,
+      confirmation: "",
+      field: "confirmPassword",
+      code: "PASSWORD_CONFIRMATION_REQUIRED",
+      message: "Enter your password again.",
+    },
+    {
+      label: "missing confirmation",
+      password: validPassword,
+      confirmation: undefined,
+      field: "confirmPassword",
+      code: "PASSWORD_CONFIRMATION_REQUIRED",
+      message: "Enter your password again.",
+    },
+    {
+      label: "different confirmation",
+      password: validPassword,
+      confirmation: "Five hikers cross the valley",
+      field: "confirmPassword",
+      code: "PASSWORD_MISMATCH",
+      message: "The passwords do not match.",
+    },
+  ])(
+    "reports the field and message for $label",
+    ({ password, confirmation, field, code, message }) => {
+      expect(getNewPasswordError(password, confirmation)).toEqual({
+        field,
+        code,
+        message,
+      });
+      expect(isAcceptableNewPassword(password, confirmation)).toBe(false);
+    },
+  );
 });
 
 // Reset links carry a random token whose hash is stored.
