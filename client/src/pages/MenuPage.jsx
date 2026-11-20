@@ -1,9 +1,9 @@
-import { Col, Row } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
+import { Col, Row } from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
 
-import { useAuth } from '../contexts/auth-context.js';
-import SiteHeader from '../components/layout/SiteHeader.jsx';
-import SiteFooter from '../components/layout/SiteFooter.jsx';
+import { useAuth } from "../contexts/auth-context.js";
+import SiteHeader from "../components/layout/SiteHeader.jsx";
+import SiteFooter from "../components/layout/SiteFooter.jsx";
 
 export default function MenuPage() {
   const { user, isLoading, handleLogout } = useAuth();
@@ -17,7 +17,8 @@ export default function MenuPage() {
     <div className="mh-app-shell d-flex flex-column">
       <SiteHeader
         user={user}
-        onSignIn={() => navigate('/')}
+        onSignIn={() => navigate("/?signIn=1")}
+        onSignUp={() => navigate("/?signUp=1")}
         onSignOut={handleLogout}
       />
 
@@ -31,7 +32,7 @@ export default function MenuPage() {
           >
             <i
               className="bi bi-fork-knife fs-1 d-block mb-4"
-              style={{ color: 'var(--mh-copper)' }}
+              style={{ color: "var(--mh-copper)" }}
               aria-hidden="true"
             />
 
@@ -39,9 +40,7 @@ export default function MenuPage() {
               Meal times &amp; menus
             </h1>
 
-            <p className="fw-semibold mb-2">
-              Coming soon
-            </p>
+            <p className="fw-semibold mb-2">Coming soon</p>
 
             <p className="text-secondary mb-0">
               Meal times and menus will be available here soon.

@@ -42,22 +42,22 @@ function HomePage() {
     handleSessionExpired,
   } = useAuth();
 
-  // Links in account emails open the sign-in or the password recovery form.
-  const [loginView, setLoginView] = useState(
-    /** @returns {'login' | 'forgot-password' | 'sign-up'} */ () =>
-      typeof window !== "undefined" &&
-      new URLSearchParams(window.location.search).get("forgotPassword") === "1"
-        ? "forgot-password"
-        : "login",
+  // The menu and account emails can link directly to an authentication form.
+  const [initialAuthView] = useState(
+    /** @returns {'login' | 'forgot-password' | 'sign-up' | null} */ () => {
+      if (typeof window === "undefined") return null;
+
+      const params = new URLSearchParams(window.location.search);
+
+      if (params.get("forgotPassword") === "1") return "forgot-password";
+      if (params.get("signUp") === "1") return "sign-up";
+      if (params.get("signIn") === "1") return "login";
+      return null;
+    },
   );
 
-  const [isLoginOpen, setIsLoginOpen] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      (loginView === "forgot-password" ||
-        new URLSearchParams(window.location.search).get("signIn") === "1"),
-  );
-
+  const [loginView, setLoginView] = useState(initialAuthView ?? "login");
+  const [isLoginOpen, setIsLoginOpen] = useState(initialAuthView !== null);
   const isStaff = user?.role === "employee" || user?.role === "warden";
 
   const handleSignIn = () => {
