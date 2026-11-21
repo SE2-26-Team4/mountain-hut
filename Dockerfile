@@ -1,6 +1,6 @@
 # Frontend
 
-FROM node:20-alpine AS client-builder
+FROM node:24-alpine AS client-builder
 
 WORKDIR /app/client
 
@@ -12,7 +12,7 @@ RUN npm run build
 
 # Backend
 
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 
 WORKDIR /app/server
 
