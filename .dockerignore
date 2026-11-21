@@ -1,17 +1,22 @@
+# Dependencies, builds and coverage
 **/node_modules
 **/dist
 **/coverage
 
+# SQLite database files
 **/*.sqlite
 **/*.sqlite3
 **/*.sqlite-*
 **/*.db
 **/*.db-*
 
+# Local environment files
 .env
 .env.*
+*.env
 !.env.example
 
+# Git metadata, macOS files and npm logs
 .git
 .DS_Store
 npm-debug.log*

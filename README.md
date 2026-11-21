@@ -1,210 +1,286 @@
 # Mountain Hut
 
-Mountain Hut is a web application developed by **Team 4** for the **Software Engineering II** course at **Politecnico di Torino** (academic year 2026–2027). Hikers can check meal-service availability, make and manage reservations, and communicate dietary requirements. Hut staff can manage dining capacity, create bookings on behalf of hikers, and duplicate weekly schedules. This README describes the **end-of-Sprint-2** project scope (MH-04 through MH-09).
+Mountain Hut is a web application for booking meals at a mountain hut. Visitors can check availability for a date, meal service, and party size. Hikers can reserve seats, add dietary requirements, receive booking confirmations by email, and manage their reservations. Hut staff can configure dining tables and meal slots, take bookings on behalf of hikers, and copy weekly schedules.
+
+The project is developed as part of the Software Engineering II course at Politecnico di Torino (academic year 2026–2027).
+
+## Table of contents
+
+- [Technology stack](#technology-stack)
+- [Architecture](#architecture)
+- [Repository structure](#repository-structure)
+- [Installation and startup](#installation-and-startup)
+  - [Startup options](#startup-options)
+    - [Option A: Docker](#option-a-docker)
+      - [Docker Compose](#docker-compose)
+      - [Docker Hub release deployment](#docker-hub-release-deployment)
+    - [Option B: Local development](#option-b-local-development)
+  - [First booking and demo accounts](#first-booking-and-demo-accounts)
+- [Environment configuration](#environment-configuration)
+- [Tests and code checks](#tests-and-code-checks)
+- [Project specifications](#project-specifications)
+- [Contributors](#contributors)
+- [License](#license)
 
 ## Technology stack
 
-- **Frontend:** React 19, Vite 8, React Router, Bootstrap, React Bootstrap, Bootstrap Icons.
-- **Backend:** Node.js 24 LTS, Express 5, Passport local authentication, `express-session`.
-- **Database:** SQLite (`sqlite3`).
-- **Email:** Resend (optional booking confirmation delivery).
-- **Tests and checks:** Vitest, Supertest, ESLint, TypeScript type checking of JavaScript.
+- **Frontend:** React 19, Vite 8, React Router, Bootstrap 5, React Bootstrap, Bootstrap Icons.
+- **Backend:** Node.js, Express 5, Passport with `passport-local`, `express-session`.
+- **Database:** SQLite via `sqlite3`.
+- **Email:** Resend for booking notifications and account access emails.
+- **Tests and checks:** Vitest, Supertest, ESLint, and TypeScript for type checking JavaScript.
 - **Deployment:** Docker and Docker Compose.
+
+## Architecture
+
+Mountain Hut follows a client–server architecture consisting of three main components:
+
+- **Frontend (`client/`):** A React application built with Vite that provides the user interface for hikers and staff.
+- **Backend (`server/`):** A Node.js application that uses Express to expose the REST API and handle authentication, reservations, and dining capacity.
+- **Database (`server/mountain-hut-schema.sql`):** SQLite stores user accounts, reservations, meal slots, and table assignments.
 
 ## Repository structure
 
 ```text
 mountain-hut/
 ├── client/                # React/Vite frontend
-├── server/                # Express API, database, services, and tests
+├── server/                # Express API, SQLite schema, services, and tests
 ├── retrospective/         # Team retrospective materials
-├── Dockerfile             # Production image
-├── docker-compose.yml     # Application and persistent SQLite volume
+├── .env.example           # Environment configuration template
+├── Dockerfile             # Instructions for building the application image
+├── docker-compose.yml     # App configuration and persistent SQLite volume
 ├── LICENSE
 └── README.md
 ```
 
 ## Installation and startup
 
-### Option A: Docker
+### Startup options
 
-**Prerequisite:** Docker with Docker Compose. From the repository root:
+Choose [Docker](#option-a-docker) to run Mountain Hut in a container, or [local development](#option-b-local-development) to run the frontend and backend directly on your machine. Once the application is running, follow [First booking and demo accounts](#first-booking-and-demo-accounts) to configure availability and make your first booking.
+
+#### Option A: Docker
+
+With a local copy of the repository, follow [Docker Compose](#docker-compose). To run the published image without cloning the repository, follow [Docker Hub release deployment](#docker-hub-release-deployment).
+
+##### Docker Compose
+
+**Prerequisite:** Install Docker with Docker Compose and start Docker. Run the commands below from the repository root. To run the published image without cloning the repository, see [Docker Hub release deployment](#docker-hub-release-deployment).
+
+1. **Prepare the `.env` file.**
+
+   If you received a configured `.env` file, place it in the same directory as `docker-compose.yml` and continue to step 2.
+
+   Otherwise, copy `.env.example` from the repository root to a new file named `.env`, then open `.env` in a text editor.
+
+   **Windows PowerShell**
+
+   ```powershell
+   Copy-Item .env.example .env
+   notepad .env
+   ```
+
+   **macOS, Linux, or Git Bash**
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Set `SESSION_SECRET` to a long, random value. To create the demo accounts, set `SEED_DEMO_ACCOUNTS=true`. To enable email delivery, configure `RESEND_API_KEY` and `EMAIL_FROM`. Keep `.env` private.
+
+2. **Start the application.** Choose one option:
+   - **Build from the local source** to run the version in your checkout:
+
+     ```bash
+     docker compose up --build -d
+     ```
+
+   - **Use the published Docker Hub image** to run the release:
+
+     ```bash
+     docker compose pull app
+     docker compose up --no-build -d
+     ```
+
+3. **Open Mountain Hut** at <http://localhost:8080>. The container serves both the frontend and the API.
+
+4. **Stop the application** when you are finished:
+
+   ```bash
+   docker compose down
+   ```
+
+   **Warning:** Run the following command only if you also want to permanently delete the SQLite database, including accounts, bookings, and schedules:
+
+   ```bash
+   docker compose down -v
+   ```
+
+##### Docker Hub release deployment
+
+Use the [published Mountain Hut image](https://hub.docker.com/r/lorebosso/mountain-hut) to run the application without cloning the repository. The image includes the backend and the compiled frontend.
+
+**Prerequisite:** Install and start Docker Desktop on Windows or macOS, or Docker Engine on Linux. To verify that Docker is running, open a terminal and run:
 
 ```bash
-docker compose up --build
+docker info
 ```
 
-Open **http://localhost:8080**. The container serves both the frontend and the API. Docker Compose enables demo accounts by default.
+1. **Prepare the `.env` file.** If you received a deployment ZIP, extract the supplied `.env` file. Otherwise, download [`.env.example`](.env.example), save it as `.env`, and configure it as described in [Environment configuration](#environment-configuration). Keep this file private.
 
-To stop the container without deleting saved bookings:
+2. **Download the image.** Open PowerShell on Windows or a terminal on macOS/Linux in the folder containing `.env`, then run:
 
-```bash
-docker compose down
-```
+   ```bash
+   docker pull lorebosso/mountain-hut:latest
+   ```
 
-The database is stored in the named volume `mountain_hut_sqlite_data`. **Warning:** `docker compose down -v` removes this volume and deletes its data.
+   **First installation:** Continue to step 3.
 
-The default Compose session secret and demo credentials are intended for development only. Set a secure `SESSION_SECRET` and disable `SEED_DEMO_ACCOUNTS` for non-demo deployments. For initial-password and booking emails, configure Resend as described below.
+   **Updating an existing installation:** Once the download succeeds, stop and remove the `mountain-hut` container created by this guide. The SQLite database stays in its named volume.
 
-### Option B: Local development
+   ```bash
+   docker stop mountain-hut
+   docker rm mountain-hut
+   ```
 
-**Prerequisite:** Node.js 24 LTS and npm. Open two terminals at the repository root.
+3. **Start Mountain Hut.** Run the following command from the same folder:
 
-**Terminal 1 — backend:**
+   ```bash
+   docker run -d --name mountain-hut --env-file .env -e CLIENT_ORIGIN=http://localhost:8080 -p 8080:8080 -v mountain_hut_sqlite_data:/app/data lorebosso/mountain-hut:latest
+   ```
 
-```bash
-cd server
-npm ci
-npm run dev
-```
+   Docker loads the configuration from `.env` and creates the `mountain_hut_sqlite_data` volume on first use. When you update an existing installation, the new container reuses that volume with your saved bookings and schedules.
 
-The backend listens at **http://localhost:3000** by default. It initializes SQLite on startup. Demo accounts are **not** created automatically in local development unless `SEED_DEMO_ACCOUNTS=true` is set before starting the backend.
+4. **Verify the deployment.** Open <http://localhost:8080/api/health> to check that the backend responds, then open <http://localhost:8080> to use the application. Follow [First booking and demo accounts](#first-booking-and-demo-accounts) to configure availability and make a reservation.
 
-To enable demo accounts, use one of these commands **instead of** the `npm run dev` command above:
+   If the application does not open, check the container status and startup logs:
 
-```bash
-# macOS / Linux / Git Bash (from server/)
-SEED_DEMO_ACCOUNTS=true npm run dev
-```
+   ```bash
+   docker ps -a --filter name=mountain-hut
+   docker logs mountain-hut
+   ```
 
-**Windows PowerShell (from `server/`):**
+5. **Stop and restart the application.** To stop it, run:
 
-```powershell
-$env:SEED_DEMO_ACCOUNTS = "true"; npm run dev
-```
+   ```bash
+   docker stop mountain-hut
+   ```
 
-For local email testing, set `RESEND_API_KEY` and `EMAIL_FROM` in the server process environment before running the backend; merely placing them in a `.env` file does **not** load them into the local Node.js process automatically. The Compose setup is described in [Environment configuration](#environment-configuration).
+   To start the same container again, run:
 
-**Terminal 2 — frontend:**
+   ```bash
+   docker start mountain-hut
+   ```
 
-```bash
-cd client
-npm ci
-npm run dev
-```
+6. **Optional cleanup.** Use this step only when you want to remove the installation and delete its saved data.
 
-Open **http://localhost:5173**. The Vite development server proxies `/api` to **http://localhost:3000**, as configured in `client/vite.config.js`. The backend must also be running for login, availability, and booking.
+   Stop the container if it is running, then remove it:
 
-### Demo accounts
+   ```bash
+   docker stop mountain-hut
+   docker rm mountain-hut
+   ```
 
-When `SEED_DEMO_ACCOUNTS=true`, the backend creates missing demo accounts:
+   **Warning:** The following command permanently deletes the SQLite database, including accounts, bookings, and schedules:
 
-| Role     | Email                  | Password           | Sign-in             |
-| -------- | ---------------------- | ------------------ | ------------------- |
-| Hiker    | `hiker@example.com`    | `HikerTest123!`    | Home page → Sign in |
-| Employee | `employee@example.com` | `EmployeeTest123!` | `/staff/login`      |
+   ```bash
+   docker volume rm mountain_hut_sqlite_data
+   ```
 
-These credentials can be overridden using `TEST_HIKER_EMAIL`, `TEST_HIKER_PASSWORD`, `TEST_EMPLOYEE_EMAIL`, and `TEST_EMPLOYEE_PASSWORD`.
-Hikers can create an account by selecting **Sign up** on the homepage. Public registration always creates a hiker account. Staff can also register new hikers when creating a booking on their behalf.
-The database initially has no dining tables or meal slots. Staff must configure them before bookings can be made.
+#### Option B: Local development
 
-## Main features — Sprint 2
+**Prerequisite:** Install Node.js 24 LTS and npm. Open two terminals at the repository root.
 
-Sprint 2 covers user stories **MH-04 to MH-09**. This section summarizes the completed Sprint 2 deliverables, including end-of-sprint fixes and verification.
+1. **Set up the backend in Terminal 1.**
 
-### Hiker experience
+   ```bash
+   cd server
+   npm ci
+   ```
 
-- **Public availability search (MH-04):** Visitors can choose a date and meal slot and inspect available seats without signing in. Authentication is required when completing a booking.
-- **Dietary requirements and allergy flags (MH-05):** Bookings can include separate dietary-requirement descriptions and allergy indicators for guests, subject to the number of people in the party.
-- **Edit existing booking (MH-06):** Hikers can open a prefilled edit form in **My bookings** and update the date, meal slot, party size, dietary requirements, and special requests. Edits are subject to available capacity and the **48-hour deadline before the original meal starts**. Valid changes update the existing booking and its displayed details.
-- **Cancel existing booking (MH-08):** Hikers can cancel their own reservations through a confirmation dialog. Cancellation releases reserved capacity and updates **My bookings**.
+   To test email delivery locally, set `RESEND_API_KEY` and `EMAIL_FROM` in this terminal before starting the server. The backend's `npm run dev` command does not automatically load the `.env` file from the repository root. See [Environment configuration](#environment-configuration).
 
-### Staff experience
+2. **Start the backend.**
 
-- **Staff booking (MH-07):** Authorized staff can search for an existing hiker, register a new hiker, or create a temporary hiker and then enter a booking on their behalf. The workflow checks meal-slot availability, table capacity, and whether a meal service has already started.
-- **New hiker first login (MH-07):** A staff-created full hiker account receives a randomly generated initial password by email when delivery is configured. The hiker must change that password at first login before accessing protected hiker features. **Temporary hikers cannot sign in**.
-- **Dining capacity management:** Authorized staff can manage dining tables, meal slots, and table assignments. New schedule setup can reuse a previously saved time-slot/table configuration.
-- **Weekly schedule duplication (MH-09):** Authorized staff can select source and destination weeks in the **Copy Week** interface. The API copies meal slots and their times, statuses, and table assignments while assigning new slot IDs. Copying replaces the destination week's schedule; confirmed bookings and other scheduling constraints can prevent the operation. The original source schedule is preserved.
+   For normal development, run:
 
-### Booking and email behavior
+   ```bash
+   npm run dev
+   ```
 
-- Reservations and schedule configuration persist in **SQLite**. Table allocation and capacity restrictions are enforced by the backend, not just the browser.
-- Booking creation and updates attempt to send confirmation emails. A successfully stored reservation remains valid even if email delivery fails; the user interface reports that the email was not sent.
-- Initial passwords for newly registered hikers are emailed when the email provider is configured. Without successful delivery, a newly created account may not have a usable credential available to the hiker; verify email configuration before testing this flow end to end.
+   **Demo accounts:** If you want to create demo accounts in a new local database, use the command for your shell instead:
+   - **macOS, Linux, or Git Bash**
 
-**Outside the Sprint 2 scope:** The public **Menu** page currently shows a “Coming soon” message. Some separate staff slot-editing controls may depend on later user stories (for example, MH-19); do not treat the weekly copy operation as a substitute for those controls.
+     ```bash
+     SEED_DEMO_ACCOUNTS=true npm run dev
+     ```
 
-### API overview
+   - **Windows PowerShell**
 
-The backend API base URL is **http://localhost:3000/api** in local development and **http://localhost:8080/api** through Docker. Paths in the table include the `/api` prefix.
+     ```powershell
+     $env:SEED_DEMO_ACCOUNTS = "true"
+     npm run dev
+     ```
 
-| Method           | Endpoint                             | Access                                    | Purpose                                                |
-| ---------------- | ------------------------------------ | ----------------------------------------- | ------------------------------------------------------ |
-| GET              | `/api/health`                        | Public                                    | Health check                                           |
-| POST             | `/api/sessions`                      | Public                                    | Hiker sign-in                                          |
-| POST             | `/api/staff/sessions`                | Public                                    | Staff sign-in                                          |
-| GET              | `/api/sessions/current`              | Authenticated                             | Current session                                        |
-| PUT              | `/api/sessions/current/password`     | Authenticated                             | Change password, including first-login password change |
-| DELETE           | `/api/sessions/current`              | Authenticated                             | Sign out                                               |
-| GET              | `/api/meal-slots`                    | Public                                    | Active meal slots                                      |
-| GET              | `/api/bookings/availability`         | Public                                    | Seat availability by date and slot                     |
-| POST             | `/api/bookings`                      | Authenticated hiker                       | Create a reservation                                   |
-| GET              | `/api/bookings`                      | Authenticated hiker                       | List own reservations                                  |
-| PUT              | `/api/bookings/:id`                  | Booking owner                             | Edit an existing reservation                           |
-| DELETE           | `/api/bookings/:id`                  | Booking owner                             | Cancel a reservation                                   |
-| GET              | `/api/staff/hikers`                  | Staff                                     | Search for hikers                                      |
-| POST             | `/api/staff/hikers`                  | Staff                                     | Register a new or temporary hiker                      |
-| POST             | `/api/staff/bookings`                | Staff                                     | Create a booking on behalf of a hiker                  |
-| GET              | `/api/capacity`                      | Staff                                     | Read table and meal-slot configuration                 |
-| POST             | `/api/capacity/meal-slots/copy-week` | Staff                                     | Duplicate a weekly schedule                            |
-| POST / PUT / GET | `/api/capacity/...`                  | Staff, except documented public endpoints | Manage dining tables, meal slots, and assignments      |
+   The backend initializes SQLite on startup and listens at <http://localhost:3000> by default. Once created, the demo accounts remain in the local database and you can use `npm run dev` on subsequent runs.
 
-Browser requests use a session cookie; authenticated API calls must include credentials.
+3. **Start the frontend in Terminal 2.**
+
+   From the repository root, run:
+
+   ```bash
+   cd client
+   npm ci
+   npm run dev
+   ```
+
+4. **Open Mountain Hut** at <http://localhost:5173>. Vite forwards `/api` requests to the backend at <http://localhost:3000>, as configured in `client/vite.config.js`. Keep both terminals running while using the application.
+
+### First booking and demo accounts
+
+When `SEED_DEMO_ACCOUNTS=true`, the backend creates any missing demo accounts. The steps below use the default credentials.
+
+1. **Configure availability as an employee.** On a fresh installation, select **Sign in** on the home page, then **Are you an employee? Log in here**. Sign in with `employee@example.com` and password `EmployeeTest123!`. Open **Tables & Slots** and configure dining tables and meal slots for the date you want to book. To create an account for a hiker, open **Staff Booking**, select **New**, enter the hiker’s details, and select **Create account**. With email delivery configured, the hiker receives a temporary password and must change it at first sign-in. Sign out when you are finished.
+
+2. **Choose how to test the booking as a hiker.**
+   - **To try booking without receiving emails**, select **Sign in** and use `hiker@example.com` with password `HikerTest123!`.
+   - **To receive booking emails**, use an email address whose inbox you can access. If staff created your account, select **Sign in** and enter the temporary password you received by email. Otherwise, select **Sign up** to create your own account.
+
+3. **Make your first booking.** While signed in as a hiker, search for availability on the date you configured, select a meal slot, and confirm your reservation.
 
 ## Environment configuration
 
-The **backend does not automatically load `.env` files** when started directly with Node.js. Set the environment variables in the shell or process environment for local development. For **Docker Compose**, create a repository-root `.env` from the supplied root `.env.example`; Compose reads this file for variable substitution. Never commit real secrets.
+1. **Prepare the configuration.** If you received a configured `.env` file, use it as provided. Otherwise, copy [`.env.example`](.env.example) to `.env` and replace the placeholder values. Keep `.env` private. Never commit it or include it in a Docker image.
 
-| Variable                                              | Meaning                                                                                                                        |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `PORT`                                                | Backend port; defaults to `3000` (Docker uses `8080`)                                                                          |
-| `DB_PATH`                                             | SQLite database file path                                                                                                      |
-| `SESSION_SECRET`                                      | Session signing secret; use a secure value outside local demos                                                                 |
-| `SEED_DEMO_ACCOUNTS`                                  | Set to `true` to create demo accounts                                                                                          |
-| `TEST_HIKER_EMAIL`, `TEST_HIKER_PASSWORD`             | Override demo hiker credentials                                                                                                |
-| `TEST_EMPLOYEE_EMAIL`, `TEST_EMPLOYEE_PASSWORD`       | Override demo employee credentials                                                                                             |
-| `EMAIL_TEST_HIKER_EMAIL`, `EMAIL_TEST_HIKER_PASSWORD` | Optional email-test account credentials                                                                                        |
-| `CLIENT_ORIGIN`                                       | Frontend origin for CORS and account links; defaults to `http://localhost:5173` locally and `http://localhost:8080` in Compose |
-| `COOKIE_SECURE`                                       | Set to `true` when cookies must be sent only over HTTPS                                                                        |
-| `RESEND_API_KEY`                                      | API key used to deliver initial-password and booking-confirmation emails                                                       |
-| `EMAIL_FROM`                                          | Sender address accepted by Resend                                                                                              |
+2. **Choose how to load the settings.**
+   - **Docker Compose** reads `.env` from the directory containing `docker-compose.yml` by default. To use a file in another location, set `ENV_FILE` to its path.
+   - **Docker Hub deployment** uses `docker run --env-file` to load the file. See [Docker Hub release deployment](#docker-hub-release-deployment) for the full command.
+   - **Local development** with `npm run dev` does not automatically load `.env`. Set the variables in the terminal before starting the backend, or define them in your IDE’s run configuration.
 
-**Email with Docker Compose:** `docker-compose.yml` forwards `RESEND_API_KEY` from the environment/root `.env` and currently sets `EMAIL_FROM` to `Mountain Hut <mountain-hut@azeca.it>` inside the container. A valid API key and permission to send from that address/domain are required for delivery. Changing `EMAIL_FROM` only in the root `.env` will **not** override the hard-coded Compose value; use an appropriate local Compose override if a different verified sender is required.
+3. **Configure sessions and demo accounts.** Set `SESSION_SECRET` to a long, random value. Set `SEED_DEMO_ACCOUNTS=true` if you want the backend to create the demo accounts described in [First booking and demo accounts](#first-booking-and-demo-accounts).
 
-**Email with local Node.js:** Set both `RESEND_API_KEY` and `EMAIL_FROM` in the backend process environment. Email delivery is optional for booking persistence but is important for staff-created hiker first-login credentials. Do not publish credentials, API keys, or email-provider secrets.
+4. **Enable email delivery.** Set `RESEND_API_KEY` to a valid Resend API key and `EMAIL_FROM` to a sender address authorized for that key. Mountain Hut uses email for booking confirmations, password resets, and first-login credentials for staff-created hiker accounts. A booking remains valid even if its confirmation email cannot be delivered.
 
 ## Tests and code checks
 
-Run these commands from the **repository root** after installing dependencies with `npm --prefix server ci` and `npm --prefix client ci` (or from the respective package directory without `--prefix`):
+Run the following commands from the repository root. If you have not installed the dependencies yet, run `npm --prefix server ci` and `npm --prefix client ci` first.
+
+**Backend**
 
 ```bash
-# Backend
 npm --prefix server test
-npm --prefix server test -- booking-confirmation.test.js
-npm --prefix server run test:watch
-npm --prefix server run test:coverage
 npm --prefix server run typecheck
+```
 
-# Frontend
+To generate the backend test coverage report, run `npm --prefix server run test:coverage`. Unit and integration tests are in `server/tests/unit/` and `server/tests/integration/`.
+
+**Frontend**
+
+```bash
 npm --prefix client run lint
 npm --prefix client run typecheck
 npm --prefix client run build
-npm --prefix client run preview
 ```
-
-Backend unit and integration tests are in `server/tests/unit/` and `server/tests/integration/`. Supertest exercises the Express app without starting an HTTP server. Tests use a separate SQLite test database and mock the email service so no real Resend requests are made. There is no frontend `npm test` script in the current `client/package.json`.
-
-**Windows note:** `server/tests/integration/database-schema-file.test.js` creates a symbolic link. On some Windows systems it can fail with `EPERM` unless Developer Mode or suitable permissions are enabled; this is an OS permission issue, not a booking test failure.
-
-## Sprint 2 verification and code quality
-
-Sprint 2 included comprehensive manual end-to-end testing for public availability, allergy information, booking editing and cancellation, staff bookings, and weekly schedule duplication.
-
-All planned bug fixes, final frontend and backend code reviews, automated test reviews, cleanup activities, and regression tests were completed by the end of Sprint 2.
-
-The team also completed the Sprint 2 test coverage task, achieving **100% code coverage for all code introduced or modified during Sprint 2**.
-
-The project was verified through automated tests, manual E2E testing, code reviews, and quality checks.
 
 ## Project specifications
 
@@ -212,7 +288,7 @@ The project was verified through automated tests, manual E2E testing, code revie
 
 ## Contributors
 
-Team 4 — [GitHub contributors](https://github.com/SE2-26-Team4/mountain-hut/graphs/contributors)
+[![Mountain Hut contributors](https://contrib.rocks/image?repo=SE2-26-Team4/mountain-hut)](https://github.com/SE2-26-Team4/mountain-hut/graphs/contributors)
 
 ## License
 
