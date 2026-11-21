@@ -51,6 +51,7 @@ export default function MyBookingsList({ hikerId }) {
   const [dateFilter, setDateFilter] = useState("");
   const [sortOrder, setSortOrder] = useState("default");
 
+  // [REQUIREMENT] MH-08: A hiker can cancel their own confirmed booking.
   /** @param {BookingDTO} booking */
   const openCancelModal = (booking) => {
     setCancellationFeedback(null);

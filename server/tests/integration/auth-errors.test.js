@@ -1,32 +1,27 @@
-import express from 'express';
-import request from 'supertest';
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
+import express from "express";
+import request from "supertest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Create shared DAO mocks before the mocked modules are imported.
 const mocks = vi.hoisted(() => ({
   changeUserPassword: vi.fn(),
   getUserByEmail: vi.fn(),
   getUserById: vi.fn(),
+  registerHiker: vi.fn(),
 }));
 
 // Replace database account lookups with controlled test responses.
-vi.mock('../../dao/auth-dao.js', () => ({
+vi.mock("../../dao/auth-dao.js", () => ({
   changeUserPassword: mocks.changeUserPassword,
   getUserByEmail: mocks.getUserByEmail,
   getUserById: mocks.getUserById,
+  registerHiker: mocks.registerHiker,
 }));
 
-import app from '../../app.js';
-import passport from '../../config/passport.js';
-import authRoutes from '../../routes/auth-routes.js';
-import { hashPassword } from '../../services/password.js';
+import app from "../../app.js";
+import passport from "../../config/passport.js";
+import authRoutes from "../../routes/auth-routes.js";
+import { hashPassword } from "../../services/password.js";
 
 // Clear mock implementations and call history before each test.
 beforeEach(() => {
@@ -55,13 +50,13 @@ function createRouteTestApp(requestProperties) {
     next();
   });
 
-  testApp.use('/api', authRoutes);
+  testApp.use("/api", authRoutes);
 
   // Capture forwarded errors and return a predictable test response.
   const errorHandler = vi.fn((error, _req, res, _next) => {
     return res.status(500).json({
       error: {
-        code: 'TEST_INTERNAL_ERROR',
+        code: "TEST_INTERNAL_ERROR",
       },
     });
   });
@@ -71,97 +66,91 @@ function createRouteTestApp(requestProperties) {
   return { testApp, errorHandler };
 }
 
-describe('authentication errors', () => {
+describe("authentication errors", () => {
   // Verify that a failed account lookup cannot create an authenticated session.
-  it('returns 500 without creating a session when the user lookup fails', async () => {
+  it("returns 500 without creating a session when the user lookup fails", async () => {
     mocks.getUserByEmail.mockRejectedValueOnce(
-      new Error('Simulated database failure'),
+      new Error("Simulated database failure"),
     );
 
     // Preserve cookies between login and the subsequent session check.
     const agent = request.agent(app);
 
-    const loginResponse = await agent
-      .post('/api/sessions')
-      .send({
-        email: 'auth-error-test@example.com',
-        password: 'AuthErrorTest123!',
-      });
+    const loginResponse = await agent.post("/api/sessions").send({
+      email: "auth-error-test@example.com",
+      password: "AuthErrorTest123!",
+    });
 
     // Confirm that authentication attempted the expected account lookup.
     expect(mocks.getUserByEmail).toHaveBeenCalledExactlyOnceWith(
-      'auth-error-test@example.com',
+      "auth-error-test@example.com",
     );
 
     expect(loginResponse.status).toBe(500);
-    expect(loginResponse.body).not.toHaveProperty('user');
+    expect(loginResponse.body).not.toHaveProperty("user");
 
     // A failed login must leave the agent unauthenticated.
-    const sessionResponse = await agent.get(
-      '/api/sessions/current',
-    );
+    const sessionResponse = await agent.get("/api/sessions/current");
 
     expect(sessionResponse.status).toBe(401);
-    expect(sessionResponse.body.error.code).toBe('UNAUTHENTICATED');
+    expect(sessionResponse.body.error.code).toBe("UNAUTHENTICATED");
 
     expect(mocks.getUserById).not.toHaveBeenCalled();
   });
 
   // Verify error handling when Passport cannot restore an existing session.
-  it('returns 500 when restoring the session fails', async () => {
-    const email = 'session-error-test@example.com';
-    const password = 'SessionErrorTest123!';
+  it("returns 500 when restoring the session fails", async () => {
+    const email = "session-error-test@example.com";
+    const password = "SessionErrorTest123!";
 
     // Provide a valid account so the initial login succeeds.
     mocks.getUserByEmail.mockResolvedValueOnce({
       id: 123,
-      full_name: 'Session Error Test Hiker',
+      full_name: "Session Error Test Hiker",
       email,
       password_hash: await hashPassword(password),
-      role: 'hiker',
+      role: "hiker",
     });
 
     const agent = request.agent(app);
 
     const loginResponse = await agent
-      .post('/api/sessions')
+      .post("/api/sessions")
       .send({ email, password });
 
     expect(loginResponse.status).toBe(201);
     expect(loginResponse.body.user).toMatchObject({
       id: 123,
       email,
-      role: 'hiker',
+      role: "hiker",
     });
 
     // Fail the account lookup used to deserialize the saved session.
     mocks.getUserById.mockRejectedValueOnce(
-      new Error('Simulated session lookup failure'),
+      new Error("Simulated session lookup failure"),
     );
 
-    const sessionResponse = await agent.get(
-      '/api/sessions/current',
-    );
+    const sessionResponse = await agent.get("/api/sessions/current");
 
     // Return a server error without exposing user data.
     expect(mocks.getUserById).toHaveBeenCalledExactlyOnceWith(123);
     expect(sessionResponse.status).toBe(500);
-    expect(sessionResponse.body).not.toHaveProperty('user');
+    expect(sessionResponse.body).not.toHaveProperty("user");
   });
 
   // Verify that session creation errors are forwarded to Express.
-  it('forwards an error when creating the login session fails', async () => {
-    const failure = new Error('Simulated login session failure');
+  it("forwards an error when creating the login session fails", async () => {
+    const failure = new Error("Simulated login session failure");
 
     const user = {
       id: 456,
-      full_name: 'Login Failure Test Hiker',
-      email: 'login-failure@example.com',
-      role: 'hiker',
+      full_name: "Login Failure Test Hiker",
+      email: "login-failure@example.com",
+      role: "hiker",
     };
 
     // Bypass credential verification to isolate the session creation step.
-    vi.spyOn(passport, 'authenticate').mockImplementation(
+    vi.spyOn(passport, "authenticate").mockImplementation(
       (_strategy, callback) => {
         return (_req, _res, _next) => {
           callback(null, user);
@@ -178,29 +167,24 @@ describe('authentication errors', () => {
       logIn,
     });
 
-    const response = await request(testApp)
-      .post('/api/sessions')
-      .send({
-        email: user.email,
-        password: 'LoginFailureTest123!',
-      });
+    const response = await request(testApp).post("/api/sessions").send({
+      email: user.email,
+      password: "LoginFailureTest123!",
+    });
 
     // Ensure the route attempted login and forwarded the original error once.
-    expect(logIn).toHaveBeenCalledExactlyOnceWith(
-      user,
-      expect.any(Function),
-    );
+    expect(logIn).toHaveBeenCalledExactlyOnceWith(user, expect.any(Function));
 
     expect(errorHandler).toHaveBeenCalledTimes(1);
     expect(errorHandler.mock.calls[0][0]).toBe(failure);
 
     expect(response.status).toBe(500);
-    expect(response.body).not.toHaveProperty('user');
+    expect(response.body).not.toHaveProperty("user");
   });
 
   // Verify that a logout failure stops the remaining session cleanup steps.
-  it('forwards a logout error without continuing to destroy the session', async () => {
-    const failure = new Error('Simulated logout failure');
+  it("forwards a logout error without continuing to destroy the session", async () => {
+    const failure = new Error("Simulated logout failure");
 
     const logout = vi.fn((callback) => {
       callback(failure);
@@ -215,8 +199,7 @@ describe('authentication errors', () => {
       session: { destroy },
     });
 
-    const response = await request(testApp)
-      .delete('/api/sessions/current');
+    const response = await request(testApp).delete("/api/sessions/current");
 
     expect(logout).toHaveBeenCalledTimes(1);
     expect(destroy).not.toHaveBeenCalled();
@@ -229,8 +212,8 @@ describe('authentication errors', () => {
   });
 
   // Verify error handling when logout succeeds but session destruction fails.
-  it('forwards an error when destroying the session fails', async () => {
-    const failure = new Error('Simulated session destruction failure');
+  it("forwards an error when destroying the session fails", async () => {
+    const failure = new Error("Simulated session destruction failure");
 
     const logout = vi.fn((callback) => {
       callback();
@@ -246,8 +229,7 @@ describe('authentication errors', () => {
       session: { destroy },
     });
 
-    const response = await request(testApp)
-      .delete('/api/sessions/current');
+    const response = await request(testApp).delete("/api/sessions/current");
 
     // Both steps should run, with the destruction error forwarded once.
     expect(logout).toHaveBeenCalledTimes(1);
@@ -260,35 +242,34 @@ describe('authentication errors', () => {
   });
 
   // Verify that missing request bodies produce a validation response.
-  it('handles an undefined request body without throwing', async () => {
+  it("handles an undefined request body without throwing", async () => {
     const testApp = express();
 
     // Omit JSON middleware so req.body remains undefined.
-    testApp.use('/api', authRoutes);
+    testApp.use("/api", authRoutes);
 
-    const response = await request(testApp)
-      .post('/api/sessions');
+    const response = await request(testApp).post("/api/sessions");
 
     expect(response.status).toBe(400);
-    expect(response.body.error.code).toBe('INVALID_CREDENTIALS');
-    expect(response.body).not.toHaveProperty('user');
+    expect(response.body.error.code).toBe("INVALID_CREDENTIALS");
+    expect(response.body).not.toHaveProperty("user");
   });
 });
 
 // First-login password change for hikers created by staff (MH-07).
-describe('password change errors', () => {
+describe("password change errors", () => {
   const sessionUser = {
     id: 321,
-    full_name: 'Password Change Hiker',
-    email: 'password-change@example.com',
-    role: 'hiker',
+    full_name: "Password Change Hiker",
+    email: "password-change@example.com",
+    role: "hiker",
     mustChangePassword: true,
   };
 
   const passwords = {
-    currentPassword: 'InitialPassword123!',
-    newPassword: 'ReplacementPassword123!',
-    confirmPassword: 'ReplacementPassword123!',
+    currentPassword: "InitialPassword123!",
+    newPassword: "ReplacementPassword123!",
+    confirmPassword: "ReplacementPassword123!",
   };
 
   /** @param {Record<string, unknown>} [requestProperties] */
@@ -302,35 +283,35 @@ describe('password change errors', () => {
     return {
       errorHandler,
       response: request(testApp)
-        .put('/api/sessions/current/password')
+        .put("/api/sessions/current/password")
         .send(passwords),
     };
   }
 
-  it('requires a session user', async () => {
+  it("requires a session user", async () => {
     const { response } = changePassword({ user: undefined });
 
     expect((await response).status).toBe(401);
-    expect((await response).body.error.code).toBe('UNAUTHENTICATED');
+    expect((await response).body.error.code).toBe("UNAUTHENTICATED");
     expect(mocks.getUserByEmail).not.toHaveBeenCalled();
   });
 
   it.each([
-    ['the account no longer exists', undefined],
-    ['the account has no password', { ...sessionUser, password_hash: null }],
-  ])('rejects the change when %s', async (_label, account) => {
+    ["the account no longer exists", undefined],
+    ["the account has no password", { ...sessionUser, password_hash: null }],
+  ])("rejects the change when %s", async (_label, account) => {
     mocks.getUserByEmail.mockResolvedValueOnce(account);
 
     const { response } = changePassword();
 
     expect((await response).status).toBe(401);
     expect((await response).body.error.message).toBe(
-      'The current password is incorrect.',
+      "The current password is incorrect.",
     );
     expect(mocks.changeUserPassword).not.toHaveBeenCalled();
   });
 
-  it('reports an account removed while the password changes', async () => {
+  it("reports an account removed while the password changes", async () => {
     mocks.getUserByEmail.mockResolvedValueOnce({
       ...sessionUser,
       password_hash: await hashPassword(passwords.currentPassword),
@@ -340,11 +321,11 @@ describe('password change errors', () => {
     const { response } = changePassword();
 
     expect((await response).status).toBe(404);
-    expect((await response).body.error.code).toBe('ACCOUNT_NOT_FOUND');
+    expect((await response).body.error.code).toBe("ACCOUNT_NOT_FOUND");
   });
 
-  it('forwards a database failure', async () => {
-    const failure = new Error('Simulated database failure');
+  it("forwards a database failure", async () => {
+    const failure = new Error("Simulated database failure");
 
     mocks.getUserByEmail.mockRejectedValueOnce(failure);
 
@@ -357,41 +338,55 @@ describe('password change errors', () => {
 
 // Check that each role uses the correct login area without opening a session.
 it.each([
-  ['/api/sessions', 'employee'],
-  ['/api/sessions', 'warden'],
-  ['/api/staff/sessions', 'hiker'],
+  ["/api/sessions", "employee"],
+  ["/api/sessions", "warden"],
+  ["/api/staff/sessions", "hiker"],
 ])(
-  'rejects %s for role %s without revealing the account role',
+  "rejects %s for role %s without revealing the account role",
   async (path, role) => {
     const user = {
       id: 789,
-      full_name: 'Wrong Area',
-      email: 'area@example.com',
+      full_name: "Wrong Area",
+      email: "area@example.com",
       role,
     };
 
     // Accept credentials so the test isolates the login-area role check.
-    vi.spyOn(passport, 'authenticate').mockImplementation(
-      (_strategy, callback) =>
-        (_req, _res, _next) => callback(null, user)
+    vi.spyOn(passport, "authenticate").mockImplementation(
+      (_strategy, callback) => (_req, _res, _next) => callback(null, user),
     );
 
     const logIn = vi.fn();
     const { testApp } = createRouteTestApp({ logIn });
 
-    const response = await request(testApp)
-      .post(path)
-      .send({
-        email: user.email,
-        password: 'AreaTest123!',
-      });
+    const response = await request(testApp).post(path).send({
+      email: user.email,
+      password: "AreaTest123!",
+    });
 
     // Use the same response as invalid credentials to prevent enumeration.
     expect(response.status).toBe(401);
-    expect(response.body.error.code).toBe('INVALID_CREDENTIALS');
-    expect(response.body.error.message).toBe(
-      'Email or password is incorrect.',
-    );
+    expect(response.body.error.code).toBe("INVALID_CREDENTIALS");
+    expect(response.body.error.message).toBe("Email or password is incorrect.");
     expect(logIn).not.toHaveBeenCalled();
-  }
+  },
 );
+
+it("forwards an unexpected sign-up failure", async () => {
+  const failure = new Error("Simulated registration failure");
+  mocks.registerHiker.mockRejectedValueOnce(failure);
+
+  const { testApp, errorHandler } = createRouteTestApp({});
+  const password = "Four hikers cross the valley";
+
+  const response = await request(testApp).post("/api/hikers").send({
+    fullName: "Test Hiker",
+    email: "signup@example.com",
+    phone: "+39 333 123-4567",
+    password,
+    confirmPassword: password,
+  });
+
+  expect(response.status).toBe(500);
+  expect(errorHandler.mock.calls[0][0]).toBe(failure);
+});

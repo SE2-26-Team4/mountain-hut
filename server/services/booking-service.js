@@ -297,7 +297,8 @@ function validateBookingDetails(
     );
   }
 
-  // Validate the per-guest list while accepting existing plain-text requirements.
+  // [REQUIREMENT] MH-05: Each dietary requirement has its own description and allergy flag.
+  // Older bookings can store dietary requirements as plain text.
   if (dietaryText?.startsWith("[")) {
     let entries;
 
@@ -453,14 +454,8 @@ async function prepareNewHiker(input) {
         MAX_NAME_LENGTH,
       );
       const email = normalizeEmail(input.email);
-      const phone =
-        input.phone === undefined ||
-        input.phone === null ||
-        (typeof input.phone === 'string' &&
-          input.phone.trim().length === 0)
-          ? null
-          : normalizePhone(input.phone);
-      const notes = optionalText(input.notes, 'Notes', MAX_TEXT_LENGTH);
+      const phone = normalizePhone(input.phone);
+      const notes = optionalText(input.notes, "Notes", MAX_TEXT_LENGTH);
       const emergencyContact = optionalText(
         input.emergencyContact,
         "Emergency contact",

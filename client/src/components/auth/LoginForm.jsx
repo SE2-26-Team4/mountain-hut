@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { Button, Form, Spinner } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
+import { useState } from "react";
+import { Button, Form, Spinner } from "react-bootstrap";
+import { Link } from "react-router-dom";
 
-import Alert from '../common/AutoDismissAlert.jsx';
-import MountainLogo from '../common/MountainLogo.jsx';
+import Alert from "../common/AutoDismissAlert.jsx";
+import MountainLogo from "../common/MountainLogo.jsx";
 
 /**
  * @typedef {import('../../API/session-api.js').LoginCredentials} LoginCredentials
@@ -11,14 +11,14 @@ import MountainLogo from '../common/MountainLogo.jsx';
 
 const AREA_COPY = {
   hiker: {
-    title: 'Sign in',
+    title: "Sign in",
     description:
-      'Welcome back! Sign in to manage your reservations and enjoy your alpine experience.',
+      "Welcome back! Sign in to manage your reservations and enjoy your alpine experience.",
   },
   staff: {
-    title: 'Staff sign in',
+    title: "Staff sign in",
     description:
-      'Welcome back! Sign in with your staff account to manage hut services.',
+      "Welcome back! Sign in with your staff account to manage hut services.",
   },
 };
 
@@ -32,18 +32,24 @@ const AREA_COPY = {
  * @param {string} [props.title]
  * @param {string} [props.description]
  * @param {() => void} [props.onForgotPassword] - Shows the password recovery form.
+ * @param {() => void} [props.onSignUp] - Opens the hiker sign-up form.
+ * @param {string} [props.initialEmail] - Prefills the email after sign-up.
+ * @param {string} [props.registrationMessage] - Confirms successful sign-up.
  */
 function LoginForm({
   isSubmitting,
   errorMessage,
   onLogin,
-  area = 'hiker',
+  area = "hiker",
   title = AREA_COPY[area].title,
   description = AREA_COPY[area].description,
   onForgotPassword,
+  onSignUp,
+  initialEmail = "",
+  registrationMessage = "",
 }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState(initialEmail);
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   /** @param {import('react').SubmitEvent<HTMLFormElement>} event */
@@ -58,7 +64,7 @@ function LoginForm({
     });
 
     if (signedIn) {
-      setPassword('');
+      setPassword("");
       setShowPassword(false);
     }
   };
@@ -77,46 +83,25 @@ function LoginForm({
         <p className="mh-auth-copy">{description}</p>
       </div>
 
+      {registrationMessage && !errorMessage && (
+        <Alert variant="success" role="status" className="mh-auth-alert">
+          {registrationMessage}
+        </Alert>
+      )}
+
       {errorMessage && (
-        <Alert
-          variant="danger"
-          role="alert"
-          className="mh-auth-alert"
-        >
+        <Alert variant="danger" role="alert" className="mh-auth-alert">
           {errorMessage}
         </Alert>
       )}
 
       <Form onSubmit={handleSubmit}>
-        <Form.Group
-          className="mb-3"
-          controlId="login-email"
-        >
+        <Form.Group className="mb-3" controlId="login-email">
           <Form.Label>Email address</Form.Label>
 
           <div className="mh-auth-input-wrapper">
-            <span
-              className="mh-auth-input-icon"
-              aria-hidden="true"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect
-                  x="3"
-                  y="5"
-                  width="18"
-                  height="14"
-                  rx="2"
-                />
-
-                <path d="m3 7 9 6 9-6" />
-              </svg>
+            <span className="mh-auth-input-icon" aria-hidden="true">
+              <i className="bi bi-envelope" />
             </span>
 
             <Form.Control
@@ -134,39 +119,16 @@ function LoginForm({
           </div>
         </Form.Group>
 
-        <Form.Group
-          className="mb-4"
-          controlId="login-password"
-        >
+        <Form.Group className="mb-4" controlId="login-password">
           <Form.Label>Password</Form.Label>
 
           <div className="mh-auth-input-wrapper">
-            <span
-              className="mh-auth-input-icon"
-              aria-hidden="true"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect
-                  x="5"
-                  y="10"
-                  width="14"
-                  height="11"
-                  rx="2"
-                />
-
-                <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-              </svg>
+            <span className="mh-auth-input-icon" aria-hidden="true">
+              <i className="bi bi-lock" />
             </span>
 
             <Form.Control
-              type={showPassword ? 'text' : 'password'}
+              type={showPassword ? "text" : "password"}
               name="password"
               autoComplete="current-password"
               placeholder="Your password"
@@ -179,21 +141,19 @@ function LoginForm({
             <button
               className="mh-auth-password-toggle"
               type="button"
-              aria-label={
-                showPassword ? 'Hide password' : 'Show password'
-              }
+              aria-label={showPassword ? "Hide password" : "Show password"}
               aria-pressed={showPassword}
               disabled={isSubmitting}
               onClick={() => setShowPassword((current) => !current)}
             >
               <i
-                className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}
+                className={`bi ${showPassword ? "bi-eye-slash" : "bi-eye"}`}
                 aria-hidden="true"
               />
             </button>
           </div>
 
-          {area === 'hiker' && onForgotPassword && (
+          {area === "hiker" && onForgotPassword && (
             <div className="text-end mt-2">
               <button
                 type="button"
@@ -214,11 +174,7 @@ function LoginForm({
         >
           {isSubmitting ? (
             <>
-              <Spinner
-                size="sm"
-                animation="border"
-                aria-hidden="true"
-              />
+              <Spinner size="sm" animation="border" aria-hidden="true" />
 
               <span>Signing in…</span>
             </>
@@ -231,16 +187,28 @@ function LoginForm({
         </Button>
       </Form>
 
-      {area === 'hiker' && (
+      {area === "hiker" && onSignUp && (
         <p className="mh-staff-login-prompt">
-          Are you an employee?{' '}
-          <Link to="/staff/login">Log in here</Link>
+          Don’t have an account?{" "}
+          <button
+            type="button"
+            className="mh-auth-link"
+            onClick={onSignUp}
+            disabled={isSubmitting}
+          >
+            Create an account
+          </button>
+        </p>
+      )}
+
+      {area === "hiker" && (
+        <p className="mh-staff-login-prompt">
+          Are you an employee? <Link to="/staff/login">Log in here</Link>
         </p>
       )}
 
       <p className="mh-privacy-note">
-        Your details are used only to manage your
-        Mountain Hut session.
+        Your details are used only to manage your Mountain Hut session.
       </p>
     </div>
   );

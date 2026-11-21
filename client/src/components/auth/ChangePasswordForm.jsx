@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { Button, Form, Spinner } from 'react-bootstrap';
+import { useState } from "react";
+import { Button, Form, Spinner } from "react-bootstrap";
 
-import Alert from '../common/AutoDismissAlert.jsx';
-import AuthPageLayout from './AuthPageLayout.jsx';
-import PasswordField from './PasswordField.jsx';
+import Alert from "../common/AutoDismissAlert.jsx";
+import AuthPageLayout from "./AuthPageLayout.jsx";
+import PasswordField from "./PasswordField.jsx";
 
 /**
  * @param {Object} props
@@ -18,15 +18,25 @@ export default function ChangePasswordForm({
   onSubmit,
   onSignOut,
 }) {
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmationTouched, setConfirmationTouched] = useState(false);
+
+  const passwordsMismatch =
+    confirmPassword !== "" && confirmPassword !== newPassword;
 
   /** @param {import('react').SubmitEvent<HTMLFormElement>} event */
   const handleSubmit = async (event) => {
     event.preventDefault();
 
     if (isSubmitting) return;
+
+    if (passwordsMismatch) {
+      setConfirmationTouched(true);
+      document.getElementById("confirm-password")?.focus();
+      return;
+    }
 
     const changed = await onSubmit({
       currentPassword,
@@ -35,9 +45,10 @@ export default function ChangePasswordForm({
     });
 
     if (changed) {
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setConfirmationTouched(false);
     }
   };
 
@@ -47,10 +58,11 @@ export default function ChangePasswordForm({
       footer={
         <button
           type="button"
-          className="mh-auth-link d-inline-block mt-3"
+          className="mh-auth-link d-inline-flex align-items-center gap-2 mt-3"
           onClick={onSignOut}
           disabled={isSubmitting}
         >
+          <i className="bi bi-box-arrow-right" aria-hidden="true" />
           Sign out
         </button>
       }
@@ -77,7 +89,7 @@ export default function ChangePasswordForm({
           controlId="current-password"
           label="Initial password"
           autoComplete="current-password"
-          placeholder="Password from the email"
+          hint="Use the temporary password from your email."
           value={currentPassword}
           onChange={setCurrentPassword}
           disabled={isSubmitting}
@@ -87,8 +99,8 @@ export default function ChangePasswordForm({
           controlId="new-password"
           label="New password"
           autoComplete="new-password"
-          placeholder="At least 8 characters"
-          minLength={8}
+          hint="Use 15 to 128 characters. Spaces are allowed."
+          minLength={15}
           maxLength={128}
           value={newPassword}
           onChange={setNewPassword}
@@ -99,17 +111,20 @@ export default function ChangePasswordForm({
           controlId="confirm-password"
           label="Confirm new password"
           autoComplete="new-password"
-          placeholder="Repeat the new password"
-          minLength={8}
-          maxLength={128}
           value={confirmPassword}
           onChange={setConfirmPassword}
+          onBlur={() => setConfirmationTouched(true)}
+          error={
+            confirmationTouched && passwordsMismatch
+              ? "The passwords do not match."
+              : ""
+          }
           disabled={isSubmitting}
           className="mb-4"
         />
 
         <Button
-          className="mh-primary-button mh-auth-submit w-100"
+          className="mh-primary-button mh-auth-submit w-100 d-flex align-items-center justify-content-center gap-2"
           type="submit"
           disabled={isSubmitting}
         >
@@ -119,7 +134,7 @@ export default function ChangePasswordForm({
               <span>Updating…</span>
             </>
           ) : (
-            'Update password'
+            "Update password"
           )}
         </Button>
       </Form>

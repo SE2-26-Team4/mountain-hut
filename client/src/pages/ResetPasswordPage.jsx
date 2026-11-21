@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react';
-import { Button, Form, Spinner } from 'react-bootstrap';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useEffect, useState } from "react";
+import { Button, Form, Spinner } from "react-bootstrap";
+import { Link, useSearchParams } from "react-router-dom";
 
-import API, { SessionApiError } from '../API/session-api.js';
-import AuthPageLayout from '../components/auth/AuthPageLayout.jsx';
-import PasswordField from '../components/auth/PasswordField.jsx';
-import Alert from '../components/common/AutoDismissAlert.jsx';
+import API, { SessionApiError } from "../API/session-api.js";
+import AuthPageLayout from "../components/auth/AuthPageLayout.jsx";
+import PasswordField from "../components/auth/PasswordField.jsx";
+import Alert from "../components/common/AutoDismissAlert.jsx";
 
-const MIN_PASSWORD_LENGTH = 8;
+const MIN_PASSWORD_LENGTH = 15;
 const MAX_PASSWORD_LENGTH = 128;
 
 /**
@@ -16,7 +16,7 @@ const MAX_PASSWORD_LENGTH = 128;
  */
 function isInvalidLinkError(error) {
   return (
-    error instanceof SessionApiError && error.code === 'INVALID_RESET_TOKEN'
+    error instanceof SessionApiError && error.code === "INVALID_RESET_TOKEN"
   );
 }
 
@@ -38,15 +38,15 @@ function RequestNewLinkButton({ children }) {
 // This page opens from the link in the reset email, valid for 24 hours.
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
-  const token = searchParams.get('token') ?? '';
+  const token = searchParams.get("token") ?? "";
 
   // Result of checking the link, kept with the token it refers to.
-  const [linkCheck, setLinkCheck] = useState({ token: '', usable: false });
+  const [linkCheck, setLinkCheck] = useState({ token: "", usable: false });
 
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState("");
   const [isReset, setIsReset] = useState(false);
 
   // A link that was already used, replaced or has expired needs a new one,
@@ -74,13 +74,13 @@ export default function ResetPasswordPage() {
   }, [token]);
 
   /** @type {'missing' | 'checking' | 'usable' | 'invalid'} */
-  let linkStatus = 'missing';
+  let linkStatus = "missing";
 
   if (token) {
     if (linkCheck.token !== token) {
-      linkStatus = 'checking';
+      linkStatus = "checking";
     } else {
-      linkStatus = linkCheck.usable ? 'usable' : 'invalid';
+      linkStatus = linkCheck.usable ? "usable" : "invalid";
     }
   }
 
@@ -91,11 +91,11 @@ export default function ResetPasswordPage() {
     if (isSubmitting) return;
 
     if (newPassword !== confirmPassword) {
-      setErrorMessage('The new password and its confirmation do not match.');
+      setErrorMessage("The new password and its confirmation do not match.");
       return;
     }
 
-    setErrorMessage('');
+    setErrorMessage("");
     setIsSubmitting(true);
 
     try {
@@ -109,7 +109,7 @@ export default function ResetPasswordPage() {
         setErrorMessage(
           error instanceof Error
             ? error.message
-            : 'The password could not be reset.',
+            : "The password could not be reset.",
         );
       }
     } finally {
@@ -128,8 +128,8 @@ export default function ResetPasswordPage() {
           </h1>
 
           <p className="mh-auth-copy" role="status">
-            You can now sign in with your new password. This link can no
-            longer be used.
+            You can now sign in with your new password. This link can no longer
+            be used.
           </p>
         </div>
 
@@ -141,7 +141,7 @@ export default function ResetPasswordPage() {
         </Link>
       </>
     );
-  } else if (linkStatus === 'missing') {
+  } else if (linkStatus === "missing") {
     content = (
       <>
         <div className="mh-auth-heading">
@@ -150,15 +150,15 @@ export default function ResetPasswordPage() {
           </h1>
 
           <p className="mh-auth-copy" role="alert">
-            This password reset link is incomplete. Open the link from the
-            email again, or request a new one.
+            This password reset link is incomplete. Open the link from the email
+            again, or request a new one.
           </p>
         </div>
 
         <RequestNewLinkButton>Request a new link</RequestNewLinkButton>
       </>
     );
-  } else if (linkStatus === 'checking') {
+  } else if (linkStatus === "checking") {
     content = (
       <div className="mh-auth-heading">
         <h1 id="reset-password-title" className="mh-auth-title">
@@ -174,7 +174,7 @@ export default function ResetPasswordPage() {
         </p>
       </div>
     );
-  } else if (linkStatus === 'invalid') {
+  } else if (linkStatus === "invalid") {
     content = (
       <>
         <div className="mh-auth-heading">
@@ -201,7 +201,7 @@ export default function ResetPasswordPage() {
           </h1>
 
           <p className="mh-auth-copy">
-            Your new password must be {MIN_PASSWORD_LENGTH} to{' '}
+            Your new password must be {MIN_PASSWORD_LENGTH} to{" "}
             {MAX_PASSWORD_LENGTH} characters long.
           </p>
         </div>
@@ -244,7 +244,7 @@ export default function ResetPasswordPage() {
           />
 
           <Button
-            className="mh-primary-button mh-auth-submit w-100"
+            className="mh-primary-button mh-auth-submit w-100 d-flex align-items-center justify-content-center gap-2"
             type="submit"
             disabled={isSubmitting}
           >
@@ -254,7 +254,7 @@ export default function ResetPasswordPage() {
                 <span>Saving…</span>
               </>
             ) : (
-              'Save new password'
+              "Save new password"
             )}
           </Button>
         </Form>

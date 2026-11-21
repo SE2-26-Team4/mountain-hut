@@ -21,6 +21,11 @@ import {
   getMealSlotAvailability,
   registerHikerByStaff,
 } from "../services/booking-service.js";
+import {
+  getHikerForInitialPasswordResend,
+  replaceInitialPasswordAfterResend,
+} from "../dao/auth-dao.js";
+import { generateInitialPassword, hashPassword } from "../services/password.js";
 
 /**
  * @typedef {import('../models/models.js').BookingDTO} BookingDTO
@@ -183,7 +188,7 @@ async function sendInitialPassword(hiker, initialPassword) {
   } catch (emailError) {
     console.error(
       "Hiker account saved, but initial password email could not be sent:",
-      emailError
+      emailError,
     );
 
     return false;
@@ -287,7 +292,7 @@ router.get(
   }),
 );
 
-// Expose seat availability for a date and meal slot without requiring login.
+// [REQUIREMENT] MH-04: Anyone can check seat availability for a date and meal slot without signing in.
 router.get(
   "/bookings/availability",
   asyncRoute(async (req, res) => {
@@ -421,18 +426,79 @@ router.post(
   requireStaff,
   asyncRoute(async (req, res) => {
     // The service validates the hiker type and fields.
-    // [REQUIREMENT] If a full hiker account is created, the password is randomly
+    // [REQUIREMENT] MH-07: If a full hiker account is created, the password is randomly
     // generated and sent to the hiker by email.
     const registration = await registerHikerByStaff(req.body);
     const passwordSent = await sendInitialPassword(
       registration.hiker,
-      registration.initialPassword
+      registration.initialPassword,
     );
 
     return res.status(201).json({
       hiker: registration.hiker,
       passwordSent,
     });
+  }),
+);
+
+// Resend first-login credentials to the email saved on the hiker account.
+router.post(
+  "/staff/hikers/:hikerId/initial-password-email",
+  requireStaff,
+  asyncRoute(async (req, res) => {
+    const hikerId = Number(req.params.hikerId);
+
+    if (!Number.isSafeInteger(hikerId) || hikerId < 1) {
+      return res.status(400).json({
+        error: {
+          code: "INVALID_HIKER_ID",
+          message: "A valid hiker ID is required.",
+        },
+      });
+    }
+
+    const hiker = await getHikerForInitialPasswordResend(hikerId);
+
+    if (!hiker) {
+      return res.status(409).json({
+        error: {
+          code: "FIRST_LOGIN_EMAIL_UNAVAILABLE",
+          message: "This account is not eligible for a first-login email.",
+        },
+      });
+    }
+
+    const newPassword = generateInitialPassword();
+    const newHash = await hashPassword(newPassword);
+    const sent = await sendInitialPassword(hiker, newPassword);
+
+    if (!sent) {
+      return res.status(502).json({
+        error: {
+          code: "FIRST_LOGIN_EMAIL_FAILED",
+          message: "The email could not be sent. Please try again.",
+        },
+      });
+    }
+
+    const updated = await replaceInitialPasswordAfterResend(
+      hikerId,
+      hiker.email,
+      hiker.passwordHash,
+      newHash,
+    );
+
+    if (!updated) {
+      return res.status(409).json({
+        error: {
+          code: "FIRST_LOGIN_ACCOUNT_CHANGED",
+          message:
+            "The account changed during the resend. The password in this email was not activated.",
+        },
+      });
+    }
+
+    return res.status(204).end();
   }),
 );
 
@@ -501,7 +567,7 @@ router.post(
     );
     const passwordSent = await sendInitialPassword(
       result.hiker,
-      result.initialPassword
+      result.initialPassword,
     );
 
     return res.status(201).json({

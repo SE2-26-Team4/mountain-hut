@@ -743,6 +743,15 @@ export default function useStaffCapacity() {
     setCopyWeekError("");
   }
 
+  /** @param {string} sourceWeekStart */
+  function hasSlotsInWeek(sourceWeekStart) {
+    const lastDay = addCalendarDays(sourceWeekStart, 6);
+
+    return mealSlots.some(
+      (slot) => slot.slotDate >= sourceWeekStart && slot.slotDate <= lastDay,
+    );
+  }
+
   /**
    * @param {string} sourceWeekStart
    * @param {string} destinationWeekStart
@@ -755,13 +764,7 @@ export default function useStaffCapacity() {
   async function copyWeek(sourceWeekStart, destinationWeekStart, series) {
     if (isSaving) return;
 
-    const sourceWeekEnd = addCalendarDays(sourceWeekStart, 7);
-    const hasSourceSlots = mealSlots.some(
-      (slot) =>
-        slot.slotDate >= sourceWeekStart && slot.slotDate < sourceWeekEnd,
-    );
-
-    if (!hasSourceSlots) {
+    if (!hasSlotsInWeek(sourceWeekStart)) {
       setCopyWeekError("The source week has no time slots to copy.");
       return;
     }
@@ -840,6 +843,7 @@ export default function useStaffCapacity() {
   // Expose configuration data, derived values, forms, and actions to components.
   return {
     mealSlots,
+    hasSlotsInWeek,
     diningTables,
     activeSlots,
     activeTables,

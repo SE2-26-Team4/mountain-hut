@@ -46,9 +46,11 @@ function getMonthDays(month) {
   );
 }
 
+// [REQUIREMENT] MH-09: Staff can copy a source week's schedule to one or more destination weeks.
 /**
  * @param {{
  *   date: string,
+ *   hasSlotsInWeek: (start: string) => boolean,
  *   saving: boolean,
  *   error: string,
  *   onHide: () => void,
@@ -70,6 +72,7 @@ export default function CopyWeekModal({
   onClearError,
   onCopy,
   onCopyWeeks,
+  hasSlotsInWeek,
 }) {
   const [source, setSource] = useState("");
   const [destination, setDestination] = useState("");
@@ -91,6 +94,7 @@ export default function CopyWeekModal({
   );
 
   const validSource = isCalendarDate(source);
+  const sourceWeekIsEmpty = validSource && !hasSlotsInWeek(source);
   const validDestination = isCalendarDate(destination);
   const monthDays = getMonthDays(visibleMonth);
 
@@ -119,6 +123,7 @@ export default function CopyWeekModal({
 
   const preview = useScheduleCopyPreview(destination, lastDay);
 
+  // [REQUIREMENT] MH-09: A destination week with a confirmed booking cannot be overwritten.
   const bookingsByWeek = new Map(
     /** @type {[string, NonNullable<typeof preview.data>["bookings"]][]} */ ([]),
   );
@@ -179,6 +184,7 @@ export default function CopyWeekModal({
 
   const canSave =
     validSource &&
+    !sourceWeekIsEmpty &&
     Boolean(preview.data) &&
     selectedCount > 0 &&
     !overlapsSource &&
@@ -364,11 +370,27 @@ export default function CopyWeekModal({
                     type="date"
                     required
                     value={source}
+                    isInvalid={sourceWeekIsEmpty}
+                    aria-invalid={sourceWeekIsEmpty || undefined}
+                    aria-describedby={
+                      validSource ? "copy-source-feedback" : undefined
+                    }
                     onChange={(event) => setSource(event.target.value)}
                   />
                   {validSource && (
-                    <Form.Text>
-                      {formatScheduleRange(source, addCalendarDays(source, 6))}
+                    <Form.Text
+                      id="copy-source-feedback"
+                      className={
+                        sourceWeekIsEmpty ? "d-block text-danger" : "d-block"
+                      }
+                      aria-live="polite"
+                    >
+                      {sourceWeekIsEmpty
+                        ? "This week has no meal slots to copy. Choose another source week."
+                        : formatScheduleRange(
+                            source,
+                            addCalendarDays(source, 6),
+                          )}
                     </Form.Text>
                   )}
                 </Form.Group>

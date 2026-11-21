@@ -14,8 +14,9 @@ import ProfileMenu from "../common/ProfileMenu.jsx";
  * @param {SessionUser | null} props.user
  * @param {() => void} props.onSignIn
  * @param {() => void | Promise<void>} props.onSignOut
+ * @param {() => void} [props.onSignUp]
  */
-function SiteHeader({ user, onSignIn, onSignOut }) {
+function SiteHeader({ user, onSignIn, onSignUp, onSignOut }) {
   const { pathname } = useLocation();
   const isHome = pathname === "/";
   const isMyBookings = pathname === "/my-bookings";
@@ -62,9 +63,25 @@ function SiteHeader({ user, onSignIn, onSignOut }) {
   const account = user ? (
     <ProfileMenu user={user} onSignOut={onSignOut} />
   ) : (
-    <button className="mh-site-account-button" type="button" onClick={onSignIn}>
-      Sign in
-    </button>
+    <div className="d-flex align-items-center gap-2">
+      <button
+        type="button"
+        className="mh-site-account-button mh-site-signin"
+        onClick={onSignIn}
+      >
+        Sign in
+      </button>
+
+      {onSignUp && (
+        <button
+          type="button"
+          className="mh-site-account-button"
+          onClick={onSignUp}
+        >
+          Sign up
+        </button>
+      )}
+    </div>
   );
 
   return (
@@ -179,16 +196,31 @@ function SiteHeader({ user, onSignIn, onSignOut }) {
                 </button>
               </>
             ) : (
-              <button
-                type="button"
-                className="mh-primary-button"
-                onClick={() => {
-                  closeMenu();
-                  onSignIn();
-                }}
-              >
-                Sign in
-              </button>
+              <div className="d-grid gap-2">
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={() => {
+                    closeMenu();
+                    onSignIn();
+                  }}
+                >
+                  Sign in
+                </button>
+
+                {onSignUp && (
+                  <button
+                    type="button"
+                    className="mh-primary-button d-flex justify-content-center"
+                    onClick={() => {
+                      closeMenu();
+                      onSignUp();
+                    }}
+                  >
+                    Sign up
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </Offcanvas.Body>

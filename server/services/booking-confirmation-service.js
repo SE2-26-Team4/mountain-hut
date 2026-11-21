@@ -38,37 +38,39 @@ export async function sendBookingConfirmationEmail(message) {
     );
   }
 
-  // Load the logo relative to this module, independently of the working directory.
-  const logo = await readFile(
-    new URL("../assets/mountain-hut-email-logo.png", import.meta.url),
+  // Include only the inline images referenced by this email template.
+  const images = [
+    {
+      filename: "mountain-hut-email-logo.png",
+      contentId: "mountain-hut-logo",
+    },
+    {
+      filename: "booking-success-check.png",
+      contentId: "booking-success-check",
+    },
+  ];
+
+  const attachments = await Promise.all(
+    images
+      .filter(({ contentId }) => message.html.includes(`cid:${contentId}`))
+      .map(async ({ filename, contentId }) => ({
+        filename,
+        contentId,
+        content: await readFile(
+          new URL(`../assets/${filename}`, import.meta.url),
+        ),
+      })),
   );
 
-  const successCheck = await readFile(
-    new URL("../assets/booking-success-check.png", import.meta.url),
-  );
-
-  // Create the client using the configuration read for this invocation.
   const resend = new Resend(apiKey);
 
-  // Send both message formats and attach the logo referenced by its content ID.
   const { data, error } = await resend.emails.send({
     from,
     to: message.to,
     subject: message.subject,
     html: message.html,
     text: message.text,
-    attachments: [
-      {
-        filename: "mountain-hut-email-logo.png",
-        content: logo,
-        contentId: "mountain-hut-logo",
-      },
-      {
-        filename: "booking-success-check.png",
-        content: successCheck,
-        contentId: "booking-success-check",
-      },
-    ],
+    attachments,
   });
 
   // The SDK may return an error instead of rejecting the promise.

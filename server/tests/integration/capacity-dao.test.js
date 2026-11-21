@@ -604,6 +604,7 @@ describe("meal-slot and dining-table data access", () => {
   });
 });
 
+// [REQUIREMENT] MH-02: A meal slot's capacity comes from the tables assigned to that slot.
 describe("slot-table assignment and capacity aggregation", () => {
   // Use dedicated fixtures with known seat counts for capacity assertions.
   const assignmentSlotName = `Assignment test slot ${uniqueSuffix}`;
