@@ -240,7 +240,12 @@ docker info
 
 When `SEED_DEMO_ACCOUNTS=true`, the backend creates any missing demo accounts. The steps below use the default credentials.
 
-1. **Configure availability as an employee.** On a fresh installation, select **Sign in** on the home page, then **Are you an employee? Log in here**. Sign in with `employee@example.com` and password `EmployeeTest123!`. Open **Tables & Slots** and configure dining tables and meal slots for the date you want to book. To create an account for a hiker, open **Staff Booking**, select **New**, enter the hiker’s details, and select **Create account**. With email delivery configured, the hiker receives a temporary password and must change it at first sign-in. Sign out when you are finished.
+1. **Choose how to set up the booking schedule.**
+   - **Use the demo data.** Set both `SEED_DEMO_ACCOUNTS=true` and `SEED_DEMO_DATA=true` before starting the application with a fresh database. Continue to step 2 and sign in as the demo hiker. On the day the data is created, **My bookings** shows 3 upcoming, 3 past, and 3 cancelled bookings. To try a new booking, search for **Dinner** seven days after that first startup: 6 guests can book across two tables. **Lunch** on the same date is fully booked. Restarting the application preserves your changes.
+
+   - **Configure the schedule yourself.** Leave `SEED_DEMO_DATA=false`. On the home page, select **Sign in**, then **Are you an employee? Log in here**. Sign in with `employee@example.com` and password `EmployeeTest123!`. Open **Tables & Slots** and configure dining tables and meal slots for the date you want to book. Sign out when you are finished.
+
+   Staff can also create a hiker account from **Staff Booking**. Select **New**, enter the hiker’s details, and select **Create account**. With email delivery configured, the hiker receives a temporary password and must change it at first sign-in.
 
 2. **Choose how to test the booking as a hiker.**
    - **To try booking without receiving emails**, select **Sign in** and use `hiker@example.com` with password `HikerTest123!`.
@@ -257,7 +262,11 @@ When `SEED_DEMO_ACCOUNTS=true`, the backend creates any missing demo accounts. T
    - **Docker Hub deployment** uses `docker run --env-file` to load the file. See [Docker Hub release deployment](#docker-hub-release-deployment) for the full command.
    - **Local development** with `npm run dev` does not automatically load `.env`. Set the variables in the terminal before starting the backend, or define them in your IDE’s run configuration.
 
-3. **Configure sessions and demo accounts.** Set `SESSION_SECRET` to a long, random value. Set `SEED_DEMO_ACCOUNTS=true` if you want the backend to create the demo accounts described in [First booking and demo accounts](#first-booking-and-demo-accounts).
+3. **Configure sessions and demo data.** Set `SESSION_SECRET` to a long, random value. Choose the demo settings for your first startup:
+   - `SEED_DEMO_ACCOUNTS=true` creates any missing demo accounts.
+   - `SEED_DEMO_DATA=true` adds sample tables, meal slots, and bookings to an empty schedule. Enable both flags to try the prepared demo. Leave `SEED_DEMO_DATA=false` to configure the schedule yourself.
+
+   See [First booking and demo accounts](#first-booking-and-demo-accounts) for the default credentials and booking examples.
 
 4. **Enable email delivery.** Set `RESEND_API_KEY` to a valid Resend API key and `EMAIL_FROM` to a sender address authorized for that key. Mountain Hut uses email for booking confirmations, password resets, and first-login credentials for staff-created hiker accounts. A booking remains valid even if its confirmation email cannot be delivered.
 
