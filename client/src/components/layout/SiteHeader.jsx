@@ -20,6 +20,7 @@ function SiteHeader({ user, onSignIn, onSignUp, onSignOut }) {
   const { pathname } = useLocation();
   const isHome = pathname === "/";
   const isMyBookings = pathname === "/my-bookings";
+  const useNavyMobileMenu = isMyBookings || pathname === "/menu";
   const [menuOpen, setMenuOpen] = useState(false);
 
   const closeMenu = () => setMenuOpen(false);
@@ -90,7 +91,7 @@ function SiteHeader({ user, onSignIn, onSignUp, onSignOut }) {
         as="header"
         className={`g-0 align-items-center mh-site-header ${
           isHome ? "mh-site-header-hero" : "mh-site-header-light"
-        }${isMyBookings ? " mh-site-header-bookings" : ""}`}
+        }${useNavyMobileMenu ? " mh-site-header-bookings" : ""}`}
       >
         <Col className="mh-site-brand-column">
           <Link
@@ -131,7 +132,7 @@ function SiteHeader({ user, onSignIn, onSignUp, onSignOut }) {
 
       <Offcanvas
         id="site-mobile-menu"
-        className={`mh-mobile-menu${isMyBookings ? " mh-mobile-menu-bookings" : ""}`}
+        className={`mh-mobile-menu${useNavyMobileMenu ? " mh-mobile-menu-bookings" : ""}`}
         placement="top"
         show={menuOpen}
         onHide={closeMenu}
@@ -211,7 +212,7 @@ function SiteHeader({ user, onSignIn, onSignUp, onSignOut }) {
                 {onSignUp && (
                   <button
                     type="button"
-                    className="mh-primary-button d-flex justify-content-center"
+                    className="btn mh-mobile-signup"
                     onClick={() => {
                       closeMenu();
                       onSignUp();
