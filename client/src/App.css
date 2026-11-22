@@ -2022,6 +2022,11 @@ button.mh-add-dietary-requirement:focus-visible {
   font-size: var(--mh-cap-size-28);
 }
 
+.mh-site-header-bookings .mh-menu-toggle > .bi-list,
+.cap-menu-toggle > .bi-list {
+  color: var(--mh-logo-orange);
+}
+
 .cap-menu-toggle:hover {
   background: var(--mh-white-transparent);
 }
@@ -3236,9 +3241,20 @@ button.mh-add-dietary-requirement:focus-visible {
   border-top: var(--mh-border-width) solid var(--mh-border);
 }
 
-.mh-mobile-account > .mh-primary-button {
-  width: 100%;
-  justify-content: center;
+.mh-mobile-account .btn {
+  --bs-btn-border-radius: var(--mh-cap-size-12);
+}
+
+.mh-mobile-signup {
+  --bs-btn-color: var(--mh-white);
+  --bs-btn-bg: var(--mh-copper);
+  --bs-btn-border-color: var(--mh-copper);
+  --bs-btn-hover-color: var(--mh-white);
+  --bs-btn-hover-bg: var(--mh-copper-hover);
+  --bs-btn-hover-border-color: var(--mh-copper-hover);
+  --bs-btn-active-color: var(--mh-white);
+  --bs-btn-active-bg: var(--mh-copper-hover);
+  --bs-btn-active-border-color: var(--mh-copper-hover);
 }
 
 .mh-mobile-account .mh-profile .mh-profile-toggle {
