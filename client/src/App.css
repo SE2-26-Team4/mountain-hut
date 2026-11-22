@@ -95,6 +95,10 @@
   line-height: var(--mh-line-normal);
 }
 
+legend.form-label {
+  font-size: inherit;
+}
+
 .mh-auth-card .form-label {
   margin-bottom: var(--mh-space-2);
   color: var(--mh-glass-text);
@@ -519,28 +523,78 @@
   }
 }
 
+.mh-login-overlay:has(.mh-login-dialog--signup) {
+  grid-template-rows: minmax(0, 1fr);
+}
+
 .mh-login-dialog--signup {
+  display: flex;
+  flex-direction: column;
   max-width: calc(var(--mh-signup-form-max-width) + 2 * var(--mh-space-8));
   height: auto;
-  max-height: none;
-  align-self: safe center;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  align-self: center;
 }
 
 .mh-login-dialog--signup .mh-login-dialog-row {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
   height: auto;
+  min-height: 0;
 }
 
 .mh-login-dialog--signup .mh-login-dialog-form {
-  flex: 0 0 100%;
-  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
   height: auto;
-  padding: var(--mh-cap-size-36);
-  overflow: visible;
+  min-height: 0;
+  max-width: 100%;
+  padding: var(--mh-cap-size-20) var(--mh-cap-size-36);
+  overflow: hidden;
   border-inline-start: 0;
 }
 
+.mh-login-dialog--signup .mh-auth-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.mh-login-dialog--signup .mh-auth-card > * {
+  flex-shrink: 0;
+}
+
+.mh-login-dialog--signup .mh-signup-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  padding: 0.25rem 0.5rem;
+}
+
+.mh-signup-footer {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--mh-border);
+  background: var(--mh-white);
+}
+
+.mh-signup-footer .mh-staff-login-prompt {
+  margin: 0.5rem 0 0;
+}
+
 .mh-login-dialog--signup .mh-auth-heading {
-  margin: var(--mh-space-6) 0;
+  margin: var(--mh-space-3) 0;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--mh-border);
+}
+
+.mh-login-dialog--signup .form-control {
+  height: var(--mh-glass-input-height);
+  min-height: var(--mh-glass-input-height);
 }
 
 @media (max-width: 767px) {

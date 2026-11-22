@@ -2,14 +2,18 @@ import { useState } from "react";
 import { Alert, Button, Col, Form, Row } from "react-bootstrap";
 
 import API, { SessionApiError } from "../../API/session-api.js";
+import { readEmergencyContact } from "../../utils/emergency-contact.js";
+import EmergencyContactFields from "../common/EmergencyContactFields.jsx";
 import MountainLogo from "../common/MountainLogo.jsx";
 import PasswordField from "./PasswordField.jsx";
 
 const INITIAL_VALUES = {
-  fullName: "",
+  firstName: "",
+  lastName: "",
   email: "",
   phone: "",
-  emergencyContact: "",
+  contactName: "",
+  contactPhone: "",
   notes: "",
   password: "",
   confirmPassword: "",
@@ -22,11 +26,21 @@ const MAX_PROFILE_TEXT_LENGTH = 500;
 
 const PROFILE_FIELDS = /** @type {const} */ ([
   {
-    name: "fullName",
-    label: "Full name",
-    placeholder: "E.g. Alex Rossi",
+    name: "firstName",
+    label: "First name",
+    placeholder: "E.g. Alex",
     type: "text",
-    autoComplete: "name",
+    autoComplete: "given-name",
+    icon: "",
+    hint: "",
+    required: true,
+  },
+  {
+    name: "lastName",
+    label: "Last name",
+    placeholder: "E.g. Rossi",
+    type: "text",
+    autoComplete: "family-name",
     icon: "",
     hint: "",
     required: true,
@@ -52,16 +66,6 @@ const PROFILE_FIELDS = /** @type {const} */ ([
     required: true,
   },
   {
-    name: "emergencyContact",
-    label: "Emergency contact (optional)",
-    placeholder: "E.g. Anna Rossi, +39 333 765 4321",
-    type: "text",
-    autoComplete: "off",
-    icon: "",
-    hint: "",
-    required: false,
-  },
-  {
     name: "notes",
     label: "Notes (optional)",
     placeholder: "E.g. registered mountain guide",
@@ -81,16 +85,23 @@ function validate(values) {
   /** @type {FieldErrors} */
   const errors = {};
 
-  const fullName = values.fullName.trim();
+  const firstName = values.firstName.trim();
+  const lastName = values.lastName.trim();
   const email = values.email.trim();
   const phone = values.phone.trim();
   const normalizedPhone = phone.replace(/[\s().-]/g, "");
   const passwordLength = Array.from(values.password).length;
 
-  if (!fullName) {
-    errors.fullName = "Enter your full name.";
-  } else if (fullName.length > 100) {
-    errors.fullName = "Use 100 characters or fewer.";
+  if (!firstName) {
+    errors.firstName = "Enter your first name.";
+  }
+
+  if (!lastName) {
+    errors.lastName = "Enter your last name.";
+  }
+
+  if (firstName && lastName && `${firstName} ${lastName}`.length > 100) {
+    errors.lastName = "Use 100 characters or fewer for your full name.";
   }
 
   if (!email) {
@@ -105,9 +116,7 @@ function validate(values) {
     errors.phone = "Enter 6 to 15 digits, optionally starting with +.";
   }
 
-  if (values.emergencyContact.trim().length > MAX_PROFILE_TEXT_LENGTH) {
-    errors.emergencyContact = "Use 500 characters or fewer.";
-  }
+  Object.assign(errors, readEmergencyContact(values).errors);
 
   if (values.notes.trim().length > MAX_PROFILE_TEXT_LENGTH) {
     errors.notes = "Use 500 characters or fewer.";
@@ -191,6 +200,12 @@ export default function SignUpForm({ onBack, onRegistered }) {
 
     const firstInvalid = Object.keys(errors)[0];
     if (firstInvalid) {
+      if (firstInvalid === "contactName" || firstInvalid === "contactPhone") {
+        document
+          .getElementById("signup-emergency-details")
+          ?.setAttribute("open", "");
+      }
+
       document.getElementById(`signup-${firstInvalid}`)?.focus();
       return;
     }
@@ -201,10 +216,10 @@ export default function SignUpForm({ onBack, onRegistered }) {
 
     const email = values.email.trim().toLowerCase();
     const details = {
-      fullName: values.fullName.trim(),
+      fullName: `${values.firstName.trim()} ${values.lastName.trim()}`,
       email,
       phone: values.phone.trim(),
-      emergencyContact: values.emergencyContact.trim(),
+      emergencyContact: readEmergencyContact(values).text,
       notes: values.notes.trim(),
       password: values.password,
       confirmPassword: values.confirmPassword,
@@ -223,8 +238,8 @@ export default function SignUpForm({ onBack, onRegistered }) {
           field = "email";
         } else if (error.code === "INVALID_PHONE") {
           field = "phone";
-        } else if (error.code === "INVALID_NAME") {
-          field = "fullName";
+        } else if (error.code === "INVALID_NAME" || field === "fullName") {
+          field = "lastName";
         }
 
         if (field && Object.hasOwn(INITIAL_VALUES, field)) {
@@ -263,7 +278,12 @@ export default function SignUpForm({ onBack, onRegistered }) {
         </Alert>
       )}
 
-      <Form noValidate onSubmit={handleSubmit}>
+      <Form
+        id="mh-signup-form"
+        className="mh-signup-body"
+        noValidate
+        onSubmit={handleSubmit}
+      >
         <Row className="gx-3 gy-2">
           {PROFILE_FIELDS.map((field) => {
             const { name, label, type, autoComplete, icon, hint, required } =
@@ -319,6 +339,25 @@ export default function SignUpForm({ onBack, onRegistered }) {
             );
           })}
 
+          <Col xs={12}>
+            <details id="signup-emergency-details">
+              <summary className="py-2">
+                <span className="text-decoration-underline">
+                  Add an emergency contact
+                </span>{" "}
+                (optional)
+              </summary>
+              <EmergencyContactFields
+                prefix="signup"
+                values={values}
+                onChange={updateField}
+                onBlur={markTouched}
+                errorFor={visibleError}
+                disabled={isSubmitting}
+              />
+            </details>
+          </Col>
+
           <Col xs={12} md={6}>
             <PasswordField
               controlId="signup-password"
@@ -347,30 +386,31 @@ export default function SignUpForm({ onBack, onRegistered }) {
               className="mb-0"
             />
           </Col>
-
-          <Col xs={12} className="pt-3">
-            <Button
-              type="submit"
-              className="mh-primary-button mh-auth-submit w-100 d-flex justify-content-center align-items-center"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Creating account…" : "Create account"}
-            </Button>
-          </Col>
         </Row>
       </Form>
 
-      <p className="mh-staff-login-prompt">
-        Already have an account?{" "}
-        <button
-          type="button"
-          className="mh-auth-link"
-          onClick={onBack}
+      <footer className="mh-signup-footer">
+        <Button
+          type="submit"
+          form="mh-signup-form"
+          className="mh-primary-button mh-auth-submit w-100 d-flex justify-content-center align-items-center"
           disabled={isSubmitting}
         >
-          Sign in
-        </button>
-      </p>
+          {isSubmitting ? "Creating account…" : "Create account"}
+        </Button>
+
+        <p className="mh-staff-login-prompt">
+          Already have an account?{" "}
+          <button
+            type="button"
+            className="mh-auth-link"
+            onClick={onBack}
+            disabled={isSubmitting}
+          >
+            Sign in
+          </button>
+        </p>
+      </footer>
     </div>
   );
 }
