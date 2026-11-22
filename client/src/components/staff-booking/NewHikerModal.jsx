@@ -1,8 +1,10 @@
 import { useRef, useState } from "react";
-import { Alert, Col, Form, Modal, Row, Spinner } from "react-bootstrap";
+import { Alert, Form, Modal, Spinner } from "react-bootstrap";
 
 import SuccessCheck from "../common/SuccessCheck.jsx";
 import BookingAPI, { BookingApiError } from "../../API/booking-api.js";
+import { readEmergencyContact } from "../../utils/emergency-contact.js";
+import EmergencyContactFields from "../common/EmergencyContactFields.jsx";
 
 // Limits enforced by the staff hiker API.
 const MAX_TEXT_LENGTH = 500;
@@ -13,7 +15,8 @@ const emptyDraft = {
   email: "",
   phone: "",
   notes: "",
-  emergencyContact: "",
+  contactName: "",
+  contactPhone: "",
 };
 
 /**
@@ -24,6 +27,43 @@ const emptyDraft = {
  */
 function isValidPhone(phone) {
   return /^\+?\d{6,15}$/.test(phone.replace(/[\s\-().]/g, ""));
+}
+
+/** @typedef {keyof typeof emptyDraft} HikerField */
+
+/** @param {typeof emptyDraft} draft */
+function validateDraft(draft) {
+  /** @type {Partial<Record<HikerField, string>>} */
+  const errors = {};
+  const firstName = draft.firstName.trim();
+  const lastName = draft.lastName.trim();
+  const email = draft.email.trim();
+  const phone = draft.phone.trim();
+
+  if (!firstName) errors.firstName = "Enter the hiker's first name.";
+  if (!lastName) errors.lastName = "Enter the hiker's last name.";
+
+  if (firstName && lastName && `${firstName} ${lastName}`.length > 100) {
+    errors.lastName = "Use 100 characters or fewer for the hiker's full name.";
+  }
+
+  if (!email) {
+    errors.email = "Enter the hiker's email address.";
+  } else if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    errors.email = "Enter a valid email address.";
+  }
+
+  if (!phone) {
+    errors.phone = "Enter the hiker's mobile number.";
+  } else if (phone.length > 30 || !isValidPhone(phone)) {
+    errors.phone = "Enter 6 to 15 digits, optionally starting with +.";
+  }
+
+  if (draft.notes.trim().length > MAX_TEXT_LENGTH) {
+    errors.notes = "Use 500 characters or fewer.";
+  }
+
+  return Object.assign(errors, readEmergencyContact(draft).errors);
 }
 
 /**
@@ -49,10 +89,49 @@ export default function NewHikerModal({
   onContinue,
 }) {
   const [newHikerDraft, setNewHikerDraft] = useState(emptyDraft);
-
   const firstNameRef = useRef(/** @type {HTMLInputElement | null} */ (null));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  const [touched, setTouched] = useState(
+    /** @type {Partial<Record<HikerField, boolean>>} */ ({}),
+  );
+  const [submitted, setSubmitted] = useState(false);
+  const [emailError, setEmailError] = useState("");
+
+  const errors = validateDraft(newHikerDraft);
+
+  /** @param {HikerField} field */
+  function markTouched(field) {
+    setTouched((current) => ({ ...current, [field]: true }));
+  }
+
+  /** @param {HikerField} field */
+  function visibleError(field) {
+    if (field === "email" && emailError) return emailError;
+    return submitted || touched[field] ? errors[field] || "" : "";
+  }
+
+  /** @param {HikerField} field */
+  function validationProps(field) {
+    const message = visibleError(field);
+    return {
+      onBlur: () => markTouched(field),
+      isInvalid: Boolean(message),
+      "aria-invalid": message ? true : undefined,
+      "aria-describedby": message ? `staff-error-${field}` : undefined,
+    };
+  }
+
+  /** @param {HikerField} field */
+  function feedback(field) {
+    const message = visibleError(field);
+    return message ? (
+      <Form.Control.Feedback type="invalid" id={`staff-error-${field}`}>
+        {message}
+      </Form.Control.Feedback>
+    ) : null;
+  }
 
   const [resendStatus, setResendStatus] = useState(
     /** @type {"idle" | "sending" | "sent" | "failed" | "unavailable"} */ (
@@ -89,8 +168,11 @@ export default function NewHikerModal({
    * @param {keyof typeof emptyDraft} field
    * @returns {(event: import("react").ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void}
    */
-  const updateDraft = (field) => (event) =>
-    setNewHikerDraft((draft) => ({ ...draft, [field]: event.target.value }));
+  const updateDraft = (field) => (event) => {
+    const value = event.target.value;
+    setNewHikerDraft((draft) => ({ ...draft, [field]: value }));
+    if (field === "email") setEmailError("");
+  };
 
   // Start every registration from an empty form.
   const resetForm = () => {
@@ -98,45 +180,57 @@ export default function NewHikerModal({
     setErrorMessage("");
     setResendStatus("idle");
     setResendError("");
+    setTouched({});
+    setSubmitted(false);
+    setEmailError("");
   };
 
   const handleCreateAccount = async () => {
     const firstName = newHikerDraft.firstName.trim();
     const lastName = newHikerDraft.lastName.trim();
+    const fullName = `${firstName} ${lastName}`;
     const email = newHikerDraft.email.trim();
     const phone = newHikerDraft.phone.trim();
     const notes = newHikerDraft.notes.trim();
-    const emergencyContact = newHikerDraft.emergencyContact.trim();
+    const emergencyContact = readEmergencyContact(newHikerDraft);
 
-    let validationError = "";
+    setSubmitted(true);
+    setErrorMessage("");
 
-    if (!firstName) {
-      validationError = "Enter the hiker's first name.";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      validationError = "Enter a valid email address.";
-    } else if (!isValidPhone(phone)) {
-      validationError =
-        "Enter a valid mobile number (6–15 digits, optional leading +).";
-    }
+    const firstInvalid = Object.keys(errors)[0] || (emailError ? "email" : "");
+    if (firstInvalid) {
+      const suffix =
+        firstInvalid === "firstName"
+          ? "first-name"
+          : firstInvalid === "lastName"
+            ? "last-name"
+            : firstInvalid;
 
-    if (validationError) {
-      setErrorMessage(validationError);
+      document.getElementById(`staff-new-hiker-${suffix}`)?.focus();
       return;
     }
 
-    setErrorMessage("");
     setIsSubmitting(true);
 
     try {
       await onRegister({
         type: "new",
-        fullName: [firstName, lastName].filter(Boolean).join(" "),
+        fullName,
         email,
         phone,
         notes: notes || null,
-        emergencyContact: emergencyContact || null,
+        emergencyContact: emergencyContact.text || null,
       });
     } catch (error) {
+      if (
+        error instanceof BookingApiError &&
+        error.code === "EMAIL_ALREADY_REGISTERED"
+      ) {
+        setEmailError(error.message);
+        document.getElementById("staff-new-hiker-email")?.focus();
+        return;
+      }
+
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -234,33 +328,32 @@ export default function NewHikerModal({
                 {errorMessage}
               </Alert>
             )}
-            <Row className="g-3 mb-3">
-              <Col xs={12} sm={6}>
-                <Form.Group controlId="staff-new-hiker-first-name">
-                  <Form.Label>First name</Form.Label>
-                  <Form.Control
-                    ref={firstNameRef}
-                    autoComplete="given-name"
-                    maxLength={100}
-                    value={newHikerDraft.firstName}
-                    required
-                    onChange={updateDraft("firstName")}
-                  />
-                </Form.Group>
-              </Col>
+            <Form.Group className="mb-3" controlId="staff-new-hiker-first-name">
+              <Form.Label>First name</Form.Label>
+              <Form.Control
+                ref={firstNameRef}
+                autoComplete="given-name"
+                placeholder="E.g. Alex"
+                value={newHikerDraft.firstName}
+                required
+                onChange={updateDraft("firstName")}
+                {...validationProps("firstName")}
+              />
+              {feedback("firstName")}
+            </Form.Group>
 
-              <Col xs={12} sm={6}>
-                <Form.Group controlId="staff-new-hiker-last-name">
-                  <Form.Label>Last name (optional)</Form.Label>
-                  <Form.Control
-                    autoComplete="family-name"
-                    maxLength={100}
-                    value={newHikerDraft.lastName}
-                    onChange={updateDraft("lastName")}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
+            <Form.Group className="mb-3" controlId="staff-new-hiker-last-name">
+              <Form.Label>Last name</Form.Label>
+              <Form.Control
+                autoComplete="family-name"
+                placeholder="E.g. Rossi"
+                value={newHikerDraft.lastName}
+                required
+                onChange={updateDraft("lastName")}
+                {...validationProps("lastName")}
+              />
+              {feedback("lastName")}
+            </Form.Group>
 
             <Form.Group className="mb-3" controlId="staff-new-hiker-email">
               <Form.Label>Email</Form.Label>
@@ -271,7 +364,9 @@ export default function NewHikerModal({
                 maxLength={254}
                 value={newHikerDraft.email}
                 onChange={updateDraft("email")}
+                {...validationProps("email")}
               />
+              {feedback("email")}
             </Form.Group>
 
             <Form.Group className="mb-3" controlId="staff-new-hiker-phone">
@@ -284,7 +379,9 @@ export default function NewHikerModal({
                 placeholder="E.g. +39 333 123 4567"
                 value={newHikerDraft.phone}
                 onChange={updateDraft("phone")}
+                {...validationProps("phone")}
               />
+              {feedback("phone")}
             </Form.Group>
 
             <Form.Group className="mb-3" controlId="staff-new-hiker-notes">
@@ -296,18 +393,21 @@ export default function NewHikerModal({
                 placeholder="E.g. Registered mountain guide"
                 value={newHikerDraft.notes}
                 onChange={updateDraft("notes")}
+                {...validationProps("notes")}
               />
+              {feedback("notes")}
             </Form.Group>
 
-            <Form.Group controlId="staff-new-hiker-emergency-contact">
-              <Form.Label>Emergency contact (optional)</Form.Label>
-              <Form.Control
-                maxLength={MAX_TEXT_LENGTH}
-                placeholder="E.g. Anna Rossi, +39 333 765 4321"
-                value={newHikerDraft.emergencyContact}
-                onChange={updateDraft("emergencyContact")}
-              />
-            </Form.Group>
+            <EmergencyContactFields
+              prefix="staff-new-hiker"
+              values={newHikerDraft}
+              onChange={(field, value) =>
+                setNewHikerDraft((draft) => ({ ...draft, [field]: value }))
+              }
+              onBlur={markTouched}
+              errorFor={visibleError}
+              disabled={isSubmitting}
+            />
           </Modal.Body>
 
           <Modal.Footer>
