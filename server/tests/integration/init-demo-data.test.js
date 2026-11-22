@@ -60,6 +60,24 @@ describe("demo booking data", () => {
     expect(await db.allAsync("SELECT id FROM bookings")).toEqual([]);
   });
 
+  it("uses the default demo hiker when TEST_HIKER_EMAIL is unset", async () => {
+    vi.stubEnv("TEST_HIKER_EMAIL", undefined);
+
+    const hiker = await db.runAsync(
+      `INSERT INTO users (full_name, email, password_hash, role)
+       VALUES (?, ?, ?, 'hiker')`,
+      ["Demo Hiker", "hiker@example.com", "unused-test-hash"],
+    );
+
+    await initializeDemoData(now);
+
+    const bookings = await db.getAsync(
+      "SELECT COUNT(*) AS total FROM bookings WHERE hiker_id = ?",
+      [hiker.lastID],
+    );
+    expect(bookings).toEqual({ total: 9 });
+  });
+
   it("creates three bookings per filter and preserves later changes", async () => {
     const hiker = await db.runAsync(
       `INSERT INTO users (full_name, email, password_hash, role)
