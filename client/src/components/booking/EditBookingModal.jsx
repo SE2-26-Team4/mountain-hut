@@ -148,12 +148,16 @@ export default function EditBookingModal({ booking, onClose, onSaved }) {
   return (
     <Modal
       show
+      scrollable
       onHide={saving ? undefined : onClose}
       backdrop={saving ? "static" : true}
       keyboard={!saving}
       aria-labelledby="edit-booking-title"
     >
-      <Form onSubmit={handleSubmit}>
+      <Form
+        onSubmit={handleSubmit}
+        className="d-flex flex-column overflow-hidden"
+      >
         <Modal.Header closeButton={!saving}>
           <Modal.Title id="edit-booking-title">
             Edit booking #{booking.id}
