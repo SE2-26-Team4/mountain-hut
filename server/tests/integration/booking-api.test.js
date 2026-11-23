@@ -638,7 +638,16 @@ describe("editing a booking", () => {
 
     const list = await hikerAgent.get("/api/bookings").expect(200);
     expect(list.body.bookings).toContainEqual(
-      expect.objectContaining(updated.body.booking),
+      expect.objectContaining({
+        ...updated.body.booking,
+        allocations: [
+          {
+            tableId,
+            tableName: `Booking API table ${uniqueSuffix}`,
+            seatsReserved: 3,
+          },
+        ],
+      }),
     );
   });
 
@@ -669,7 +678,16 @@ describe("editing a booking", () => {
 
     const list = await hikerAgent.get("/api/bookings").expect(200);
     expect(list.body.bookings).toContainEqual(
-      expect.objectContaining(created.body.booking),
+      expect.objectContaining({
+        ...created.body.booking,
+        allocations: [
+          {
+            tableId,
+            tableName: `Booking API table ${uniqueSuffix}`,
+            seatsReserved: 2,
+          },
+        ],
+      }),
     );
   });
 
