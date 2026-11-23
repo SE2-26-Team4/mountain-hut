@@ -725,11 +725,13 @@ export async function getBookingsByHiker(hikerId) {
         /** @type {BookingTableAllocationDTO[]} */
         const allocations = await allAsync(
           `SELECT
-             table_id AS tableId,
-             seats_reserved AS seatsReserved
-           FROM booking_table_allocations
-           WHERE booking_id = ?
-           ORDER BY table_id`,
+            a.table_id AS tableId,
+            a.seats_reserved AS seatsReserved,
+            t.name AS tableName
+          FROM booking_table_allocations AS a
+          LEFT JOIN dining_tables AS t ON t.id = a.table_id
+          WHERE a.booking_id = ?
+          ORDER BY a.table_id`,
           [booking.id],
         );
 

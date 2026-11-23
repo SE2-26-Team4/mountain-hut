@@ -78,8 +78,8 @@ A story is done ONLY if it fits the Definition of Done:
 - Unit Testing:
   - Total hours estimated: Not tracked separately. Time spent updating tests was included in the corresponding task.
   - Total hours spent: Not tracked separately. Time spent updating tests was included in the corresponding task.
-  - Nr of automated unit test cases: 253
-  - Coverage: unit tests alone cover 38.03% of statements, 41.03% of branches, 37.67% of functions, and 38.35% of lines. Unit and integration tests combined cover 100% of statements, branches, functions, and lines.
+  - Nr of automated unit test cases: 254
+  - Coverage: unit tests alone cover 38.01% of statements, 41.47% of branches, 37.54% of functions, and 38.33% of lines. Unit and integration tests combined cover 100% of statements, branches, functions, and lines.
 - Integration testing:
   - Total hours estimated: Not tracked separately. Time spent updating tests was included in the corresponding task.
   - Total hours spent: Not tracked separately. Time spent updating tests was included in the corresponding task.

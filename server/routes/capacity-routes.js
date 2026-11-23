@@ -20,6 +20,7 @@ import {
   getScheduleCopyHistory,
   getScheduleCopyPreview,
   copyScheduleSeries,
+  MealSlotOverlapError,
 } from "../dao/capacity-dao.js";
 import { requireStaff } from "../middleware/require-role.js";
 import {
@@ -158,7 +159,7 @@ router.post(
 router.get(
   "/meal-slots",
   asyncRoute(async (_req, res) => {
-    const mealSlots = await getMealSlots();
+    const mealSlots = await getMealSlots({ requireCapacity: true });
 
     // Exclude inactive slots and expose deadlines as ISO timestamps.
     return res.json({
@@ -576,6 +577,7 @@ const handleCapacityError = (error, _req, res, _next) => {
     error instanceof CapacityConflictError ||
     error instanceof TableSlotConflictError ||
     error instanceof DuplicateMealSlotError ||
+    error instanceof MealSlotOverlapError ||
     error instanceof WeeklyScheduleConflictError
   ) {
     return res.status(409).json({

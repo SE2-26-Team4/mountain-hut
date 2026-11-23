@@ -4,6 +4,7 @@ import { Overlay, Tooltip } from "react-bootstrap";
 import { formatBookingDate } from "../../utils/formatBookingDate.js";
 import { formatMealTimeRange } from "../../utils/formatMealSlot.js";
 import StatusBadge from "../common/StatusBadge.jsx";
+import { formatCount } from "../../utils/formatCount.js";
 
 /**
  * @typedef {import('../../models/models.js').BookingDTO} BookingDTO
@@ -94,6 +95,22 @@ export default function BookingCard({ booking, status, onCancel, onEdit }) {
 
           <dt>Party size</dt>
           <dd>{booking.partySize}</dd>
+
+          {status === "Upcoming" && booking.allocations?.length > 0 && (
+            <>
+              <dt>Table allocation</dt>
+              <dd>
+                {booking.allocations.map(
+                  ({ tableId, tableName, seatsReserved }) => (
+                    <span key={tableId} className="d-block">
+                      {tableName ?? `Table #${tableId}`} ·{" "}
+                      {formatCount(seatsReserved, "guest")}
+                    </span>
+                  ),
+                )}
+              </dd>
+            </>
+          )}
 
           {booking.dietaryRequirements?.trim() && (
             <>

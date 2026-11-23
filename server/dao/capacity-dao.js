@@ -99,6 +99,15 @@ export class DuplicateMealSlotError extends Error {
   }
 }
 
+export class MealSlotOverlapError extends Error {
+  constructor() {
+    super("A meal slot on this date overlaps with the selected time range.");
+
+    this.name = "MealSlotOverlapError";
+    this.code = "MEAL_SLOT_OVERLAP";
+  }
+}
+
 /**
  * Reports that a destination schedule cannot be replaced because it has
  * confirmed bookings referencing its meal slots.
@@ -348,6 +357,21 @@ async function assertMealSlotAvailable(
   if (existing) {
     throw new DuplicateMealSlotError();
   }
+
+  const overlappingSlot = await getAsync(
+    `SELECT id
+     FROM meal_slots
+     WHERE slot_date = ?
+       AND start_time < ?
+       AND end_time > ?
+       AND id <> ?
+     LIMIT 1`,
+    [slotDate, endTime, startTime, excludedId ?? 0],
+  );
+
+  if (overlappingSlot) {
+    throw new MealSlotOverlapError();
+  }
 }
 
 /**
@@ -451,13 +475,13 @@ export async function createDiningTable({ name, seatCount, isActive = true }) {
 /* READ */
 
 /**
- * Returns all meal slots, including inactive ones.
+ * Returns meal slots, with an optional filter for configured capacity.
  *
+ * @param {{ requireCapacity?: boolean }} [options]
  * @returns {Promise<MealSlotDTO[]>}
  */
-export async function getMealSlots() {
+export async function getMealSlots({ requireCapacity = false } = {}) {
   return withTransaction(async ({ allAsync }) => {
-    // Order slots by start time, then by ID for stable results.
     /** @type {MealSlotRow[]} */
     const slots = await allAsync(
       `SELECT
@@ -468,7 +492,16 @@ export async function getMealSlots() {
          end_time AS endTime,
          is_active AS isActive
        FROM meal_slots
+       WHERE ? = 0 OR EXISTS (
+         SELECT 1
+         FROM slot_tables
+         JOIN dining_tables ON dining_tables.id = slot_tables.table_id
+         WHERE slot_tables.slot_id = meal_slots.id
+           AND dining_tables.is_active = 1
+           AND dining_tables.seat_count > 0
+       )
        ORDER BY start_time, id`,
+      [requireCapacity ? 1 : 0],
     );
 
     return slots.map((slot) => normalizeMealSlot(slot));

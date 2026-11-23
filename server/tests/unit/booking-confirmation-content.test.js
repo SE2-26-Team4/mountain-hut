@@ -1,12 +1,6 @@
-import {
-  describe,
-  expect,
-  it,
-} from 'vitest';
+import { describe, expect, it } from "vitest";
 
-import {
-  buildBookingConfirmationEmail,
-} from '../../services/booking-confirmation-content.js';
+import { buildBookingConfirmationEmail } from "../../services/booking-confirmation-content.js";
 
 /**
  * Creates fresh booking confirmation data with one named table
@@ -15,53 +9,51 @@ import {
 function createInput() {
   return {
     hiker: {
-      full_name: 'Mario Rossi',
-      email: 'mario.rossi@example.com',
+      full_name: "Mario Rossi",
+      email: "mario.rossi@example.com",
     },
     booking: {
       id: 42,
       hikerId: 7,
-      bookingDate: '2026-11-05',
+      bookingDate: "2026-11-05",
       slotId: 1,
       partySize: 5,
-      status: /** @type {const} */ ('confirmed'),
+      status: /** @type {const} */ ("confirmed"),
       allocations: [
         { tableId: 1, seatsReserved: 4 },
         { tableId: 3, seatsReserved: 1 },
       ],
     },
     mealSlot: {
-      name: 'Lunch',
-      startTime: '12:00',
-      endTime: '14:00',
+      name: "Lunch",
+      startTime: "12:00",
+      endTime: "14:00",
     },
-    tables: [
-      { id: 1, name: 'Table 1' },
-    ],
+    tables: [{ id: 1, name: "Table 1" }],
   };
 }
 
-describe('booking confirmation email content', () => {
+describe("booking confirmation email content", () => {
   // Both email formats must include the recipient's booking and table details.
-  it('addresses the hiker and contains the booking details', () => {
+  it("addresses the hiker and contains the booking details", () => {
     const email = buildBookingConfirmationEmail(createInput());
 
     // Verify the recipient and the formatted subject.
-    expect(email.to).toBe('mario.rossi@example.com');
+    expect(email.to).toBe("mario.rossi@example.com");
 
     expect(email.subject).toBe(
-      'Booking confirmed #42 - Lunch, Thursday 5 November 2026',
+      "Booking confirmed #42 - Lunch, Thursday 5 November 2026",
     );
 
     // Verify the plain-text details, table-name fallback, and seat labels.
-    expect(email.text).toContain('Booking reference: #42');
-    expect(email.text).toContain('Name: Mario Rossi');
-    expect(email.text).toContain('Date: Thursday 5 November 2026');
-    expect(email.text).toContain('Meal service: Lunch, 12:00-14:00');
-    expect(email.text).toContain('Party size: 5');
-    expect(email.text).toContain('- Table 1: 4 seats');
-    expect(email.text).toContain('- Table #3: 1 seat');
-    expect(email.text).not.toContain('Party requirements');
+    expect(email.text).toContain("Booking reference: #42");
+    expect(email.text).toContain("Name: Mario Rossi");
+    expect(email.text).toContain("Date: Thursday 5 November 2026");
+    expect(email.text).toContain("Meal service: Lunch, 12:00-14:00");
+    expect(email.text).toContain("Party size: 5");
+    expect(email.text).toContain("- Table 1: 4 seats");
+    expect(email.text).toContain("- Table #3: 1 seat");
+    expect(email.text).not.toContain("Party requirements");
 
     // Extract HTML table labels and values for readable content assertions.
     const rows = [
@@ -70,89 +62,110 @@ describe('booking confirmation email content', () => {
       ),
     ].map((match) =>
       `${match[1]} ${match[2]}`
-        .replace(/<[^>]*>/g, ' ')
-        .replace(/\s+/g, ' ')
+        .replace(/<[^>]*>/g, " ")
+        .replace(/\s+/g, " ")
         .trim(),
     );
 
-    expect(rows).toContain('Booking reference #42');
-    expect(rows).toContain('Name Mario Rossi');
-    expect(rows).toContain('Date Thursday 5 November 2026');
-    expect(rows).toContain('Meal service Lunch, 12:00-14:00');
-    expect(rows).toContain('Party size 5');
+    expect(rows).toContain("Booking reference #42");
+    expect(rows).toContain("Name Mario Rossi");
+    expect(rows).toContain("Date Thursday 5 November 2026");
+    expect(rows).toContain("Meal service Lunch, 12:00-14:00");
+    expect(rows).toContain("Party size 5");
 
     expect(rows).toContain(
-      'Table allocation Table 1: 4 seats Table #3: 1 seat',
+      "Table allocation Table 1: 4 seats Table #3: 1 seat",
     );
 
     // Verify the inline logo reference and HTML allocation list.
     expect(email.html).toContain('src="cid:mountain-hut-logo"');
-    expect(email.html).toContain('<li>Table 1: 4 seats</li>');
-    expect(email.html).toContain('<li>Table #3: 1 seat</li>');
-    expect(email.html).not.toContain('Party requirements');
+    expect(email.html).toContain("<li>Table 1: 4 seats</li>");
+    expect(email.html).toContain("<li>Table #3: 1 seat</li>");
+    expect(email.html).not.toContain("Party requirements");
   });
 
   // User-provided HTML characters must be escaped in the HTML body.
-  it('escapes user-provided values in the HTML body', () => {
+  it("escapes user-provided values in the HTML body", () => {
     const input = createInput();
 
     const email = buildBookingConfirmationEmail({
       ...input,
       hiker: {
         ...input.hiker,
-        full_name: 'Mario <b>Rossi</b> & Co',
+        full_name: "Mario <b>Rossi</b> & Co",
       },
       requirements: [
         {
           hasAllergies: false,
-          description: '<script>x</script>',
+          description: "<script>x</script>",
         },
       ],
     });
 
-    expect(email.html).toContain('Mario &lt;b&gt;Rossi&lt;/b&gt; &amp; Co');
-    expect(email.html).toContain('&lt;script&gt;x&lt;/script&gt;');
-    expect(email.html).not.toContain('<script>');
+    expect(email.html).toContain("Mario &lt;b&gt;Rossi&lt;/b&gt; &amp; Co");
+    expect(email.html).toContain("&lt;script&gt;x&lt;/script&gt;");
+    expect(email.html).not.toContain("<script>");
 
     // The plain-text body must preserve the original characters.
-    expect(email.text).toContain('Name: Mario <b>Rossi</b> & Co');
+    expect(email.text).toContain("Name: Mario <b>Rossi</b> & Co");
   });
 
-    // Requirements must appear in both formats, with explicit allergy markers.
-    it('lists party requirements and marks allergies', () => {
-      const email = buildBookingConfirmationEmail({
-        ...createInput(),
-        requirements: [
-          {
-            hasAllergies: true,
-            description: '1 vegan, peanut allergy',
-          },
-          {
-            hasAllergies: false,
-            description: '2 vegetarians',
-          },
-        ],
-      });
-
-      expect(email.text).toContain('Party requirements:');
-      expect(email.text).toContain('- [FOOD ALLERGY] 1 vegan, peanut allergy');
-      expect(email.text).toContain('- 2 vegetarians');
-
-      // Normalize HTML markup and whitespace before checking visible content.
-      const htmlText = email.html
-        .replace(/<[^>]*>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-      expect(htmlText).toContain('Party requirements:');
-      expect(htmlText).toContain('[FOOD ALLERGY] 1 vegan, peanut allergy');
-      expect(htmlText).toContain('2 vegetarians');
-
-      expect(email.html).toContain('<strong>[FOOD ALLERGY]</strong>');
+  // Requirements must appear in both formats, with explicit allergy markers.
+  it("lists party requirements and marks allergies", () => {
+    const email = buildBookingConfirmationEmail({
+      ...createInput(),
+      requirements: [
+        {
+          hasAllergies: true,
+          description: "1 vegan, peanut allergy",
+        },
+        {
+          hasAllergies: false,
+          description: "2 vegetarians",
+        },
+      ],
     });
 
+    expect(email.text).toContain("Party requirements:");
+    expect(email.text).toContain("- [FOOD ALLERGY] 1 vegan, peanut allergy");
+    expect(email.text).toContain("- 2 vegetarians");
+
+    // Normalize HTML markup and whitespace before checking visible content.
+    const htmlText = email.html
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    expect(htmlText).toContain("Party requirements:");
+    expect(htmlText).toContain("[FOOD ALLERGY] 1 vegan, peanut allergy");
+    expect(htmlText).toContain("2 vegetarians");
+
+    expect(email.html).toContain("<strong>[FOOD ALLERGY]</strong>");
+  });
+
+  it("renders the legacy special requests heading and its description", () => {
+    const email = buildBookingConfirmationEmail({
+      ...createInput(),
+      requirements: [
+        {
+          hasAllergies: false,
+          description: "Special requests:\nPlease seat us near the window.",
+        },
+      ],
+    });
+
+    const htmlText = email.html
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    expect(htmlText).toContain(
+      "Special requests: Please seat us near the window.",
+    );
+  });
+
   // Missing recipient, allocation, service, or requirement data must be rejected.
-  it('rejects missing recipient or booking data', () => {
+  it("rejects missing recipient or booking data", () => {
     const input = createInput();
 
     expect(() =>
@@ -160,10 +173,10 @@ describe('booking confirmation email content', () => {
         ...input,
         hiker: {
           ...input.hiker,
-          email: ' ',
+          email: " ",
         },
       }),
-    ).toThrow('Hiker name and email are required.');
+    ).toThrow("Hiker name and email are required.");
 
     expect(() =>
       buildBookingConfirmationEmail({
@@ -174,7 +187,7 @@ describe('booking confirmation email content', () => {
         },
       }),
     ).toThrow(
-      'Booking ID, date, party size, and table allocations are required.',
+      "Booking ID, date, party size, and table allocations are required.",
     );
 
     expect(() =>
@@ -182,10 +195,10 @@ describe('booking confirmation email content', () => {
         ...input,
         mealSlot: {
           ...input.mealSlot,
-          startTime: '',
+          startTime: "",
         },
       }),
-    ).toThrow('Meal service name and times are required.');
+    ).toThrow("Meal service name and times are required.");
 
     expect(() =>
       buildBookingConfirmationEmail({
@@ -193,17 +206,17 @@ describe('booking confirmation email content', () => {
         requirements: [
           {
             hasAllergies: true,
-            description: ' ',
+            description: " ",
           },
         ],
       }),
     ).toThrow(
-      'Party requirements must be an array of items with a description.',
+      "Party requirements must be an array of items with a description.",
     );
   });
 
   // Invalid dates, allocation totals, table records, and allergy flags must fail.
-  it('rejects invalid calendar dates and mismatched party sizes', () => {
+  it("rejects invalid calendar dates and mismatched party sizes", () => {
     const input = createInput();
 
     expect(() =>
@@ -211,11 +224,11 @@ describe('booking confirmation email content', () => {
         ...input,
         booking: {
           ...input.booking,
-          bookingDate: '2026-02-30',
+          bookingDate: "2026-02-30",
         },
       }),
     ).toThrow(
-      'Booking ID, date, party size, and table allocations are required.',
+      "Booking ID, date, party size, and table allocations are required.",
     );
 
     // Reserved seats must match the declared party size.
@@ -225,118 +238,107 @@ describe('booking confirmation email content', () => {
         booking: {
           ...input.booking,
           partySize: 10,
-          allocations: [
-            { tableId: 1, seatsReserved: 5 },
-          ],
+          allocations: [{ tableId: 1, seatsReserved: 5 }],
         },
       }),
     ).toThrow(
-      'Booking ID, date, party size, and table allocations are required.',
+      "Booking ID, date, party size, and table allocations are required.",
     );
 
     expect(() =>
       buildBookingConfirmationEmail({
         ...input,
-        tables: [
-          { id: 1, name: '' },
-        ],
+        tables: [{ id: 1, name: "" }],
       }),
-    ).toThrow(
-      'Dining tables must be an array of valid table records.',
-    );
+    ).toThrow("Dining tables must be an array of valid table records.");
 
     expect(() =>
       buildBookingConfirmationEmail({
         ...input,
         requirements: [
           {
-            hasAllergies: 'yes',
-            description: 'allergy',
+            hasAllergies: "yes",
+            description: "allergy",
           },
         ],
       }),
     ).toThrow(
-      'Party requirements must be an array of items with a description.',
+      "Party requirements must be an array of items with a description.",
     );
   });
 });
 
 // Reject invalid date types, malformed values, and impossible calendar dates.
-it.each([
-  123,
-  'not-a-date',
-  '2026-02-30',
-  '2026-13-01',
-  '0000-01-01',
-])('rejects an invalid confirmation date: %s', (bookingDate) => {
-  const input = createInput();
+it.each([123, "not-a-date", "2026-02-30", "2026-13-01", "0000-01-01"])(
+  "rejects an invalid confirmation date: %s",
+  (bookingDate) => {
+    const input = createInput();
 
-  expect(() =>
-    buildBookingConfirmationEmail({
-      ...input,
-      booking: {
-        ...input.booking,
-        bookingDate,
-      },
-    }),
-  ).toThrow(
-    'Booking ID, date, party size, and table allocations are required.',
-  );
-});
+    expect(() =>
+      buildBookingConfirmationEmail({
+        ...input,
+        booking: {
+          ...input.booking,
+          bookingDate,
+        },
+      }),
+    ).toThrow(
+      "Booking ID, date, party size, and table allocations are required.",
+    );
+  },
+);
 // [REQUIREMENT] MH-08: Any change to the reservation, including its
 // cancellation, should be notified by email.
-describe('booking cancellation email content', () => {
-  it('reports the cancellation with the booking details from MH-03', () => {
+describe("booking cancellation email content", () => {
+  it("reports the cancellation with the booking details from MH-03", () => {
     const email = buildBookingConfirmationEmail({
       ...createInput(),
       // Cancellation takes precedence over an edit.
       isEdit: true,
       isCancellation: true,
-      requirements: [
-        { hasAllergies: true, description: 'Peanut allergy' },
-      ],
+      requirements: [{ hasAllergies: true, description: "Peanut allergy" }],
     });
 
-    expect(email.to).toBe('mario.rossi@example.com');
+    expect(email.to).toBe("mario.rossi@example.com");
     expect(email.subject).toBe(
-      'Booking cancelled #42 - Lunch, Thursday 5 November 2026',
+      "Booking cancelled #42 - Lunch, Thursday 5 November 2026",
     );
 
     expect(email.text).toContain(
-      'Your table booking at the Mountain Hut has been cancelled and your seats have been released.',
+      "Your table booking at the Mountain Hut has been cancelled and your seats have been released.",
     );
-    expect(email.text).toContain('Booking reference: #42');
-    expect(email.text).toContain('Name: Mario Rossi');
-    expect(email.text).toContain('Date: Thursday 5 November 2026');
-    expect(email.text).toContain('Meal service: Lunch, 12:00-14:00');
-    expect(email.text).toContain('Party size: 5');
-    expect(email.text).toContain('Kind regards,');
+    expect(email.text).toContain("Booking reference: #42");
+    expect(email.text).toContain("Name: Mario Rossi");
+    expect(email.text).toContain("Date: Thursday 5 November 2026");
+    expect(email.text).toContain("Meal service: Lunch, 12:00-14:00");
+    expect(email.text).toContain("Party size: 5");
+    expect(email.text).toContain("Kind regards,");
 
     // Released seats, party requirements and the success check are omitted.
-    expect(email.text).not.toContain('Table allocation');
-    expect(email.text).not.toContain('Peanut allergy');
-    expect(email.html).not.toContain('Table allocation');
-    expect(email.html).not.toContain('Peanut allergy');
-    expect(email.html).not.toContain('cid:booking-success-check');
+    expect(email.text).not.toContain("Table allocation");
+    expect(email.text).not.toContain("Peanut allergy");
+    expect(email.html).not.toContain("Table allocation");
+    expect(email.html).not.toContain("Peanut allergy");
+    expect(email.html).not.toContain("cid:booking-success-check");
 
-    expect(email.html).toContain('Your booking is cancelled');
-    expect(email.html).toContain('We hope to welcome you another time.');
+    expect(email.html).toContain("Your booking is cancelled");
+    expect(email.html).toContain("We hope to welcome you another time.");
     expect(email.html).toContain('src="cid:mountain-hut-logo"');
   });
 
   // Updated bookings keep the confirmation layout.
-  it('keeps the allocation and success check for an updated booking', () => {
+  it("keeps the allocation and success check for an updated booking", () => {
     const email = buildBookingConfirmationEmail({
       ...createInput(),
       isEdit: true,
     });
 
     expect(email.subject).toBe(
-      'Booking updated #42 - Lunch, Thursday 5 November 2026',
+      "Booking updated #42 - Lunch, Thursday 5 November 2026",
     );
-    expect(email.text).toContain('Table allocation:');
-    expect(email.text).toContain('See you soon,');
-    expect(email.html).toContain('cid:booking-success-check');
-    expect(email.html).toContain('We look forward to welcoming you.');
+    expect(email.text).toContain("Table allocation:");
+    expect(email.text).toContain("See you soon,");
+    expect(email.html).toContain("cid:booking-success-check");
+    expect(email.html).toContain("We look forward to welcoming you.");
   });
 });

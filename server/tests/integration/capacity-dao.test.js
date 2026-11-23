@@ -568,7 +568,7 @@ describe("meal-slot and dining-table data access", () => {
         slotDate: "2099-12-30",
         name: `RENAME SLOT A ${uniqueSuffix}`,
         startTime: "06:00",
-        endTime: "07:30",
+        endTime: "07:00",
         isActive: true,
       });
 

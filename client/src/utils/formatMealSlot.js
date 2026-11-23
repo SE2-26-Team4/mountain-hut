@@ -1,14 +1,14 @@
-// Show meal times with the AM/PM convention, e.g. "7:00 PM".
+// Show meal times in 24-hour format, e.g. "19:00".
 // UTC keeps the stored hut wall-clock time unchanged in every time zone.
-const timeFormatter = new Intl.DateTimeFormat('en-US', {
-  hour: 'numeric',
-  minute: '2-digit',
-  hour12: true,
-  timeZone: 'UTC',
+const timeFormatter = new Intl.DateTimeFormat("en-GB", {
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+  timeZone: "UTC",
 });
 
 /**
- * Formats a stored HH:mm meal time, e.g. "19:00" as "7:00 PM".
+ * Formats a stored meal time in 24-hour HH:mm format, e.g. "19:00".
  *
  * @param {string} time
  * @returns {string} The original value when it is not a valid HH:mm time.
@@ -20,7 +20,7 @@ export function formatMealTime(time) {
 }
 
 /**
- * Formats a meal time range, e.g. "7:00 PM - 9:00 PM".
+ * Formats a meal time range, e.g. "19:00 - 21:00".
  *
  * @param {string} startTime - HH:mm.
  * @param {string} endTime - HH:mm.
@@ -30,7 +30,7 @@ export function formatMealTimeRange(startTime, endTime) {
 }
 
 /**
- * Formats the meal slot of a booking, e.g. "Dinner, 7:00 PM - 9:00 PM".
+ * Formats the meal slot of a booking, e.g. "Dinner, 19:00 - 21:00".
  *
  * @param {Pick<
  *   import('../models/models.js').BookingDTO,

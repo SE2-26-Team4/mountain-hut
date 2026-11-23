@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, useState } from "react";
 import { Button, Form } from "react-bootstrap";
 
 import { MAX_SPECIAL_REQUEST_LENGTH } from "../../utils/booking-requirements.js";
@@ -21,6 +21,9 @@ export default function BookingRequestFields({
   disabled = false,
 }) {
   const id = useId();
+  const [visitedDescriptions, setVisitedDescriptions] = useState(
+    /** @type {number[]} */ ([]),
+  );
   const { dietaryRequirements, special } = requests;
 
   /**
@@ -104,16 +107,22 @@ export default function BookingRequestFields({
 
             {dietaryRequirements.map((requirement, index) => {
               const descriptionId = `${id}-dietary-${index}`;
+              const titleId = `${descriptionId}-title`;
               const errorId = `${descriptionId}-error`;
               const missingDescription =
-                requirement.hasAllergies && !requirement.description.trim();
+                !requirement.description.trim() &&
+                (requirement.hasAllergies ||
+                  visitedDescriptions.includes(index));
 
               return (
                 <fieldset
                   key={index}
+                  aria-labelledby={titleId}
                   className="border rounded-3 p-3 d-grid gap-2"
                 >
-                  <legend className="h6 mb-0">Guest {index + 1}</legend>
+                  <div id={titleId} className="h6 mb-0">
+                    Guest {index + 1}
+                  </div>
 
                   <Form.Group controlId={descriptionId}>
                     <Form.Label>Description</Form.Label>
@@ -128,6 +137,13 @@ export default function BookingRequestFields({
                           : "E.g. 2 guests need vegetarian meals"
                       }
                       isInvalid={missingDescription}
+                      onBlur={() =>
+                        setVisitedDescriptions((visited) =>
+                          visited.includes(index)
+                            ? visited
+                            : [...visited, index],
+                        )
+                      }
                       aria-describedby={
                         missingDescription ? errorId : undefined
                       }
@@ -144,8 +160,14 @@ export default function BookingRequestFields({
                       </Form.Text>
                     )}
                     {missingDescription && (
-                      <Form.Control.Feedback id={errorId} type="invalid">
-                        Describe the food allergy before confirming the booking.
+                      <Form.Control.Feedback
+                        id={errorId}
+                        type="invalid"
+                        className="d-block"
+                      >
+                        {requirement.hasAllergies
+                          ? "Describe the food allergy before confirming the booking."
+                          : "Enter a description or remove this dietary requirement."}
                       </Form.Control.Feedback>
                     )}
                   </Form.Group>
@@ -168,14 +190,22 @@ export default function BookingRequestFields({
                       variant="outline-secondary"
                       size="sm"
                       aria-label={`Remove dietary requirement ${index + 1}`}
-                      onClick={() =>
+                      onClick={() => {
+                        setVisitedDescriptions((visited) =>
+                          visited
+                            .filter((position) => position !== index)
+                            .map((position) =>
+                              position > index ? position - 1 : position,
+                            ),
+                        );
+
                         onChange({
                           ...requests,
                           dietaryRequirements: dietaryRequirements.filter(
                             (_, position) => position !== index,
                           ),
-                        })
-                      }
+                        });
+                      }}
                     >
                       Remove
                     </Button>
