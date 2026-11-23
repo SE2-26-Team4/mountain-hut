@@ -104,6 +104,7 @@ export default function BookingRequestFields({
 
             {dietaryRequirements.map((requirement, index) => {
               const descriptionId = `${id}-dietary-${index}`;
+              const titleId = `${descriptionId}-title`;
               const errorId = `${descriptionId}-error`;
               const missingDescription =
                 requirement.hasAllergies && !requirement.description.trim();
@@ -111,9 +112,12 @@ export default function BookingRequestFields({
               return (
                 <fieldset
                   key={index}
+                  aria-labelledby={titleId}
                   className="border rounded-3 p-3 d-grid gap-2"
                 >
-                  <legend className="h6 mb-0">Guest {index + 1}</legend>
+                  <div id={titleId} className="h6 mb-0">
+                    Guest {index + 1}
+                  </div>
 
                   <Form.Group controlId={descriptionId}>
                     <Form.Label>Description</Form.Label>
