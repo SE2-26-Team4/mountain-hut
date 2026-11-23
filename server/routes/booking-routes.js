@@ -140,7 +140,8 @@ async function sendBookingConfirmation(
           ? [
               {
                 hasAllergies: false,
-                description: `Special requests:\n${booking.specialRequests}`,
+                label: "Special requests",
+                description: booking.specialRequests,
               },
             ]
           : []),
