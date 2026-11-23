@@ -11,6 +11,7 @@
  * @typedef {Object} BookingTableAllocationDTO
  * @property {number} tableId
  * @property {number} seatsReserved - Positive integer.
+ * @property {string | null} [tableName]
  */
 
 /**
