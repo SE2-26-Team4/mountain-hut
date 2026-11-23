@@ -15,7 +15,11 @@ function HikerSummary({ hiker }) {
     <>
       <span className="d-flex flex-wrap align-items-center gap-2">
         <strong>{hiker.fullName}</strong>
-        {hiker.isTemporary && <StatusBadge>Temporary</StatusBadge>}
+        {hiker.isTemporary && (
+          <span className="mh-booking-status">
+            <StatusBadge variant="secondary">Temporary</StatusBadge>
+          </span>
+        )}
       </span>
       <small className="d-block text-body-secondary">
         {contacts || "No email or phone"}
