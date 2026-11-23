@@ -536,8 +536,8 @@ describe("meal-slot and capacity API", () => {
       .send({
         slotDate: "2099-12-30",
         name: `Updated API slot ${uniqueSuffix}`,
-        startTime: "17:00",
-        endTime: "19:00",
+        startTime: "15:00",
+        endTime: "17:00",
         isActive: false,
       });
 
@@ -546,8 +546,8 @@ describe("meal-slot and capacity API", () => {
       id: createdSlotId,
       slotDate: "2099-12-30",
       name: `Updated API slot ${uniqueSuffix}`,
-      startTime: "17:00",
-      endTime: "19:00",
+      startTime: "15:00",
+      endTime: "17:00",
       isActive: false,
     });
   });

@@ -358,10 +358,6 @@ async function assertMealSlotAvailable(
     throw new DuplicateMealSlotError();
   }
 
-  if (existing) {
-    throw new DuplicateMealSlotError();
-  }
-
   const overlappingSlot = await getAsync(
     `SELECT id
      FROM meal_slots
