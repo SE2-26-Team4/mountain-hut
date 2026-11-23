@@ -72,14 +72,14 @@ export default function CancelBookingModal({
         {booking && (
           <>
             <dl className="mb-3">
-              <dt className="fw-normal">Date</dt>
+              <dt className="fw-semibold">Date</dt>
               <dd>{formatBookingDate(booking.bookingDate)}</dd>
 
               {/* A hiker can book lunch and dinner on the same date. */}
-              <dt className="fw-normal">Meal slot</dt>
+              <dt className="fw-semibold">Meal slot</dt>
               <dd>{formatMealSlot(booking) ?? "Meal details unavailable"}</dd>
 
-              <dt className="fw-normal">Party size</dt>
+              <dt className="fw-semibold">Party size</dt>
               <dd className="mb-0">
                 {formatCount(booking.partySize, "guest")}
               </dd>
