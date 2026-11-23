@@ -49,7 +49,7 @@ A story is done ONLY if it fits the Definition of Done:
   > $s$ = sample standard deviation of those values
   - **Hours estimated (average)**
 
-    $\mu = \frac{\sum_{i=1}^{n} h_i}{n} = \frac{81.50 - 18.75 + (18.75 / 5)}{45}\text{h} = \frac{66.50}{45}\text{h} \approx 1.48\text{h} \approx 1\text{h}\;29\text{m}$
+    $\mu = \frac{\sum_{i=1}^{n} h_i}{n} = \frac{81.50 - 18.75 + (18.75 / 5)}{45}\text{h} = \frac{66.50}{45}\text{h} \approx 1.48\text{h} \approx 1\text{h}\ 29\text{m}$
 
   - **Hours estimated (standard deviation)**
 
@@ -59,7 +59,7 @@ A story is done ONLY if it fits the Definition of Done:
 
   - **Hours spent (average)**
 
-    $\mu = \frac{\sum_{i=1}^{n} h_i}{n} \approx \frac{78.58 - 18.75 + (18.75 / 5)}{45}\text{h} = \frac{63.58}{45}\text{h} \approx 1.41\text{h} \approx 1\text{h}\;25\text{m}$
+    $\mu = \frac{\sum_{i=1}^{n} h_i}{n} \approx \frac{78.58 - 18.75 + (18.75 / 5)}{45}\text{h} = \frac{63.58}{45}\text{h} \approx 1.41\text{h} \approx 1\text{h}\ 25\text{m}$
 
   - **Hours spent (standard deviation)**
 
