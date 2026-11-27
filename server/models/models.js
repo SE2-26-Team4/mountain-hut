@@ -129,6 +129,27 @@
  */
 
 /**
+ * Menu saved for one meal slot. The content is free text with basic formatting.
+ *
+ * @typedef {Object} MealSlotMenuDTO
+ * @property {number} id
+ * @property {number} slotId
+ * @property {string} content
+ * @property {string} updatedAt - Last save as an ISO timestamp.
+ */
+
+/**
+ * Menu of an earlier slot that staff can copy into another slot.
+ *
+ * @typedef {MealSlotMenuDTO & {
+ *   slotName: string,
+ *   slotDate: string,
+ *   startTime: string,
+ *   endTime: string
+ * }} PreviousMealSlotMenuDTO
+ */
+
+/**
  * Hiker profile as seen by staff. Temporary hikers can have an email address but cannot sign in.
  *
  * @typedef {Object} HikerDTO
