@@ -4896,3 +4896,53 @@ button.copy-calendar__day:focus-visible,
   color: var(--mh-glass-text);
   pointer-events: none;
 }
+
+/* ==========================================================================
+   MenuEditor — components/menu/MenuEditor.jsx
+   ========================================================================== */
+
+.mh-menu-editor,
+.mh-menu-editor-preview {
+  color: var(--mh-navy);
+  background: var(--mh-white);
+  border: var(--mh-border-width) solid var(--mh-border);
+  border-radius: var(--mh-radius-md);
+}
+
+.mh-menu-editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mh-space-1);
+  padding: var(--mh-space-2);
+  background: var(--mh-cream);
+  border-bottom: var(--mh-border-width) solid var(--mh-border);
+  border-radius: var(--mh-radius-md) var(--mh-radius-md) 0 0;
+}
+
+.mh-menu-editor-format {
+  color: var(--mh-navy);
+}
+
+.mh-menu-editor-format:hover,
+.mh-menu-editor-format[aria-pressed="true"] {
+  color: var(--mh-copper-hover);
+  background: var(--mh-white);
+  border-color: var(--mh-border);
+}
+
+.mh-menu-editor :is(button, [role="textbox"]):focus-visible {
+  outline: var(--mh-border-width-accent) solid var(--mh-copper);
+  outline-offset: calc(-1 * var(--mh-border-width-accent));
+}
+
+.mh-menu-editor-content [role="textbox"],
+.mh-menu-editor-preview {
+  min-height: calc(var(--mh-space-16) + var(--mh-space-16) + var(--mh-space-8));
+  padding: var(--mh-space-4);
+  overflow-wrap: anywhere;
+}
+
+.mh-menu-editor-content [role="textbox"] > :last-child,
+.mh-menu-editor-preview > :last-child {
+  margin-bottom: 0;
+}
