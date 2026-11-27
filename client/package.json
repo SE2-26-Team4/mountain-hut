@@ -11,11 +11,16 @@
     "typecheck": "tsc --project tsconfig.json"
   },
   "dependencies": {
+    "@tiptap/markdown": "^3.35.0",
+    "@tiptap/pm": "^3.35.0",
+    "@tiptap/react": "^3.35.0",
+    "@tiptap/starter-kit": "^3.35.0",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.2",
     "react": "^19.3.1",
     "react-bootstrap": "^2.10.10",
     "react-dom": "^19.3.1",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.18.5"
   },
   "devDependencies": {
