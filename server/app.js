@@ -9,6 +9,7 @@ import passport from './config/passport.js';
 import authRoutes from './routes/auth-routes.js';
 import bookingRoutes from './routes/booking-routes.js';
 import capacityRoutes from './routes/capacity-routes.js';
+import menuRoutes from './routes/menu-routes.js';
 import passwordResetRoutes from './routes/password-reset-routes.js';
 
 const app = express();
@@ -77,6 +78,10 @@ app.use('/api', bookingRoutes);
 /* MEAL-SLOT AND CAPACITY ROUTES */
 
 app.use('/api', capacityRoutes);
+
+/* MENU ROUTES */
+
+app.use('/api', menuRoutes);
 
 /* ROOT ROUTE */
 

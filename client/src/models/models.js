@@ -90,6 +90,21 @@
  */
 
 /**
+ * @typedef {Object} SaveMealSlotMenuRequestDTO
+ * @property {string} content - Free text with basic formatting; replaces the slot's menu.
+ */
+
+/**
+ * Menu saved for one meal slot. The content is free text with basic formatting.
+ *
+ * @typedef {Object} MealSlotMenuDTO
+ * @property {number} id
+ * @property {number} slotId
+ * @property {string} content
+ * @property {string} updatedAt - Last save as an ISO timestamp.
+ */
+
+/**
  * @typedef {DiningTableDTO & {
  *   reservedSeats: number,
  *   availableSeats: number
