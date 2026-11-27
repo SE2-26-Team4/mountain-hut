@@ -28,7 +28,9 @@ jobs:
           cache-dependency-path: server/package-lock.json
 
       - name: Install server dependencies
-        run: npm --prefix server ci
+        run: |
+          npm --prefix server ci --ignore-scripts
+          npm --prefix server rebuild sqlite3
 
       - name: Run server tests with coverage
         run: npm --prefix server run test:coverage
