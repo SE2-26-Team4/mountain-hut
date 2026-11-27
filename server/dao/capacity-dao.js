@@ -544,6 +544,127 @@ export async function getMealSlotCapacity(slotId) {
 }
 
 /**
+ * Reads occupancy using an already open transaction.
+ * Counts booked seats from confirmed allocations and returns remaining capacity.
+ * Inactive tables are shown but do not contribute to configured capacity.
+ *
+ * @param {string} bookingDate
+ * @param {number} slotId
+ * @param {TransactionQueries} queries
+ * @returns {Promise<import('../models/models.js').MealSlotOccupancyDTO | null>}
+ */
+async function readMealSlotOccupancy(
+  bookingDate,
+  slotId,
+  { getAsync, allAsync },
+) {
+  // Validate the booking date format.
+  if (typeof bookingDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(bookingDate)) {
+    return null;
+  }
+
+  // Retrieve the slot's identity before loading its assigned tables.
+  /** @type {{ slotId: number, slotName: string } | undefined} */
+  const slot = await getAsync(
+    `SELECT id AS slotId, name AS slotName
+     FROM meal_slots
+     WHERE id = ?`,
+    [slotId],
+  );
+
+  if (!slot) return null;
+
+  // Include all assigned tables, ordered by name and ID.
+  /** @type {DiningTableRow[]} */
+  const tables = await allAsync(
+    `SELECT
+       t.id,
+       t.name,
+       t.seat_count AS seatCount,
+       t.is_active AS isActive
+     FROM slot_tables AS st
+     JOIN dining_tables AS t ON t.id = st.table_id
+     WHERE st.slot_id = ?
+     ORDER BY t.name, t.id`,
+    [slotId],
+  );
+
+  // For each table, calculate booked seats from confirmed bookings on this date.
+  // SUM confirmed allocations only; cancelled bookings are ignored.
+  /** @type {Array<{ tableId: number, bookedSeats: number }>} */
+  const bookedByTable = await allAsync(
+    `SELECT
+       bta.table_id AS tableId,
+       COALESCE(SUM(bta.seats_reserved), 0) AS bookedSeats
+     FROM booking_table_allocations AS bta
+     JOIN bookings AS b ON b.id = bta.booking_id
+     WHERE bta.table_id IN (
+       SELECT table_id FROM slot_tables WHERE slot_id = ?
+     )
+       AND b.booking_date = ?
+       AND b.status = 'confirmed'
+     GROUP BY bta.table_id`,
+    [slotId, bookingDate],
+  );
+
+  // Create a lookup map for booked seats by table ID.
+  /** @type {Map<number, number>} */
+  const bookedMap = new Map(bookedByTable.map((row) => [row.tableId, row.bookedSeats]));
+
+  // Normalize tables and calculate occupancy per table.
+  /** @type {import('../models/models.js').TableOccupancyDTO[]} */
+  const normalizedTables = tables.map((table) => {
+    const normalized = normalizeDiningTable(table);
+    const bookedSeats = bookedMap.get(table.id) ?? 0;
+    const configuredSeats = normalized.isActive ? normalized.seatCount : 0;
+
+    return {
+      ...normalized,
+      configuredSeats,
+      bookedSeats,
+      remainingSeats: Math.max(0, configuredSeats - bookedSeats),
+    };
+  });
+
+  // Aggregate totals across all tables.
+  const totalConfiguredSeats = normalizedTables.reduce(
+    (total, table) => total + table.configuredSeats,
+    0,
+  );
+
+  const totalBookedSeats = normalizedTables.reduce(
+    (total, table) => total + table.bookedSeats,
+    0,
+  );
+
+  return {
+    bookingDate,
+    slotId: slot.slotId,
+    slotName: slot.slotName,
+    tables: normalizedTables,
+    totalConfiguredSeats,
+    totalBookedSeats,
+    totalRemainingSeats: Math.max(0, totalConfiguredSeats - totalBookedSeats),
+  };
+}
+
+/**
+ * Returns occupancy (booked and remaining capacity) for a slot on a specific date.
+ * Returns null if the slot does not exist.
+ *
+ * @param {string} bookingDate - Format: YYYY-MM-DD.
+ * @param {number} slotId
+ * @returns {Promise<import('../models/models.js').MealSlotOccupancyDTO | null>}
+ */
+export async function getMealSlotOccupancy(bookingDate, slotId) {
+  // Open a transaction and delegate the occupancy calculation to the helper.
+  return withTransaction(async (queries) =>
+    readMealSlotOccupancy(bookingDate, slotId, queries),
+  );
+}
+
+
+/**
  * @param {TransactionQueries} queries
  * @param {string} sourceWeekStart
  * @param {Array<{ start: string, status: string }>} weeks

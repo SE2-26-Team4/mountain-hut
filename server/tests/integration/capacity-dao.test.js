@@ -10,6 +10,7 @@ import {
   getDiningTables,
   WeeklyScheduleConflictError,
   getMealSlotCapacity,
+  getMealSlotOccupancy,
   getMealSlots,
   setMealSlotTables,
   updateDiningTable,
@@ -1004,5 +1005,391 @@ describe("dated meal-slot configuration", () => {
     );
 
     expect(savedSlot.slotDate).toBe("2099-11-06");
+  });
+});
+
+describe("meal slot occupancy monitoring", () => {
+  // Create test fixtures for occupancy tests.
+  let occupancySlotId;
+  let occupancyDate;
+  let table1Id;
+  let table2Id;
+  let table3Id;
+
+  beforeAll(async () => {
+    // Create a future date for testing.
+    occupancyDate = "2099-11-20";
+
+    // Create a slot for the occupancy tests.
+    const slot = await createMealSlot({
+      slotDate: occupancyDate,
+      name: `Occupancy test slot ${Date.now()}`,
+      startTime: "19:00",
+      endTime: "21:00",
+    });
+
+    occupancySlotId = slot.id;
+
+    // Create tables with different seat counts for testing table split scenarios.
+    table1Id = (
+      await createDiningTable({
+        name: `Occupancy test table 1 ${Date.now()}`,
+        seatCount: 4,
+      })
+    ).id;
+
+    table2Id = (
+      await createDiningTable({
+        name: `Occupancy test table 2 ${Date.now()}`,
+        seatCount: 6,
+      })
+    ).id;
+
+    table3Id = (
+      await createDiningTable({
+        name: `Occupancy test table 3 ${Date.now()}`,
+        seatCount: 2,
+        isActive: false,
+      })
+    ).id;
+
+    // Assign all tables (including the inactive one) to the slot.
+    await setMealSlotTables(occupancySlotId, [table1Id, table2Id, table3Id]);
+  });
+
+  afterAll(async () => {
+    // Clean up all test bookings for the occupancy date.
+    // Start by cleaning booking allocations first (foreign key dependency).
+    await runAsync(
+      `DELETE FROM booking_table_allocations
+       WHERE booking_id IN (
+         SELECT id FROM bookings
+         WHERE booking_date IN (?, '2099-11-21')
+           AND slot_id = ?
+       )`,
+      [occupancyDate, occupancySlotId],
+    );
+
+    // Then delete all bookings for both dates.
+    await runAsync(
+      `DELETE FROM bookings
+       WHERE booking_date IN (?, '2099-11-21')
+         AND slot_id = ?`,
+      [occupancyDate, occupancySlotId],
+    );
+
+    // Clean up all temporary users created by occupancy tests
+    // (this is a safety cleanup for any failed tests).
+    await runAsync(
+      `DELETE FROM users
+       WHERE role = 'hiker' AND is_temporary = 1
+         AND full_name LIKE '%Hiker%'`,
+    );
+
+    // Clean up table assignments.
+    await runAsync("DELETE FROM slot_tables WHERE slot_id = ?", [
+      occupancySlotId,
+    ]);
+
+    // Clean up slot and tables.
+    await runAsync("DELETE FROM meal_slots WHERE id = ?", [occupancySlotId]);
+    await runAsync("DELETE FROM dining_tables WHERE id IN (?, ?, ?)", [
+      table1Id,
+      table2Id,
+      table3Id,
+    ]);
+  });
+
+  it("returns null for an invalid booking date format", async () => {
+    const occupancy = await getMealSlotOccupancy("not-a-date", occupancySlotId);
+
+    expect(occupancy).toBeNull();
+  });
+
+  it("returns null for a non-existent slot", async () => {
+    const occupancy = await getMealSlotOccupancy(occupancyDate, -1);
+
+    expect(occupancy).toBeNull();
+  });
+
+  it("returns empty occupancy for a slot with no bookings", async () => {
+    const occupancy = await getMealSlotOccupancy(occupancyDate, occupancySlotId);
+
+    expect(occupancy).not.toBeNull();
+    expect(occupancy.bookingDate).toBe(occupancyDate);
+    expect(occupancy.slotId).toBe(occupancySlotId);
+    expect(occupancy.totalConfiguredSeats).toBe(10); // 4 + 6 (inactive table not counted)
+    expect(occupancy.totalBookedSeats).toBe(0);
+    expect(occupancy.totalRemainingSeats).toBe(10);
+
+    // Verify table-level details.
+    expect(occupancy.tables).toHaveLength(3);
+
+    // Table 1: active, 4 seats, nothing booked.
+    const table1 = occupancy.tables.find((t) => t.id === table1Id);
+    expect(table1).toMatchObject({
+      seatCount: 4,
+      isActive: true,
+      configuredSeats: 4,
+      bookedSeats: 0,
+      remainingSeats: 4,
+    });
+
+    // Table 2: active, 6 seats, nothing booked.
+    const table2 = occupancy.tables.find((t) => t.id === table2Id);
+    expect(table2).toMatchObject({
+      seatCount: 6,
+      isActive: true,
+      configuredSeats: 6,
+      bookedSeats: 0,
+      remainingSeats: 6,
+    });
+
+    // Table 3: inactive, 2 seats, configured seats should be 0.
+    const table3 = occupancy.tables.find((t) => t.id === table3Id);
+    expect(table3).toMatchObject({
+      seatCount: 2,
+      isActive: false,
+      configuredSeats: 0,
+      bookedSeats: 0,
+      remainingSeats: 0,
+    });
+  });
+
+  it("calculates partial occupancy with single-table allocations", async () => {
+    // Create a hiker for the booking.
+    const hikerId = (
+      await runAsync(
+        "INSERT INTO users (full_name, role, is_temporary) VALUES (?, ?, ?)",
+        ["Test Hiker", "hiker", 1],
+      )
+    ).lastID;
+
+    try {
+      // Create a booking with a party of 3 at table 1.
+      await runAsync(
+        `INSERT INTO bookings (hiker_id, booking_date, slot_id, party_size, status)
+         VALUES (?, ?, ?, ?, ?)`,
+        [hikerId, occupancyDate, occupancySlotId, 3, "confirmed"],
+      );
+
+      const bookingId = (await getAsync(
+        `SELECT id FROM bookings WHERE hiker_id = ? AND booking_date = ? AND slot_id = ?`,
+        [hikerId, occupancyDate, occupancySlotId],
+      )).id;
+
+      // Allocate 3 seats to table 1.
+      await runAsync(
+        `INSERT INTO booking_table_allocations (booking_id, table_id, seats_reserved)
+         VALUES (?, ?, ?)`,
+        [bookingId, table1Id, 3],
+      );
+
+      const occupancy = await getMealSlotOccupancy(occupancyDate, occupancySlotId);
+
+      expect(occupancy.totalConfiguredSeats).toBe(10);
+      expect(occupancy.totalBookedSeats).toBe(3);
+      expect(occupancy.totalRemainingSeats).toBe(7);
+
+      const table1 = occupancy.tables.find((t) => t.id === table1Id);
+      expect(table1).toMatchObject({
+        configuredSeats: 4,
+        bookedSeats: 3,
+        remainingSeats: 1,
+      });
+
+      const table2 = occupancy.tables.find((t) => t.id === table2Id);
+      expect(table2).toMatchObject({
+        configuredSeats: 6,
+        bookedSeats: 0,
+        remainingSeats: 6,
+      });
+    } finally {
+      // Clean up all bookings for this hiker.
+      await runAsync(
+        `DELETE FROM booking_table_allocations
+         WHERE booking_id IN (
+           SELECT id FROM bookings WHERE hiker_id = ?
+         )`,
+        [hikerId],
+      );
+      await runAsync("DELETE FROM bookings WHERE hiker_id = ?", [hikerId]);
+      await runAsync("DELETE FROM users WHERE id = ?", [hikerId]);
+    }
+  });
+
+  it("calculates full occupancy with multiple table allocations", async () => {
+    // Create a large party split across both active tables.
+    const hikerId = (
+      await runAsync(
+        "INSERT INTO users (full_name, role, is_temporary) VALUES (?, ?, ?)",
+        ["Large Party Hiker", "hiker", 1],
+      )
+    ).lastID;
+
+    try {
+      await runAsync(
+        `INSERT INTO bookings (hiker_id, booking_date, slot_id, party_size, status)
+         VALUES (?, ?, ?, ?, ?)`,
+        [hikerId, occupancyDate, occupancySlotId, 10, "confirmed"],
+      );
+
+      const bookingId = (await getAsync(
+        `SELECT id FROM bookings WHERE hiker_id = ? AND booking_date = ? AND slot_id = ?`,
+        [hikerId, occupancyDate, occupancySlotId],
+      )).id;
+
+      // Allocate all 4 seats to table 1 and all 6 seats to table 2.
+      await runAsync(
+        `INSERT INTO booking_table_allocations (booking_id, table_id, seats_reserved)
+         VALUES (?, ?, ?), (?, ?, ?)`,
+        [bookingId, table1Id, 4, bookingId, table2Id, 6],
+      );
+
+      const occupancy = await getMealSlotOccupancy(occupancyDate, occupancySlotId);
+
+      expect(occupancy.totalConfiguredSeats).toBe(10);
+      expect(occupancy.totalBookedSeats).toBe(10);
+      expect(occupancy.totalRemainingSeats).toBe(0);
+
+      const table1 = occupancy.tables.find((t) => t.id === table1Id);
+      expect(table1).toMatchObject({
+        configuredSeats: 4,
+        bookedSeats: 4,
+        remainingSeats: 0,
+      });
+
+      const table2 = occupancy.tables.find((t) => t.id === table2Id);
+      expect(table2).toMatchObject({
+        configuredSeats: 6,
+        bookedSeats: 6,
+        remainingSeats: 0,
+      });
+    } finally {
+      // Clean up all bookings for this hiker.
+      await runAsync(
+        `DELETE FROM booking_table_allocations
+         WHERE booking_id IN (
+           SELECT id FROM bookings WHERE hiker_id = ?
+         )`,
+        [hikerId],
+      );
+      await runAsync("DELETE FROM bookings WHERE hiker_id = ?", [hikerId]);
+      await runAsync("DELETE FROM users WHERE id = ?", [hikerId]);
+    }
+  });
+
+  it("excludes cancelled bookings from occupancy", async () => {
+    // Create two bookings: one confirmed, one cancelled.
+    const hiker1Id = (
+      await runAsync(
+        "INSERT INTO users (full_name, role, is_temporary) VALUES (?, ?, ?)",
+        ["Confirmed Hiker", "hiker", 1],
+      )
+    ).lastID;
+
+    const hiker2Id = (
+      await runAsync(
+        "INSERT INTO users (full_name, role, is_temporary) VALUES (?, ?, ?)",
+        ["Cancelled Hiker", "hiker", 1],
+      )
+    ).lastID;
+
+    try {
+      // Create and confirm first booking (3 seats at table 1).
+      await runAsync(
+        `INSERT INTO bookings (hiker_id, booking_date, slot_id, party_size, status)
+         VALUES (?, ?, ?, ?, ?)`,
+        [hiker1Id, occupancyDate, occupancySlotId, 3, "confirmed"],
+      );
+
+      const booking1Id = (await getAsync(
+        `SELECT id FROM bookings WHERE hiker_id = ? AND booking_date = ? AND slot_id = ?`,
+        [hiker1Id, occupancyDate, occupancySlotId],
+      )).id;
+
+      await runAsync(
+        `INSERT INTO booking_table_allocations (booking_id, table_id, seats_reserved)
+         VALUES (?, ?, ?)`,
+        [booking1Id, table1Id, 3],
+      );
+
+      // Create and cancel second booking (5 seats at table 2).
+      await runAsync(
+        `INSERT INTO bookings (hiker_id, booking_date, slot_id, party_size, status)
+         VALUES (?, ?, ?, ?, ?)`,
+        [hiker2Id, occupancyDate, occupancySlotId, 5, "cancelled"],
+      );
+
+      const booking2Id = (await getAsync(
+        `SELECT id FROM bookings WHERE hiker_id = ? AND booking_date = ? AND slot_id = ?`,
+        [hiker2Id, occupancyDate, occupancySlotId],
+      )).id;
+
+      await runAsync(
+        `INSERT INTO booking_table_allocations (booking_id, table_id, seats_reserved)
+         VALUES (?, ?, ?)`,
+        [booking2Id, table2Id, 5],
+      );
+
+      const occupancy = await getMealSlotOccupancy(occupancyDate, occupancySlotId);
+
+      // Only the confirmed booking should be counted.
+      expect(occupancy.totalConfiguredSeats).toBe(10);
+      expect(occupancy.totalBookedSeats).toBe(3);
+      expect(occupancy.totalRemainingSeats).toBe(7);
+
+      const table1 = occupancy.tables.find((t) => t.id === table1Id);
+      expect(table1).toMatchObject({
+        bookedSeats: 3,
+        remainingSeats: 1,
+      });
+
+      const table2 = occupancy.tables.find((t) => t.id === table2Id);
+      expect(table2).toMatchObject({
+        bookedSeats: 0,
+        remainingSeats: 6,
+      });
+    } finally {
+      // Clean up all bookings for both hikers.
+      await runAsync(
+        `DELETE FROM booking_table_allocations
+         WHERE booking_id IN (
+           SELECT id FROM bookings WHERE hiker_id IN (?, ?)
+         )`,
+        [hiker1Id, hiker2Id],
+      );
+      await runAsync(
+        "DELETE FROM bookings WHERE hiker_id IN (?, ?)",
+        [hiker1Id, hiker2Id],
+      );
+      await runAsync("DELETE FROM users WHERE id IN (?, ?)", [
+        hiker1Id,
+        hiker2Id,
+      ]);
+    }
+  });
+
+  it("handles slots with no assigned tables", async () => {
+    // Use a different date and time to avoid overlap with existing slots.
+    const noTablesDate = "2099-11-22";
+    const noTablesSlot = await createMealSlot({
+      slotDate: noTablesDate,
+      name: `No tables slot ${Date.now()}`,
+      startTime: "20:00",
+      endTime: "22:00",
+    });
+
+    try {
+      const occupancy = await getMealSlotOccupancy(noTablesDate, noTablesSlot.id);
+
+      expect(occupancy).not.toBeNull();
+      expect(occupancy.tables).toEqual([]);
+      expect(occupancy.totalConfiguredSeats).toBe(0);
+      expect(occupancy.totalBookedSeats).toBe(0);
+      expect(occupancy.totalRemainingSeats).toBe(0);
+    } finally {
+      await runAsync("DELETE FROM meal_slots WHERE id = ?", [noTablesSlot.id]);
+    }
   });
 });
