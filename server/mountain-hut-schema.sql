@@ -48,8 +48,8 @@ CREATE UNIQUE INDEX idx_meal_slots_name_times
     end_time
   );
 
--- One editable menu per meal slot. Menus are removed with their slot,
--- while existing slots and their bookings remain unchanged.
+-- [REQUIREMENT] MH-10: Modifying a menu affects only the menu of that specific slot.
+-- One editable menu per meal slot, removed together with its slot.
 CREATE TABLE meal_slot_menus (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   slot_id INTEGER NOT NULL UNIQUE REFERENCES meal_slots(id) ON DELETE CASCADE,

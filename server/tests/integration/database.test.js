@@ -130,53 +130,15 @@ describe("database initialization", () => {
     )).toEqual({ count: 0 });
   });
 
-  it("upgrades the complete Sprint 2 schema without changing bookings or schedules", async () => {
+  // No migrations: a database created before the menu table must be recreated.
+  it("rejects a database created without the menu table", async () => {
     await loadDatabase();
     await db.initializeDatabase();
-
-    const user = await db.runAsync(
-      `INSERT INTO users (full_name, email, password_hash, role)
-       VALUES ('Hiker', 'upgrade@example.com', 'hash', 'hiker')`,
-    );
-    const slot = await db.runAsync(
-      `INSERT INTO meal_slots (slot_date, name, start_time, end_time)
-       VALUES ('2099-01-01', 'Lunch', '12:00', '13:00')`,
-    );
-    const booking = await db.runAsync(
-      `INSERT INTO bookings (hiker_id, booking_date, slot_id, party_size)
-       VALUES (?, '2099-01-01', ?, 2)`,
-      [user.lastID, slot.lastID],
-    );
-    await db.runAsync(
-      `INSERT INTO schedule_copy_history (source_start, weeks_json)
-       VALUES ('2099-01-01', '["2099-01-08"]')`,
-    );
-
-    // Recreate the previous version: all original tables exist, menus do not.
     await db.runAsync("DROP TABLE meal_slot_menus");
-    await db.initializeDatabase();
-    expect(await db.getAsync(
-      "SELECT id, party_size FROM bookings WHERE id = ?", [booking.lastID],
-    )).toEqual({ id: booking.lastID, party_size: 2 });
-    expect(await db.getAsync(
-      "SELECT weeks_json FROM schedule_copy_history",
-    )).toEqual({ weeks_json: '["2099-01-08"]' });
-    expect(await db.getAsync(
-      "SELECT id FROM meal_slots WHERE id = ?", [slot.lastID],
-    )).toEqual({ id: slot.lastID });
 
-    await db.runAsync(
-      "INSERT INTO meal_slot_menus (slot_id, content) VALUES (?, 'Lunch menu')",
-      [slot.lastID],
+    await expect(db.initializeDatabase()).rejects.toThrow(
+      "Database schema is incomplete.",
     );
-    await db.initializeDatabase();
-    await db.initializeDatabase();
-    expect(await db.getAsync(
-      "SELECT slot_id, content FROM meal_slot_menus",
-    )).toEqual({ slot_id: slot.lastID, content: "Lunch menu" });
-    expect(await db.getAsync(
-      "SELECT COUNT(*) AS count FROM bookings",
-    )).toEqual({ count: 1 });
   });
 
   // Reset links are removed together with their account.
