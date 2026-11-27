@@ -602,9 +602,10 @@ async function readMealSlotOccupancy(
        SELECT table_id FROM slot_tables WHERE slot_id = ?
      )
        AND b.booking_date = ?
+       AND b.slot_id = ?
        AND b.status = 'confirmed'
      GROUP BY bta.table_id`,
-    [slotId, bookingDate],
+    [slotId, bookingDate, slotId],
   );
 
   // Create a lookup map for booked seats by table ID.

@@ -1218,6 +1218,129 @@ describe("meal slot occupancy monitoring", () => {
     }
   });
 
+  it("does not count bookings from another slot using the same table", async () => {
+    const sharedSlot = await createMealSlot({
+      slotDate: occupancyDate,
+      name: `Shared table slot ${Date.now()}-${Math.random()}`,
+      startTime: "21:00",
+      endTime: "23:00",
+    });
+    let hikerId;
+    let bookingId;
+
+    try {
+      await setMealSlotTables(sharedSlot.id, [table1Id]);
+
+      hikerId = (
+        await runAsync(
+          "INSERT INTO users (full_name, role, is_temporary) VALUES (?, ?, ?)",
+          [`Other Slot Hiker ${Date.now()}`, "hiker", 1],
+        )
+      ).lastID;
+
+      bookingId = (
+        await runAsync(
+          `INSERT INTO bookings (hiker_id, booking_date, slot_id, party_size, status)
+           VALUES (?, ?, ?, ?, ?)`,
+          [hikerId, occupancyDate, sharedSlot.id, 2, "confirmed"],
+        )
+      ).lastID;
+
+      await runAsync(
+        `INSERT INTO booking_table_allocations (booking_id, table_id, seats_reserved)
+         VALUES (?, ?, ?)`,
+        [bookingId, table1Id, 2],
+      );
+
+      const occupancy = await getMealSlotOccupancy(occupancyDate, occupancySlotId);
+
+      expect(occupancy.totalBookedSeats).toBe(0);
+      expect(occupancy.totalRemainingSeats).toBe(10);
+      expect(
+        occupancy.tables.find((table) => table.id === table1Id).bookedSeats,
+      ).toBe(0);
+    } finally {
+      if (bookingId) {
+        await runAsync(
+          "DELETE FROM booking_table_allocations WHERE booking_id = ?",
+          [bookingId],
+        );
+        await runAsync("DELETE FROM bookings WHERE id = ?", [bookingId]);
+      }
+      if (hikerId) {
+        await runAsync("DELETE FROM users WHERE id = ?", [hikerId]);
+      }
+
+      await runAsync("DELETE FROM slot_tables WHERE slot_id = ?", [
+        sharedSlot.id,
+      ]);
+      await runAsync("DELETE FROM meal_slots WHERE id = ?", [sharedSlot.id]);
+    }
+  });
+
+  it("sums multiple bookings allocated to the same table", async () => {
+    const hikerIds = [];
+    const bookingIds = [];
+
+    try {
+      for (const partySize of [2, 1]) {
+        const hikerId = (
+          await runAsync(
+            "INSERT INTO users (full_name, role, is_temporary) VALUES (?, ?, ?)",
+            [`Multiple Booking Hiker ${Date.now()}-${Math.random()}`, "hiker", 1],
+          )
+        ).lastID;
+        hikerIds.push(hikerId);
+
+        const bookingId = (
+          await runAsync(
+            `INSERT INTO bookings (hiker_id, booking_date, slot_id, party_size, status)
+             VALUES (?, ?, ?, ?, ?)`,
+            [hikerId, occupancyDate, occupancySlotId, partySize, "confirmed"],
+          )
+        ).lastID;
+        bookingIds.push(bookingId);
+
+        await runAsync(
+          `INSERT INTO booking_table_allocations (booking_id, table_id, seats_reserved)
+           VALUES (?, ?, ?)`,
+          [bookingId, table1Id, partySize],
+        );
+      }
+
+      const occupancy = await getMealSlotOccupancy(occupancyDate, occupancySlotId);
+
+      expect(occupancy.totalBookedSeats).toBe(3);
+      expect(occupancy.totalRemainingSeats).toBe(7);
+      expect(
+        occupancy.tables.find((table) => table.id === table1Id),
+      ).toMatchObject({
+        bookedSeats: 3,
+        remainingSeats: 1,
+      });
+    } finally {
+      if (bookingIds.length > 0) {
+        const placeholders = bookingIds.map(() => "?").join(", ");
+        await runAsync(
+          `DELETE FROM booking_table_allocations WHERE booking_id IN (${placeholders})`,
+          bookingIds,
+        );
+        await runAsync(
+          `DELETE FROM bookings WHERE id IN (${placeholders})`,
+          bookingIds,
+        );
+      }
+
+      if (hikerIds.length > 0) {
+        const placeholders = hikerIds.map(() => "?").join(", ");
+        await runAsync(
+          `DELETE FROM users WHERE id IN (${placeholders})`,
+          hikerIds,
+        );
+      }
+    }
+  });
+
   it("calculates full occupancy with multiple table allocations", async () => {
     // Create a large party split across both active tables.
     const hikerId = (
