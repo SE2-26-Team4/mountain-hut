@@ -797,6 +797,106 @@ export async function getBookingsByDateAndSlot(bookingDate, slotId) {
 }
 
 /**
+ * Lists reservations for staff, including cancelled reservations.
+ * Filters are optional; when present they are combined with AND.
+ * Unlike getBookingsByDateAndSlot, this is not an occupancy query.
+ *
+ * @param {{ bookingDate?: string, slotId?: number }} [filters]
+ * @returns {Promise<object[]>}
+ */
+export async function listStaffReservations({ bookingDate, slotId } = {}) {
+  return withTransaction(async ({ allAsync }) => {
+    const conditions = [];
+    const parameters = [];
+
+    if (bookingDate !== undefined) {
+      conditions.push("b.booking_date = ?");
+      parameters.push(bookingDate);
+    }
+
+    if (slotId !== undefined) {
+      conditions.push("b.slot_id = ?");
+      parameters.push(slotId);
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const reservations = await allAsync(
+      `SELECT
+         b.id,
+         b.booking_date AS bookingDate,
+         b.slot_id AS slotId,
+         s.name AS slotName,
+         s.start_time AS slotStartTime,
+         s.end_time AS slotEndTime,
+         b.hiker_id AS hikerId,
+         u.full_name AS hikerName,
+         u.email AS hikerEmail,
+         u.is_temporary AS isTemporaryHiker,
+         b.party_size AS partySize,
+         b.status
+       FROM bookings AS b
+       JOIN meal_slots AS s ON s.id = b.slot_id
+       JOIN users AS u ON u.id = b.hiker_id
+       ${where}
+       ORDER BY b.booking_date DESC, s.start_time, b.id`,
+      parameters,
+    );
+
+    return reservations;
+  });
+}
+
+/**
+ * Reads staff reservation details with all assigned tables.
+ * Includes cancelled bookings and temporary hikers, without exposing passwords.
+ *
+ * @param {number} id
+ * @returns {Promise<object | null>}
+ */
+export async function getStaffReservationById(id) {
+  return withTransaction(async ({ getAsync, allAsync }) => {
+    const reservation = await getAsync(
+      `SELECT
+         b.id,
+         b.booking_date AS bookingDate,
+         b.slot_id AS slotId,
+         s.name AS slotName,
+         s.start_time AS slotStartTime,
+         s.end_time AS slotEndTime,
+         b.hiker_id AS hikerId,
+         u.full_name AS hikerName,
+         u.email AS hikerEmail,
+         u.is_temporary AS isTemporaryHiker,
+         b.party_size AS partySize,
+         b.dietary_requirements AS dietaryRequirements,
+         b.special_requests AS specialRequests,
+         b.status
+       FROM bookings AS b
+       JOIN meal_slots AS s ON s.id = b.slot_id
+       JOIN users AS u ON u.id = b.hiker_id
+       WHERE b.id = ?`,
+      [id],
+    );
+
+    if (!reservation) return null;
+
+    const allocations = await allAsync(
+      `SELECT a.table_id AS tableId,
+              t.name AS tableName,
+              a.seats_reserved AS seatsReserved
+       FROM booking_table_allocations AS a
+       JOIN dining_tables AS t ON t.id = a.table_id
+       WHERE a.booking_id = ?
+       ORDER BY a.table_id`,
+      [id],
+    );
+
+    return { ...reservation, allocations };
+  });
+}
+
+/**
  * Cancels a confirmed booking and releases its seats.
  * The booking is read and updated in the same transaction, so the result
  * always describes the booking that has just been cancelled.
