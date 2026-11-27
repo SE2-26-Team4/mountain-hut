@@ -13,6 +13,8 @@ import StaffTimeSlotsPanel from "../components/capacity/StaffTimeSlotsPanel.jsx"
 import Alert from "../components/common/AutoDismissAlert.jsx";
 import CopyWeekModal from "../components/capacity/CopyWeekModal.jsx";
 import ScheduleCopyActions from "../components/capacity/ScheduleCopyActions.jsx";
+import MenuEditorModal from "../components/menu/MenuEditorModal.jsx";
+import { readMockMenus, saveMockMenus } from "../components/menu/menu-mock.js";
 
 /**
  * @typedef {import('../API/session-api.js').SessionUser} SessionUser
@@ -51,6 +53,13 @@ function StaffCapacityContent({ user, onLogout }) {
   const staff = useStaffCapacity();
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [menuSlot, setMenuSlot] = useState(
+    /** @type {import("../API/capacity-api.js").ConfiguredMealSlot | null} */ (
+      null
+    ),
+  );
+  const [mockMenus, setMockMenus] = useState(readMockMenus);
+  const [menuFeedback, setMenuFeedback] = useState("");
 
   return (
     <Row
@@ -101,6 +110,8 @@ function StaffCapacityContent({ user, onLogout }) {
               <Alert variant="danger">{staff.errorMessage}</Alert>
             )}
 
+          {menuFeedback && <Alert variant="success">{menuFeedback}</Alert>}
+
           {staff.feedbackMessage && (
             <Alert variant="success">{staff.feedbackMessage}</Alert>
           )}
@@ -131,9 +142,30 @@ function StaffCapacityContent({ user, onLogout }) {
                   onAdd={staff.openNewSlotForm}
                   onCopyWeek={staff.openCopyWeek}
                   onAssign={staff.openAssignmentModal}
+                  onOpenMenu={(slot) => {
+                    setMenuFeedback("");
+                    setMenuSlot(slot);
+                  }}
+                  hasMenu={(slot) => Boolean(mockMenus[String(slot.id)])}
                 />
               </Col>
             </Row>
+          )}
+
+          {menuSlot && (
+            <MenuEditorModal
+              slot={menuSlot}
+              date={staff.selectedDate}
+              initialMenu={mockMenus[String(menuSlot.id)]}
+              onHide={() => setMenuSlot(null)}
+              onSave={(menu) => {
+                const nextMenus = { ...mockMenus, [String(menuSlot.id)]: menu };
+                saveMockMenus(nextMenus);
+                setMockMenus(nextMenus);
+                setMenuFeedback("Menu saved successfully.");
+                setMenuSlot(null);
+              }}
+            />
           )}
 
           {staff.isCopyWeekOpen && (

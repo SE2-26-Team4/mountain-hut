@@ -15,6 +15,8 @@ import StatusBadge from "../common/StatusBadge.jsx";
  * @param {() => void} props.onAdd
  * @param {() => void} props.onCopyWeek
  * @param {(slot: ConfiguredMealSlot) => void} props.onAssign
+ * @param {(slot: ConfiguredMealSlot) => void} props.onOpenMenu
+ * @param {(slot: ConfiguredMealSlot) => boolean} props.hasMenu
  */
 export default function StaffTimeSlotsPanel({
   slots,
@@ -22,6 +24,8 @@ export default function StaffTimeSlotsPanel({
   onAdd,
   onCopyWeek,
   onAssign,
+  onOpenMenu,
+  hasMenu,
 }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [mealFilter, setMealFilter] = useState("");
@@ -224,6 +228,27 @@ export default function StaffTimeSlotsPanel({
                 >
                   Modify slot
                 </button>
+                <button
+                  id={`edit-menu-${slot.id}`}
+                  type="button"
+                  className={`cap-outline${hasMenu(slot) ? " opacity-50" : ""}`}
+                  aria-disabled={hasMenu(slot) || undefined}
+                  aria-describedby={
+                    editNoticeTarget?.id === `edit-menu-${slot.id}`
+                      ? "edit-time-slot-notice"
+                      : undefined
+                  }
+                  onClick={(event) => {
+                    if (hasMenu(slot)) {
+                      setEditNoticeTarget(event.currentTarget);
+                      return;
+                    }
+
+                    onOpenMenu(slot);
+                  }}
+                >
+                  {hasMenu(slot) ? "Edit menu" : "Add menu"}
+                </button>
               </Col>
             </Row>
           );
@@ -253,9 +278,11 @@ export default function StaffTimeSlotsPanel({
         onHide={() => setEditNoticeTarget(null)}
       >
         <Tooltip id="edit-time-slot-notice">
-          {editNoticeTarget?.id.startsWith("modify-time-slot-tables-")
-            ? "Modifying assigned tables will be available soon (MH-19)."
-            : "Editing time slots will be available soon (MH-19)."}
+          {editNoticeTarget?.id.startsWith("edit-menu-")
+            ? "Editing a saved menu is not available yet."
+            : editNoticeTarget?.id.startsWith("modify-time-slot-tables-")
+              ? "Modifying assigned tables will be available soon (MH-19)."
+              : "Editing time slots will be available soon (MH-19)."}
         </Tooltip>
       </Overlay>
     </section>

@@ -4946,3 +4946,109 @@ button.copy-calendar__day:focus-visible,
 .mh-menu-editor-preview > :last-child {
   margin-bottom: 0;
 }
+
+/* ==========================================================================
+   MenuEditorModal — components/menu/MenuEditorModal.jsx
+   ========================================================================== */
+
+.mh-staff-menu-dialog.modal-xl {
+  max-width: min(
+    var(--mh-staff-menu-modal-width),
+    calc(100% - var(--mh-space-8))
+  );
+  margin-inline: auto;
+}
+
+.mh-staff-menu-reuse,
+.mh-staff-menu-dish,
+.mh-staff-menu-preview {
+  border-radius: var(--mh-radius-md);
+}
+
+.mh-staff-menu-reuse {
+  padding: var(--mh-space-4);
+  background: var(--mh-cream);
+}
+
+.mh-staff-menu-dish {
+  min-width: 0;
+  padding: var(--mh-space-3);
+  border: var(--mh-border-width) solid var(--mh-border);
+}
+
+.mh-staff-menu-allergens {
+  display: grid;
+  gap: var(--mh-space-1);
+}
+
+.mh-staff-menu-preview {
+  overflow: hidden;
+  color: var(--mh-navy);
+  border: var(--mh-border-width) solid var(--mh-border);
+}
+
+.mh-staff-menu-preview-heading {
+  padding: var(--mh-space-3) var(--mh-space-4);
+  background: var(--mh-staff-menu-preview-background);
+}
+
+.mh-staff-menu-preview-dish {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--mh-space-2);
+  padding-block: var(--mh-space-2);
+  border-top: var(--mh-border-width) solid var(--mh-border);
+  overflow-wrap: anywhere;
+}
+
+.mh-staff-menu-allergen {
+  color: var(--mh-copper-hover);
+}
+
+.mh-staff-menu-thumbnail {
+  flex-shrink: 0;
+  width: var(--mh-staff-menu-thumbnail-width);
+  height: var(--mh-staff-menu-thumbnail-height);
+  object-fit: contain;
+  background: var(--mh-cream);
+  border-radius: var(--mh-radius-md);
+}
+
+.modal-backdrop.mh-staff-menu-library-backdrop {
+  z-index: var(--mh-staff-menu-library-backdrop-layer);
+}
+
+.modal.mh-staff-menu-library {
+  z-index: var(--mh-staff-menu-library-layer);
+}
+
+.mh-staff-menu-library-dialog.modal-dialog-scrollable {
+  height: calc(100dvh - 2 * var(--bs-modal-margin));
+}
+
+.mh-staff-menu-library-dialog .modal-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.mh-staff-menu-type-badge .badge.text-bg-secondary {
+  color: var(--mh-copper-hover) !important;
+  background-color: var(--mh-staff-menu-preview-background) !important;
+}
+
+.mh-staff-menu-footer-primary.btn {
+  --bs-btn-color: var(--mh-white);
+  --bs-btn-bg: var(--mh-copper);
+  --bs-btn-border-color: var(--mh-copper);
+  --bs-btn-hover-color: var(--mh-white);
+  --bs-btn-hover-bg: var(--mh-copper-hover);
+  --bs-btn-hover-border-color: var(--mh-copper-hover);
+  --bs-btn-active-color: var(--mh-white);
+  --bs-btn-active-bg: var(--mh-copper-hover);
+  --bs-btn-active-border-color: var(--mh-copper-hover);
+  --bs-btn-disabled-color: var(--mh-white);
+  --bs-btn-disabled-bg: var(--mh-copper);
+  --bs-btn-disabled-border-color: var(--mh-copper);
+}

@@ -465,6 +465,18 @@
   --copy-check-radius: 0.2rem;
   --copy-check-font: 0.75rem;
   --copy-help-font: 0.875rem;
+
+  /* MenuEditorModal — components/menu/MenuEditorModal.jsx */
+  --mh-staff-menu-modal-width: 74rem;
+  --mh-staff-menu-thumbnail-width: 5.5rem;
+  --mh-staff-menu-thumbnail-height: 3.875rem;
+  --mh-staff-menu-preview-background: color-mix(
+    in srgb,
+    var(--mh-copper) 10%,
+    var(--mh-white)
+  );
+  --mh-staff-menu-library-backdrop-layer: 1060;
+  --mh-staff-menu-library-layer: 1065;
 }
 
 /* ==========================================================================
