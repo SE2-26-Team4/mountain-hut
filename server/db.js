@@ -176,11 +176,10 @@ export function withTransaction(callback) {
 export async function initializeDatabase() {
   await runAsync("PRAGMA foreign_keys = ON");
 
-  // Tables from the original database schema.
-  // Existing databases can be upgraded without losing stored data.
-  const baseSchemaTables = [
+  const expectedTables = [
     "users",
     "meal_slots",
+    "meal_slot_menus",
     "dining_tables",
     "slot_tables",
     "bookings",
@@ -188,49 +187,35 @@ export async function initializeDatabase() {
     "schedule_copy_history",
     "password_reset_tokens",
   ];
-  const menuTable = "meal_slot_menus";
-  const expectedTables = [...baseSchemaTables, menuTable];
+
   const placeholders = expectedTables.map(() => "?").join(", ");
 
   const existingTables = await allAsync(
-    `SELECT name FROM sqlite_master
-     WHERE type = 'table' AND name IN (${placeholders})`,
+    `SELECT name
+     FROM sqlite_master
+     WHERE type = 'table'
+       AND name IN (${placeholders})`,
     expectedTables,
   );
-  const present = new Set(existingTables.map((table) => table.name));
 
-  if (present.size === 0) {
+  if (existingTables.length === 0) {
     if (!fs.existsSync(schemaPath)) {
       throw new Error(`Database schema file not found: ${schemaPath}`);
     }
 
-    await execAsync(fs.readFileSync(schemaPath, "utf8"));
+    const schema = fs.readFileSync(schemaPath, "utf8");
+
+    await execAsync(schema);
+
     console.log("Mountain Hut database schema initialized.");
+
     return;
   }
 
-  // Refuse to silently 'repair' an incomplete or otherwise unexpected schema.
-  if (!baseSchemaTables.every((table) => present.has(table))) {
+  if (existingTables.length !== expectedTables.length) {
     throw new Error(
-      `Database schema is incomplete. Found ${present.size} of ${expectedTables.length} expected tables.`,
+      `Database schema is incomplete. Found ${existingTables.length} of ${expectedTables.length} expected tables.`,
     );
-  }
-
-  if (!present.has(menuTable)) {
-    // A single atomic DDL operation: existing bookings and schedules are not
-    // copied, rewritten, or removed. UNIQUE enforces one menu per meal slot.
-    await execAsync(`
-      CREATE TABLE meal_slot_menus (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        slot_id INTEGER NOT NULL UNIQUE
-          REFERENCES meal_slots(id) ON DELETE CASCADE,
-        content TEXT NOT NULL DEFAULT '',
-        updated_at TEXT NOT NULL DEFAULT
-          (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-      )
-    `);
-    console.log("Mountain Hut database upgraded with meal slot menus.");
-    return;
   }
 
   console.log("Mountain Hut database schema is ready.");
