@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
 const testDbPath = fileURLToPath(new URL('./tests/mh-test.sqlite', import.meta.url));
+const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 
 export default defineConfig({
   test: {
@@ -19,7 +20,7 @@ export default defineConfig({
       provider: 'v8',
       include: ['**/*.js'],
       exclude: ['tests/**', 'coverage/**', 'vitest.config.js', 'index.js'],
-      reporter: ['text-summary', 'html', 'lcov'],
+      reporter: ['text-summary', 'html', ['lcov', { projectRoot: repoRoot }]],
     },
   },
 });
