@@ -813,6 +813,65 @@ button.mh-add-dietary-requirement:focus-visible {
 }
 
 /* ==========================================================================
+   BookingRequestFields — components/booking/BookingRequestFields.jsx
+   ========================================================================== */
+
+.mh-dietary-answer {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(var(--mh-cap-size-90), 1fr));
+  width: fit-content;
+  border: var(--mh-border-width) solid var(--mh-border);
+  border-radius: var(--mh-radius-md);
+  overflow: hidden;
+  background: var(--mh-white);
+}
+
+.mh-dietary-answer-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--mh-cap-size-44);
+  padding: var(--mh-space-1) var(--mh-space-4);
+  color: var(--mh-navy);
+  font-size: var(--mh-cap-size-15);
+  font-weight: var(--mh-weight-medium);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background var(--mh-transition),
+    color var(--mh-transition);
+}
+
+.mh-dietary-answer-option:not(:last-child) {
+  border-inline-end: var(--mh-border-width) solid var(--mh-border);
+}
+
+.mh-dietary-answer-option:hover {
+  background: var(--mh-cream);
+}
+
+.btn-check:checked + .mh-dietary-answer-option {
+  background: var(--mh-copper);
+  color: var(--mh-white);
+}
+
+.btn-check:checked + .mh-dietary-answer-option:hover {
+  background: var(--mh-copper-hover);
+}
+
+.btn-check:focus-visible + .mh-dietary-answer-option {
+  outline: var(--mh-border-width-accent) solid var(--mh-navy);
+  outline-offset: calc(-1 * var(--mh-border-width-accent));
+}
+
+.btn-check:disabled + .mh-dietary-answer-option {
+  cursor: default;
+  opacity: var(--mh-disabled-opacity);
+  pointer-events: none;
+}
+
+/* ==========================================================================
    BookingCard — components/booking/BookingCard.jsx
    ========================================================================== */
 
