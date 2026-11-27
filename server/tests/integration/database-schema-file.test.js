@@ -50,7 +50,7 @@ it('rejects initialization when the SQL schema file is missing', async () => {
     await symlink(
       path.join(serverDirectory, 'node_modules'),
       path.join(resolvedDirectory, 'node_modules'),
-      'dir',
+      process.platform === 'win32' ? 'junction' : 'dir',
     );
 
     // Define the isolated script location and the missing schema's expected path.
@@ -118,3 +118,33 @@ it('rejects initialization when the SQL schema file is missing', async () => {
     });
   }
 }, 15000);
+
+// The checked-in SQL file must also work independently of db.js on a fresh DB.
+it('defines the same menu table and constraints in the SQL schema file', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const sqlite3 = (await import('sqlite3')).default;
+  const schema = await readFile(
+    path.join(serverDirectory, 'mountain-hut-schema.sql'), 'utf8',
+  );
+  const connection = new sqlite3.Database(':memory:');
+  const exec = (statement) => new Promise((resolve, reject) =>
+    connection.exec(statement, (error) => error ? reject(error) : resolve()));
+  const get = (statement) => new Promise((resolve, reject) =>
+    connection.get(statement, (error, row) => error ? reject(error) : resolve(row)));
+  try {
+    await exec(schema);
+    await exec(`INSERT INTO meal_slots (slot_date, name, start_time, end_time)
+      VALUES ('2099-01-01', 'Lunch', '12:00', '13:00')`);
+    await exec(`INSERT INTO meal_slot_menus (slot_id, content)
+      VALUES (1, 'Soup')`);
+    const { expect } = await import('vitest');
+    expect(await get('SELECT content FROM meal_slot_menus')).toEqual({ content: 'Soup' });
+    await expect(exec('INSERT INTO meal_slot_menus (slot_id) VALUES (1)'))
+      .rejects.toThrow();
+    await expect(exec('INSERT INTO meal_slot_menus (slot_id) VALUES (999)'))
+      .rejects.toThrow();
+  } finally {
+    await new Promise((resolve, reject) => connection.close((error) =>
+      error ? reject(error) : resolve()));
+  }
+});

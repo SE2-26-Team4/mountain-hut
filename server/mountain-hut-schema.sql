@@ -48,6 +48,15 @@ CREATE UNIQUE INDEX idx_meal_slots_name_times
     end_time
   );
 
+-- One editable menu per meal slot. Menus are removed with their slot,
+-- while existing slots and their bookings remain unchanged.
+CREATE TABLE meal_slot_menus (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  slot_id INTEGER NOT NULL UNIQUE REFERENCES meal_slots(id) ON DELETE CASCADE,
+  content TEXT NOT NULL DEFAULT '',
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
 CREATE TABLE dining_tables (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE CHECK (length(trim(name)) > 0),
