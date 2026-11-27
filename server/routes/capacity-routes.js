@@ -7,6 +7,7 @@ import {
   DuplicateNameError,
   getDiningTables,
   getMealSlotCapacity,
+  getMealSlotOccupancyByDate,
   getMealSlots,
   setMealSlotTables,
   updateDiningTable,
@@ -33,6 +34,7 @@ import {
   getBookingDeadline,
   getMealStartTimestamp,
 } from "../services/booking-time.js";
+import { isValidCalendarDate } from "../services/date-validation.js";
 
 /**
  * Data types used to validate capacity configuration requests.
@@ -349,20 +351,34 @@ router.post(
 );
 
 // Return the full configuration to staff, including inactive records.
+// [REQUIREMENT] MH-12: An employee can see the booked and remaining capacity of every time slot.
+// With ?date=YYYY-MM-DD the response also carries per-slot occupancy for that day.
 router.get(
   "/capacity",
   requireStaff,
-  asyncRoute(async (_req, res) => {
-    // Request slots and reusable table definitions together.
-    const [mealSlots, diningTables] = await Promise.all([
+  asyncRoute(async (req, res) => {
+    const { date } = req.query;
+
+    // Callers that omit the date keep the original response.
+    if (date !== undefined && !isValidCalendarDate(date)) {
+      return sendValidationError(
+        res,
+        new Error("Choose a valid date in YYYY-MM-DD format."),
+      );
+    }
+
+    // Request slots, reusable table definitions and occupancy together.
+    const [mealSlots, diningTables, occupancy] = await Promise.all([
       getMealSlots(),
       getDiningTables(),
+      date === undefined ? undefined : getMealSlotOccupancyByDate(date),
     ]);
 
-    return res.json({
-      mealSlots,
-      diningTables,
-    });
+    if (occupancy === undefined) {
+      return res.json({ mealSlots, diningTables });
+    }
+
+    return res.json({ mealSlots, diningTables, occupancy });
   }),
 );
 
