@@ -36,57 +36,56 @@ export default function BookingRequestFields({
     });
   }
 
+  /** @param {"yes" | "no"} answer */
+  function selectDietaryAnswer(answer) {
+    onChange(
+      answer === "yes"
+        ? {
+            ...requests,
+            dietaryAnswer: "yes",
+            dietaryRequirements: dietaryRequirements.length
+              ? dietaryRequirements
+              : [{ description: "", hasAllergies: false }],
+          }
+        : { ...requests, dietaryAnswer: "no" },
+    );
+  }
+
+  /**
+   * @param {"yes" | "no"} answer
+   * @param {string} label
+   */
+  function renderDietaryAnswer(answer, label) {
+    return (
+      <>
+        <input
+          className="btn-check"
+          type="radio"
+          id={`${id}-dietary-${answer}`}
+          name={`${id}-dietary-answer`}
+          value={answer}
+          checked={requests.dietaryAnswer === answer}
+          required
+          onChange={() => selectDietaryAnswer(answer)}
+        />
+        <label
+          className="mh-dietary-answer-option"
+          htmlFor={`${id}-dietary-${answer}`}
+        >
+          {label}
+        </label>
+      </>
+    );
+  }
+
   return (
     <div className="d-grid gap-3">
       <fieldset className="d-grid gap-3" disabled={disabled}>
-        <legend className="h6 mb-0">
-          {partySize === 1
-            ? staff
-              ? "Does the hiker have any food allergies, intolerances, or other dietary requirements?"
-              : "Do you have any food allergies, intolerances, or other dietary requirements?"
-            : "Does anyone in the party have any food allergies, intolerances, or other dietary requirements?"}
-          {" (required)"}
-        </legend>
+        <legend className="h6 mb-0">Any dietary requirements?</legend>
 
-        <div>
-          <Form.Check
-            id={`${id}-dietary-no`}
-            name={`${id}-dietary-answer`}
-            type="radio"
-            label={
-              partySize === 1
-                ? staff
-                  ? "No, the hiker has no dietary requirements."
-                  : "No, I have no dietary requirements."
-                : "No, no one in the party has any dietary requirements."
-            }
-            checked={requests.dietaryAnswer === "no"}
-            required
-            onChange={() => onChange({ ...requests, dietaryAnswer: "no" })}
-          />
-          <Form.Check
-            id={`${id}-dietary-yes`}
-            name={`${id}-dietary-answer`}
-            type="radio"
-            label={
-              partySize === 1
-                ? staff
-                  ? "Yes, the hiker has one or more dietary requirements."
-                  : "Yes, I have one or more dietary requirements."
-                : "Yes, someone in the party has a dietary requirement."
-            }
-            checked={requests.dietaryAnswer === "yes"}
-            required
-            onChange={() =>
-              onChange({
-                ...requests,
-                dietaryAnswer: "yes",
-                dietaryRequirements: dietaryRequirements.length
-                  ? dietaryRequirements
-                  : [{ description: "", hasAllergies: false }],
-              })
-            }
-          />
+        <div className="mh-dietary-answer">
+          {renderDietaryAnswer("yes", "Yes")}
+          {renderDietaryAnswer("no", "No")}
         </div>
         {requests.dietaryAnswer === "yes" && (
           <>
