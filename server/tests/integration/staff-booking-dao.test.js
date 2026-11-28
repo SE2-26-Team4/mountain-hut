@@ -29,6 +29,7 @@ import {
 } from '../../db.js';
 import { initializeAccounts } from '../../init/init-accounts.js';
 import { hashPassword, verifyPassword } from '../../services/password.js';
+import { updateBookingByStaff } from '../../services/booking-service.js';
 
 // staff enter bookings for existing, new or temporary hikers.
 
@@ -501,6 +502,121 @@ describe('atomic creation of hiker and booking', () => {
     );
 
     expect(booking.status).toBe('confirmed');
+  });
+});
+
+describe('staff reservation detail updates', () => {
+  async function createTimedReservation() {
+    setNow('2030-03-07T10:00:00.000Z');
+    return (await createStaffBooking(staffBooking(
+      { existingHikerId },
+      {
+        bookingDate: timedDate,
+        slotId: timedSlotId,
+        partySize: 2,
+        dietaryRequirements: 'Original',
+        specialRequests: 'Window',
+      }
+    ))).booking;
+  }
+
+  it('updates and reallocates seats before the meal while preserving other details', async () => {
+    const booking = await createTimedReservation();
+    setNow(Date.parse(timedSlotStart) - 1);
+    const dietaryRequirements = '[{"description":"Nuts","hasAllergies":true}]';
+
+    const updated = await updateBookingByStaff(booking.id, {
+      partySize: 4,
+      dietaryRequirements,
+    });
+
+    expect(updated).toMatchObject({
+      id: booking.id,
+      hikerId: existingHikerId,
+      bookingDate: timedDate,
+      slotId: timedSlotId,
+      partySize: 4,
+      dietaryRequirements,
+      specialRequests: 'Window',
+      allocations: [{ tableId: fourSeatTableId, seatsReserved: 4 }],
+    });
+    expect(await getStaffReservationById(booking.id)).toMatchObject({
+      partySize: 4,
+      dietaryRequirements,
+      specialRequests: 'Window',
+    });
+  });
+
+  it('updates allergies without changing existing table allocations', async () => {
+    const booking = await createTimedReservation();
+    setNow(Date.parse(timedSlotStart) - 1);
+    const dietaryRequirements = '[{"description":"Nuts","hasAllergies":true}]';
+
+    const updated = await updateBookingByStaff(booking.id, {
+      partySize: 2,
+      dietaryRequirements,
+    });
+
+    expect(updated.dietaryRequirements).toBe(dietaryRequirements);
+    expect(updated.allocations).toEqual(booking.allocations);
+  });
+
+  it.each([2, 4])('rejects party size %i at the exact service start', async (partySize) => {
+    const booking = await createTimedReservation();
+    setNow(timedSlotStart);
+
+    await expect(updateBookingByStaff(booking.id, {
+      partySize,
+      dietaryRequirements: 'Changed',
+    })).rejects.toMatchObject({ code: 'BOOKING_EDIT_TOO_LATE' });
+    expect(await getStaffReservationById(booking.id)).toMatchObject({
+      partySize: 2,
+      dietaryRequirements: 'Original',
+    });
+  });
+
+  it('rejects updates during the service and leaves the hiker deadline unchanged', async () => {
+    const booking = await createTimedReservation();
+    setNow('2030-03-10T10:00:00.000Z');
+    await expect(createBooking({
+      hikerId: existingHikerId,
+      bookingDate: timedDate,
+      slotId: timedSlotId,
+      partySize: 2,
+      dietaryRequirements: 'Changed',
+    }, booking.id)).rejects.toMatchObject({ code: 'BOOKING_EDIT_TOO_LATE' });
+
+    setNow('2030-03-10T11:30:00.000Z');
+    await expect(updateBookingByStaff(booking.id, {
+      partySize: 2,
+      dietaryRequirements: 'Changed',
+    })).rejects.toMatchObject({ code: 'BOOKING_EDIT_TOO_LATE' });
+  });
+
+  it('rolls back changes when the party exceeds available seats', async () => {
+    const booking = await createTimedReservation();
+
+    await expect(updateBookingByStaff(booking.id, {
+      partySize: 5,
+      dietaryRequirements: 'Changed',
+    })).rejects.toMatchObject({ code: 'NO_AVAILABILITY' });
+    expect(await getStaffReservationById(booking.id)).toMatchObject({
+      partySize: 2,
+      dietaryRequirements: 'Original',
+      allocations: [{ tableId: fourSeatTableId, seatsReserved: 2 }],
+    });
+  });
+
+  it('rejects cancelled and missing reservations', async () => {
+    const booking = await createTimedReservation();
+    await runAsync("UPDATE bookings SET status = 'cancelled' WHERE id = ?", [booking.id]);
+
+    for (const id of [booking.id, 999999999]) {
+      await expect(updateBookingByStaff(id, {
+        partySize: 2,
+        dietaryRequirements: '',
+      })).rejects.toMatchObject({ code: 'BOOKING_NOT_FOUND' });
+    }
   });
 });
 
