@@ -71,6 +71,11 @@
  */
 
 /**
+ * @typedef {Object} SaveMealSlotMenuRequestDTO
+ * @property {string} content - Free text with basic formatting; replaces the slot's menu.
+ */
+
+/**
  * @typedef {Object} WeeklyScheduleCopyRequestDTO
  * @property {string} sourceWeekStart - First date included in the source week.
  * @property {string} destinationWeekStart - First date included in the destination week.

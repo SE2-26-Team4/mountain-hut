@@ -15,59 +15,16 @@
  * @property {boolean} mustChangePassword
  */
 
-const API_URL = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(
-  /\/$/,
-  "",
+import { ApiError, createRequest } from "./api-request.js";
+
+class SessionApiError extends ApiError {
+  name = "SessionApiError";
+}
+
+const request = createRequest(
+  SessionApiError,
+  "The request could not be completed.",
 );
-
-class SessionApiError extends Error {
-  /**
-   * @param {string} message
-   * @param {number} status
-   * @param {string} [code]
-   * @param {string} [field] - Form field associated with the error.
-   */
-  constructor(message, status, code, field) {
-    super(message);
-
-    this.name = "SessionApiError";
-    this.status = status;
-    this.code = code;
-    this.field = field;
-  }
-}
-
-/**
- * Includes the session cookie in every request.
- *
- * @param {string} path
- * @param {RequestInit} [options]
- * @returns {Promise<any>}
- */
-async function request(path, options = {}) {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    credentials: "include",
-    headers: {
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...options.headers,
-    },
-  });
-
-  const data =
-    response.status === 204 ? null : await response.json().catch(() => null);
-
-  if (!response.ok) {
-    throw new SessionApiError(
-      data?.error?.message ?? "The request could not be completed.",
-      response.status,
-      data?.error?.code,
-      data?.error?.field,
-    );
-  }
-
-  return data;
-}
 
 /**
  * @param {LoginCredentials} credentials
