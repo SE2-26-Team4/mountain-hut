@@ -8,6 +8,10 @@ import {
 } from "../../dao/menu-dao.js";
 
 import { allAsync, getAsync, initializeDatabase, runAsync } from "../../db.js";
+import {
+  getMenuReuseDraft,
+  saveMenuForSlot,
+} from "../../services/menu-service.js";
 
 // Generate unique slot names for this file's fixtures.
 const uniqueSuffix = `${Date.now()}-${Math.random()}`;
@@ -241,5 +245,27 @@ describe("previous menu lookup", () => {
     expect(copy.id).not.toBe(sourceMenu.id);
     expect(copy.content).toBe("**Gnocchi**\n- Butter and sage\n- Apple strudel");
     expect(await getMealSlotMenu(sourceId)).toEqual(sourceMenu);
+  });
+
+  it("returns a draft and saves an edited copy only on the target slot", async () => {
+    const sourceId = await insertSlot("2091-10-09", "Dinner", "19:00", "21:00");
+    const targetId = await insertSlot("2091-10-10", "Dinner", "19:00", "21:00");
+    const source = await saveMealSlotMenu(sourceId, "  **Soup**\n- Bread  ");
+
+    const draft = await getMenuReuseDraft(sourceId, targetId);
+    expect(draft).toBe(source.content);
+    expect(await getMealSlotMenu(targetId)).toBeNull();
+
+    const saved = await saveMenuForSlot(targetId, `${draft}\n- Cheese`);
+    expect(saved).toMatchObject({ slotId: targetId, content: `${draft}\n- Cheese` });
+    expect(await getMealSlotMenu(sourceId)).toEqual(source);
+    await expect(getMenuReuseDraft(targetId, sourceId)).rejects.toMatchObject({
+      code: "MENU_NOT_REUSABLE",
+    });
+
+    await saveMealSlotMenu(sourceId, "\u00a0");
+    await expect(getMenuReuseDraft(sourceId, targetId)).rejects.toMatchObject({
+      code: "MENU_NOT_REUSABLE",
+    });
   });
 });
