@@ -195,6 +195,15 @@
  */
 
 /**
+ * Complete set of editable staff reservation details. Dietary requirements
+ * may be plain text or a JSON list of descriptions and allergy flags.
+ *
+ * @typedef {Object} UpdateStaffBookingDetailsDTO
+ * @property {number} partySize - Positive integer.
+ * @property {string} dietaryRequirements - Empty string clears the requirements.
+ */
+
+/**
  * Hiker created by staff. The initial password is sent by email only.
  *
  * @typedef {Object} StaffHikerRegistrationDTO

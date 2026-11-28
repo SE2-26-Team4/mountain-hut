@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => {
     BookingError,
     createBooking: vi.fn(),
     createStaffBooking: vi.fn(),
+    updateStaffBookingDetails: vi.fn(),
     registerHiker: vi.fn(),
     getBookingsByDateAndSlot: vi.fn(),
     searchHikers: vi.fn(),
@@ -29,6 +30,7 @@ vi.mock("../../dao/booking-dao.js", () => ({
   BookingError: mocks.BookingError,
   createBooking: mocks.createBooking,
   createStaffBooking: mocks.createStaffBooking,
+  updateStaffBookingDetails: mocks.updateStaffBookingDetails,
   registerHiker: mocks.registerHiker,
   getBookingsByDateAndSlot: mocks.getBookingsByDateAndSlot,
 }));
@@ -51,6 +53,7 @@ import {
   createBookingByStaff,
   findHikers,
   registerHikerByStaff,
+  updateBookingByStaff,
 } from "../../services/booking-service.js";
 
 const GENERATED_PASSWORD = "Generated_Pass-01";
@@ -370,6 +373,62 @@ describe("createBookingByStaff", () => {
 
     await expect(
       createBookingByStaff(bookingRequest(newHikerInput())),
+    ).rejects.toBe(error);
+  });
+});
+
+describe("updateBookingByStaff", () => {
+  it("validates and saves a changed party size and allergy details", async () => {
+    const dietaryRequirements = JSON.stringify([
+      { description: "Peanuts", hasAllergies: true },
+      { description: "Vegetarian", hasAllergies: false },
+    ]);
+    mocks.updateStaffBookingDetails.mockResolvedValue(savedBooking);
+
+    await expect(
+      updateBookingByStaff(100, {
+        partySize: 3,
+        dietaryRequirements: `  ${dietaryRequirements}  `,
+      }),
+    ).resolves.toBe(savedBooking);
+
+    expect(mocks.updateStaffBookingDetails).toHaveBeenCalledWith(100, {
+      partySize: 3,
+      dietaryRequirements,
+    });
+  });
+
+  it("allows clearing dietary requirements", async () => {
+    await updateBookingByStaff(100, { partySize: 1, dietaryRequirements: "  " });
+
+    expect(mocks.updateStaffBookingDetails).toHaveBeenCalledWith(100, {
+      partySize: 1,
+      dietaryRequirements: "",
+    });
+  });
+
+  it.each([
+    [0, { partySize: 2, dietaryRequirements: "" }, "INVALID_BOOKING"],
+    [1.5, { partySize: 2, dietaryRequirements: "" }, "INVALID_BOOKING"],
+    [100, null, "INVALID_BOOKING"],
+    [100, { partySize: 0, dietaryRequirements: "" }, "INVALID_PARTY_SIZE"],
+    [100, { partySize: 1.5, dietaryRequirements: "" }, "INVALID_PARTY_SIZE"],
+    [100, { partySize: 2, dietaryRequirements: null }, "INVALID_BOOKING"],
+    [100, { partySize: 2, dietaryRequirements: "a".repeat(1001) }, "INVALID_BOOKING"],
+    [100, { partySize: 2, dietaryRequirements: "[invalid" }, "INVALID_BOOKING"],
+    [100, { partySize: 2, dietaryRequirements: '[{"description":"Nuts","hasAllergies":"yes"}]' }, "INVALID_BOOKING"],
+    [100, { partySize: 1, dietaryRequirements: '[{"description":"Nuts","hasAllergies":true},{"description":"Vegan","hasAllergies":false}]' }, "INVALID_BOOKING"],
+  ])("rejects invalid details before saving", async (id, details, code) => {
+    await expect(updateBookingByStaff(id, details)).rejects.toMatchObject({ code });
+    expect(mocks.updateStaffBookingDetails).not.toHaveBeenCalled();
+  });
+
+  it("propagates the staff timing error from the DAO", async () => {
+    const error = new mocks.BookingError("BOOKING_EDIT_TOO_LATE", "Too late.");
+    mocks.updateStaffBookingDetails.mockRejectedValue(error);
+
+    await expect(
+      updateBookingByStaff(100, { partySize: 2, dietaryRequirements: "" }),
     ).rejects.toBe(error);
   });
 });
