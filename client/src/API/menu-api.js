@@ -56,8 +56,9 @@ async function request(path, options = {}) {
 
 /**
  * Creates or replaces the menu of a meal slot. Staff only.
- * Rejects with a MenuApiError carrying the server's status and error code,
- * for example 404 for a missing slot.
+ * Rejects with a MenuApiError carrying the server's status and error code:
+ * 400 (INVALID_MENU) for blank text or an invalid slot ID,
+ * 404 (MEAL_SLOT_NOT_FOUND) for a missing slot.
  *
  * @param {number} slotId
  * @param {string} content

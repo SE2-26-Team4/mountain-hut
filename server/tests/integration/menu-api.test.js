@@ -181,15 +181,34 @@ describe("menu write API: staff access", () => {
 });
 
 describe("menu write API: invalid requests", () => {
-  // TODO(menu-service): enable once server/services/menu-service.js validates
-  // the menu text. Each case expects 400 INVALID_INPUT and no saved menu.
-  it.todo("rejects a request without a body");
-  it.todo("rejects missing content");
-  it.todo("rejects content that is not text");
-  it.todo("rejects blank content");
-  it.todo("rejects content over the service's length limit");
+  it.each([
+    ["missing content", {}],
+    ["content that is not text", { content: 42 }],
+    ["blank content", { content: " \n\t " }],
+  ])("rejects %s and saves nothing", async (_, payload) => {
+    const slotId = await insertSlot("2091-10-05", "Dinner", "19:00", "21:00");
 
-  it.each(["abc", "0", "1.5", "-3"])(
+    const response = await employeeAgent.put(menuPath(slotId)).send(payload);
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toEqual({
+      code: "INVALID_MENU",
+      message: "Menu text must not be empty.",
+    });
+    expect(await getMealSlotMenu(slotId)).toBeNull();
+  });
+
+  it("rejects a request without a body and saves nothing", async () => {
+    const slotId = await insertSlot("2091-10-06", "Dinner", "19:00", "21:00");
+
+    const response = await employeeAgent.put(menuPath(slotId));
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("INVALID_MENU");
+    expect(await getMealSlotMenu(slotId)).toBeNull();
+  });
+
+  it.each(["abc", "0", "1.5", "-3", "9007199254740993"])(
     "rejects the slot ID %s",
     async (slotId) => {
       const response = await employeeAgent
@@ -198,8 +217,8 @@ describe("menu write API: invalid requests", () => {
 
       expect(response.status).toBe(400);
       expect(response.body.error).toEqual({
-        code: "INVALID_INPUT",
-        message: "Meal slot ID must be a positive integer.",
+        code: "INVALID_MENU",
+        message: "Target slot ID must be a positive safe integer.",
       });
     },
   );
@@ -225,8 +244,8 @@ describe("menu write API: slot state", () => {
     ).toEqual({ count: 0 });
   });
 
-  // TODO(menu-service): enable once the service blocks slots that have started.
-  // Expects 409 with the service's error code and the menu left unchanged.
+  // TODO(MH-10): no task enforces that a menu changes only before its slot.
+  // Enable once a layer rejects it, expecting the menu to stay unchanged.
   it.todo("refuses to change the menu of a slot that has started");
 
   it("returns a generic 500 error for unexpected failures", async () => {

@@ -1,7 +1,11 @@
 import express from "express";
 
-import { MealSlotNotFoundError, saveMealSlotMenu } from "../dao/menu-dao.js";
+import { MealSlotNotFoundError } from "../dao/menu-dao.js";
 import { requireStaff } from "../middleware/require-role.js";
+import {
+  MenuServiceError,
+  saveMenuForSlot,
+} from "../services/menu-service.js";
 
 /**
  * Data types used by the menu endpoints.
@@ -15,16 +19,16 @@ const router = express.Router();
 /* HELPERS */
 
 /**
- * Converts a route parameter to a positive integer.
- * Returns null when the value cannot be accepted as an ID.
+ * Converts a route parameter made only of digits to a number.
+ * Anything else becomes NaN, which the menu service rejects as an ID.
  *
  * @param {unknown} value
- * @returns {number | null}
+ * @returns {number}
  */
-function parsePositiveId(value) {
+function toSlotId(value) {
   const text = String(value);
 
-  return /^[1-9]\d*$/.test(text) ? Number(text) : null;
+  return /^\d+$/.test(text) ? Number(text) : Number.NaN;
 }
 
 /* WRAPPER */
@@ -53,27 +57,15 @@ router.put(
   "/capacity/meal-slots/:slotId/menu",
   requireStaff,
   asyncRoute(async (req, res) => {
-    const slotId = parsePositiveId(req.params.slotId);
-
-    if (!slotId) {
-      return res.status(400).json({
-        error: {
-          code: "INVALID_INPUT",
-          message: "Meal slot ID must be a positive integer.",
-        },
-      });
-    }
-
     /** @type {Partial<SaveMealSlotMenuRequestDTO> | undefined} */
     const body = req.body;
 
-    // TODO(menu-service): replace this direct DAO call with the save function
-    // of server/services/menu-service.js ("Backend Menu Validation and Reuse").
-    // The service validates the menu text and blocks slots that have started
-    // (MH-10: a menu can be modified only before its slot).
-    const menu = await saveMealSlotMenu(
-      slotId,
-      /** @type {string} */ (body?.content),
+    // The service validates the slot ID and menu text before saving.
+    // TODO(MH-10): no task enforces that a menu changes only before its slot;
+    // neither this route nor the menu service checks the slot's start time.
+    const menu = await saveMenuForSlot(
+      toSlotId(req.params.slotId),
+      body?.content,
     );
 
     return res.json({ menu });
@@ -84,8 +76,15 @@ router.put(
 
 /** @type {import('express').ErrorRequestHandler} */
 const handleMenuError = (error, _req, res, _next) => {
-  // TODO(menu-service): answer the service's validation errors with 400
-  // and its locked-slot error with 409, using the error's code and message.
+  // Report invalid slot IDs and menu text with the service's code.
+  if (error instanceof MenuServiceError) {
+    return res.status(400).json({
+      error: {
+        code: error.code,
+        message: error.message,
+      },
+    });
+  }
 
   // Distinguish a missing slot from a slot without a menu.
   if (error instanceof MealSlotNotFoundError) {
