@@ -20,56 +20,16 @@
  * @property {DiningTableDTO[]} diningTables
  */
 
-const API_URL = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(
-  /\/$/,
-  "",
+import { ApiError, createRequest } from "./api-request.js";
+
+class CapacityApiError extends ApiError {
+  name = "CapacityApiError";
+}
+
+const request = createRequest(
+  CapacityApiError,
+  "The capacity request could not be completed.",
 );
-
-class CapacityApiError extends Error {
-  /**
-   * @param {string} message
-   * @param {number} status
-   * @param {string} [code]
-   */
-  constructor(message, status, code) {
-    super(message);
-
-    this.name = "CapacityApiError";
-    this.status = status;
-    this.code = code;
-  }
-}
-
-/**
- * Includes the session cookie in every request.
- *
- * @param {string} path
- * @param {RequestInit} [options]
- * @returns {Promise<any>}
- */
-async function request(path, options = {}) {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    credentials: "include",
-    headers: {
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...options.headers,
-    },
-  });
-
-  const data =
-    response.status === 204 ? null : await response.json().catch(() => null);
-
-  if (!response.ok) {
-    throw new CapacityApiError(
-      data?.error?.message ?? "The capacity request could not be completed.",
-      response.status,
-      data?.error?.code,
-    );
-  }
-
-  return data;
-}
 
 /**
  * Loads slots and tables, then retrieves each slot's assignments.
