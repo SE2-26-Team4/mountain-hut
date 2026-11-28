@@ -664,6 +664,41 @@ export async function getMealSlotOccupancy(bookingDate, slotId) {
   );
 }
 
+/**
+ * Returns occupancy for every meal slot scheduled on a date, including inactive slots.
+ * All slots are read in one transaction, so the totals reflect the same database state.
+ *
+ * @param {string} bookingDate - Format: YYYY-MM-DD.
+ * @returns {Promise<import('../models/models.js').MealSlotOccupancyDTO[]>}
+ */
+export async function getMealSlotOccupancyByDate(bookingDate) {
+  return withTransaction(async (queries) => {
+    // Bookings always share their slot's date, so only that day's slots can hold seats.
+    /** @type {Array<{ id: number }>} */
+    const slots = await queries.allAsync(
+      `SELECT id
+       FROM meal_slots
+       WHERE slot_date = ?
+       ORDER BY start_time, id`,
+      [bookingDate],
+    );
+
+    /** @type {import('../models/models.js').MealSlotOccupancyDTO[]} */
+    const occupancy = [];
+
+    for (const slot of slots) {
+      // The slot was just read in this transaction, so the helper cannot return null.
+      occupancy.push(
+        /** @type {import('../models/models.js').MealSlotOccupancyDTO} */ (
+          await readMealSlotOccupancy(bookingDate, slot.id, queries)
+        ),
+      );
+    }
+
+    return occupancy;
+  });
+}
+
 
 /**
  * @param {TransactionQueries} queries

@@ -4,6 +4,19 @@
  * @typedef {import('../models/models.js').MealSlotInputDTO} MealSlotInputDTO
  * @typedef {import('../models/models.js').DiningTableInputDTO} DiningTableInputDTO
  * @typedef {import('../models/models.js').MealSlotCapacityDTO} MealSlotCapacityDTO
+ * @typedef {import('../models/models.js').MealSlotOccupancyDTO} MealSlotOccupancyDTO
+ */
+
+/**
+ * Seat totals for one meal slot on the requested date.
+ *
+ * @typedef {Object} SlotOccupancy
+ * @property {number} slotId
+ * @property {string} slotName
+ * @property {string} bookingDate - Format: YYYY-MM-DD.
+ * @property {number} totalConfiguredSeats - Seats on assigned active tables; 0 when unconfigured.
+ * @property {number} totalBookedSeats - Seats held by confirmed bookings.
+ * @property {number} totalRemainingSeats - 0 when the slot is fully booked.
  */
 
 /**
@@ -96,6 +109,31 @@ async function getConfiguration() {
     mealSlots: mealSlotsWithTables,
     diningTables,
   };
+}
+
+/**
+ * Loads booked and remaining seats for every slot on a date, inactive slots included.
+ * Pass a signal so a request for a newer date can cancel an older one.
+ *
+ * @param {string} date - Format: YYYY-MM-DD.
+ * @param {AbortSignal} [signal]
+ * @returns {Promise<SlotOccupancy[]>}
+ */
+async function getOccupancy(date, signal) {
+  const query = new URLSearchParams({ date });
+
+  /** @type {{ occupancy: MealSlotOccupancyDTO[] }} */
+  const { occupancy } = await request(`/capacity?${query}`, { signal });
+
+  // Keep only the per-slot totals; per-table details are not needed here.
+  return occupancy.map((slot) => ({
+    slotId: slot.slotId,
+    slotName: slot.slotName,
+    bookingDate: slot.bookingDate,
+    totalConfiguredSeats: slot.totalConfiguredSeats,
+    totalBookedSeats: slot.totalBookedSeats,
+    totalRemainingSeats: slot.totalRemainingSeats,
+  }));
 }
 
 /**
@@ -282,6 +320,7 @@ async function getScheduleCopyHistory(signal) {
 
 const CapacityAPI = {
   getConfiguration,
+  getOccupancy,
   createMealSlot,
   updateMealSlot,
   createDiningTable,

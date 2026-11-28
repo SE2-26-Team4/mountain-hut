@@ -664,6 +664,7 @@ describe("capacity API edge cases", () => {
   function staffEndpoints() {
     return [
       ["get", "/api/capacity", undefined],
+      ["get", "/api/capacity?date=2099-12-30", undefined],
       [
         "post",
         "/api/capacity/meal-slots/copy-week",
@@ -1327,5 +1328,322 @@ describe("MH-09 weekly copy requests", () => {
     } finally {
       await runAsync("DELETE FROM bookings WHERE id = ?", [booking.lastID]);
     }
+  });
+});
+
+describe("MH-12 staff occupancy API", () => {
+  // No other suite uses 2091, so the date holds only the slots created here.
+  const occupancyDate = "2091-07-15";
+  const nextDate = "2091-07-16";
+
+  /** @type {number[]} */
+  const bookingIds = [];
+
+  let breakfast;
+  let lunch;
+  let snack;
+  let dinner;
+  let nextDayLunch;
+  let largeTableId;
+  let smallTableId;
+  let inactiveTableId;
+
+  /**
+   * Inserts a booking with explicit allocations as [tableId, seats] pairs.
+   *
+   * @param {{ id: number, slotDate: string }} slot
+   * @param {Array<[number, number]>} allocations
+   * @param {"confirmed" | "cancelled"} [status]
+   * @returns {Promise<number>}
+   */
+  async function addBooking(slot, allocations, status = "confirmed") {
+    const partySize = allocations.reduce((total, [, seats]) => total + seats, 0);
+
+    const booking = await runAsync(
+      `INSERT INTO bookings (hiker_id, booking_date, slot_id, party_size, status)
+       SELECT id, ?, ?, ?, ? FROM users WHERE email = ?`,
+      [slot.slotDate, slot.id, partySize, status, hikerEmail],
+    );
+
+    bookingIds.push(booking.lastID);
+
+    for (const [allocatedTableId, seats] of allocations) {
+      await runAsync(
+        `INSERT INTO booking_table_allocations (booking_id, table_id, seats_reserved)
+         VALUES (?, ?, ?)`,
+        [booking.lastID, allocatedTableId, seats],
+      );
+    }
+
+    return booking.lastID;
+  }
+
+  // Read the staff capacity endpoint with an optional query string.
+  function readCapacity(agent, query) {
+    return agent.get(`/api/capacity${query}`);
+  }
+
+  beforeAll(async () => {
+    const makeSlot = async (slotDate, name, startTime, endTime, isActive) => {
+      const slot = await createMealSlot({
+        slotDate,
+        name: `${name} ${uniqueSuffix}`,
+        startTime,
+        endTime,
+        isActive,
+      });
+
+      createdSlotIds.push(slot.id);
+      return slot;
+    };
+
+    const makeTable = async (name, seatCount, isActive) => {
+      const table = await createDiningTable({
+        name: `${name} ${uniqueSuffix}`,
+        seatCount,
+        isActive,
+      });
+
+      createdTableIds.push(table.id);
+      return table.id;
+    };
+
+    breakfast = await makeSlot(occupancyDate, "Breakfast", "07:00", "08:00", false);
+    lunch = await makeSlot(occupancyDate, "Lunch", "12:00", "13:00", true);
+    snack = await makeSlot(occupancyDate, "Snack", "16:00", "17:00", true);
+    dinner = await makeSlot(occupancyDate, "Dinner", "19:00", "20:00", true);
+    nextDayLunch = await makeSlot(nextDate, "Lunch", "12:00", "13:00", true);
+
+    largeTableId = await makeTable("Occupancy large", 6, true);
+    smallTableId = await makeTable("Occupancy small", 2, true);
+    inactiveTableId = await makeTable("Occupancy inactive", 4, false);
+
+    // Lunch: 8 configured seats; the inactive table is listed but adds none.
+    await setMealSlotTables(lunch.id, [largeTableId, smallTableId, inactiveTableId]);
+    await setMealSlotTables(dinner.id, [smallTableId]);
+    await setMealSlotTables(breakfast.id, [largeTableId]);
+    await setMealSlotTables(nextDayLunch.id, [largeTableId, smallTableId]);
+    // The snack slot stays unconfigured.
+
+    // Lunch: 4 + (2 + 1) booked seats; the cancelled booking is ignored.
+    await addBooking(lunch, [[largeTableId, 4]]);
+    await addBooking(lunch, [[largeTableId, 2], [smallTableId, 1]]);
+    await addBooking(lunch, [[smallTableId, 1]], "cancelled");
+
+    // Dinner is fully booked.
+    await addBooking(dinner, [[smallTableId, 2]]);
+
+    // Bookings on another day must not leak into the selected date.
+    await addBooking(nextDayLunch, [[largeTableId, 6]]);
+  });
+
+  afterAll(async () => {
+    // Allocations are removed with their bookings; slots and tables are
+    // removed by the file-level cleanup.
+    for (const id of bookingIds) {
+      await runAsync("DELETE FROM bookings WHERE id = ?", [id]);
+    }
+  });
+
+  it("checks the role before validating the date", async () => {
+    const anonymous = await readCapacity(request(app), "?date=not-a-date");
+    expect(anonymous.status).toBe(401);
+
+    const hiker = await readCapacity(hikerAgent, "?date=not-a-date");
+    expect(hiker.status).toBe(403);
+  });
+
+  it.each([
+    ["employee", () => employeeAgent],
+    ["warden", () => wardenAgent],
+  ])("lets the %s role read occupancy for a date", async (_role, getAgent) => {
+    const response = await readCapacity(getAgent(), `?date=${occupancyDate}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.occupancy.map((slot) => slot.slotId)).toContain(
+      lunch.id,
+    );
+  });
+
+  it.each([
+    "",
+    "not-a-date",
+    "2091-7-15",
+    "15-07-2091",
+    "2091-07-15T00:00:00Z",
+    "2091-02-29",
+    "2091-13-01",
+    "2091-07-32",
+    "0000-01-01",
+  ])("rejects the invalid date %j", async (date) => {
+    const response = await employeeAgent
+      .get("/api/capacity")
+      .query({ date });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toEqual({
+      code: "INVALID_INPUT",
+      message: "Choose a valid date in YYYY-MM-DD format.",
+    });
+  });
+
+  it("rejects a repeated date parameter", async () => {
+    const response = await readCapacity(
+      employeeAgent,
+      `?date=${occupancyDate}&date=${nextDate}`,
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("INVALID_INPUT");
+  });
+
+  // [REQUIREMENT] MH-12: Staff see the booked and remaining capacity of every time slot.
+  it("returns booked and remaining seats for every slot on the date", async () => {
+    const response = await readCapacity(employeeAgent, `?date=${occupancyDate}`);
+
+    expect(response.status).toBe(200);
+
+    // Slots are ordered by start time and include inactive and unconfigured ones.
+    expect(response.body.occupancy).toMatchObject([
+      {
+        bookingDate: occupancyDate,
+        slotId: breakfast.id,
+        totalConfiguredSeats: 6,
+        totalBookedSeats: 0,
+        totalRemainingSeats: 6,
+      },
+      {
+        bookingDate: occupancyDate,
+        slotId: lunch.id,
+        slotName: lunch.name,
+        totalConfiguredSeats: 8,
+        totalBookedSeats: 7,
+        totalRemainingSeats: 1,
+      },
+      {
+        bookingDate: occupancyDate,
+        slotId: snack.id,
+        tables: [],
+        totalConfiguredSeats: 0,
+        totalBookedSeats: 0,
+        totalRemainingSeats: 0,
+      },
+      {
+        bookingDate: occupancyDate,
+        slotId: dinner.id,
+        totalConfiguredSeats: 2,
+        totalBookedSeats: 2,
+        totalRemainingSeats: 0,
+      },
+    ]);
+
+    // Per-table details explain the lunch totals.
+    const lunchTables = response.body.occupancy[1].tables;
+
+    expect(lunchTables).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: largeTableId,
+          configuredSeats: 6,
+          bookedSeats: 6,
+          remainingSeats: 0,
+        }),
+        expect.objectContaining({
+          id: smallTableId,
+          configuredSeats: 2,
+          bookedSeats: 1,
+          remainingSeats: 1,
+        }),
+        expect.objectContaining({
+          id: inactiveTableId,
+          isActive: false,
+          configuredSeats: 0,
+          bookedSeats: 0,
+          remainingSeats: 0,
+        }),
+      ]),
+    );
+    expect(lunchTables).toHaveLength(3);
+
+    // The configuration is still returned in full.
+    expect(response.body.mealSlots.map((slot) => slot.id)).toContain(
+      nextDayLunch.id,
+    );
+    expect(response.body.diningTables.map((table) => table.id)).toContain(
+      inactiveTableId,
+    );
+  });
+
+  it("scopes occupancy to the requested date", async () => {
+    const response = await readCapacity(employeeAgent, `?date=${nextDate}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.occupancy).toMatchObject([
+      {
+        bookingDate: nextDate,
+        slotId: nextDayLunch.id,
+        totalConfiguredSeats: 8,
+        totalBookedSeats: 6,
+        totalRemainingSeats: 2,
+      },
+    ]);
+  });
+
+  it("reflects a new booking and its cancellation", async () => {
+    const path = `?date=${occupancyDate}`;
+    const lunchTotals = async () => {
+      const response = await readCapacity(employeeAgent, path);
+      return response.body.occupancy.find((slot) => slot.slotId === lunch.id);
+    };
+
+    const bookingId = await addBooking(lunch, [[smallTableId, 1]]);
+
+    expect(await lunchTotals()).toMatchObject({
+      totalBookedSeats: 8,
+      totalRemainingSeats: 0,
+    });
+
+    await runAsync("UPDATE bookings SET status = 'cancelled' WHERE id = ?", [
+      bookingId,
+    ]);
+
+    expect(await lunchTotals()).toMatchObject({
+      totalBookedSeats: 7,
+      totalRemainingSeats: 1,
+    });
+  });
+
+  it("returns an empty occupancy list for a date without slots", async () => {
+    const response = await readCapacity(employeeAgent, "?date=2091-07-20");
+
+    expect(response.status).toBe(200);
+    expect(response.body.occupancy).toEqual([]);
+  });
+
+  it("keeps the original response when the date is omitted", async () => {
+    const response = await readCapacity(employeeAgent, "");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      mealSlots: expect.any(Array),
+      diningTables: expect.any(Array),
+    });
+  });
+
+  it("returns a generic 500 response when the occupancy read fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    vi.spyOn(CapacityDAO, "getMealSlotOccupancyByDate").mockRejectedValueOnce(
+      new Error("Private occupancy detail"),
+    );
+
+    const response = await readCapacity(employeeAgent, `?date=${occupancyDate}`);
+
+    expect(response.status).toBe(500);
+    expect(response.body.error).toEqual({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "An unexpected error occurred.",
+    });
+    expect(response.text).not.toContain("Private occupancy detail");
   });
 });

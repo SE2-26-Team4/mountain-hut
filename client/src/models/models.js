@@ -90,6 +90,27 @@
  */
 
 /**
+ * Table occupancy details for a specific slot.
+ *
+ * @typedef {DiningTableDTO & {
+ *   configuredSeats: number,
+ *   bookedSeats: number,
+ *   remainingSeats: number
+ * }} TableOccupancyDTO
+ */
+
+/**
+ * @typedef {Object} MealSlotOccupancyDTO
+ * @property {string} bookingDate - Booking date in YYYY-MM-DD format.
+ * @property {number} slotId
+ * @property {string} slotName
+ * @property {TableOccupancyDTO[]} tables
+ * @property {number} totalConfiguredSeats - Total seats across assigned active tables.
+ * @property {number} totalBookedSeats - Total seats reserved in confirmed bookings.
+ * @property {number} totalRemainingSeats - totalConfiguredSeats - totalBookedSeats.
+ */
+
+/**
  * @typedef {DiningTableDTO & {
  *   reservedSeats: number,
  *   availableSeats: number
