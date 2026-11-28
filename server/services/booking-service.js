@@ -4,6 +4,7 @@ import {
   createStaffBooking,
   getBookingsByDateAndSlot,
   registerHiker,
+  updateStaffBookingDetails,
 } from "../dao/booking-dao.js";
 
 import { searchHikers } from "../dao/auth-dao.js";
@@ -26,6 +27,7 @@ import { generateInitialPassword, hashPassword } from "./password.js";
  * @typedef {import('../models/models.js').CreateStaffBookingRequestDTO} CreateStaffBookingRequestDTO
  * @typedef {import('../models/models.js').StaffHikerRegistrationDTO} StaffHikerRegistrationDTO
  * @typedef {import('../models/models.js').StaffBookingDTO} StaffBookingDTO
+ * @typedef {import('../models/models.js').UpdateStaffBookingDetailsDTO} UpdateStaffBookingDetailsDTO
  * @typedef {import('../dao/auth-dao.js').NewHikerRecord} NewHikerRecord
  */
 
@@ -626,6 +628,38 @@ export async function createBookingByStaff({
 }
 
 /* CREATE AND UPDATE */
+
+/**
+ * Updates the complete party size and dietary details of a confirmed booking.
+ * The DAO enforces the staff deadline and reallocates seats atomically.
+ *
+ * @param {number} bookingId
+ * @param {UpdateStaffBookingDetailsDTO} details
+ * @returns {Promise<BookingDTO>}
+ */
+export async function updateBookingByStaff(bookingId, details) {
+  if (!Number.isSafeInteger(bookingId) || bookingId <= 0) {
+    throw new BookingError("INVALID_BOOKING", "A valid booking ID is required.");
+  }
+
+  if (
+    !details ||
+    typeof details !== "object" ||
+    typeof details.dietaryRequirements !== "string"
+  ) {
+    throw new BookingError(
+      "INVALID_BOOKING",
+      "Dietary requirements must be a string.",
+    );
+  }
+
+  validateBookingDetails(details.partySize, "", details.dietaryRequirements);
+
+  return updateStaffBookingDetails(bookingId, {
+    partySize: details.partySize,
+    dietaryRequirements: details.dietaryRequirements.trim(),
+  });
+}
 
 /**
  * Validates booking details before delegating creation or updates to the DAO.

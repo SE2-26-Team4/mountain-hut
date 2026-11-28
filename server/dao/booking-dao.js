@@ -134,19 +134,35 @@ async function saveBooking(
     );
   }
 
-  // [REQUIREMENT] MH-06: Booking changes close 48 hours before the original meal starts.
-  if (
-    originalBooking &&
-    Date.now() >
-      getBookingEditDeadline(
-        originalBooking.bookingDate,
-        originalBooking.startTime,
-      )
-  ) {
-    throw new BookingError(
-      "BOOKING_EDIT_TOO_LATE",
-      "Changes close 48 hours before the original meal service starts.",
-    );
+  if (originalBooking) {
+    if (
+      bookedByStaff &&
+      Date.now() >=
+        getMealStartTimestamp(
+          originalBooking.bookingDate,
+          originalBooking.startTime,
+        )
+    ) {
+      throw new BookingError(
+        "BOOKING_EDIT_TOO_LATE",
+        "Staff changes close when the meal service starts.",
+      );
+    }
+
+    // MH-06: Hiker changes close 48 hours before the original meal starts.
+    if (
+      !bookedByStaff &&
+      Date.now() >
+        getBookingEditDeadline(
+          originalBooking.bookingDate,
+          originalBooking.startTime,
+        )
+    ) {
+      throw new BookingError(
+        "BOOKING_EDIT_TOO_LATE",
+        "Changes close 48 hours before the original meal service starts.",
+      );
+    }
   }
 
   const savedDietaryRequirements =
@@ -534,6 +550,45 @@ export async function createBooking(
 }
 
 /* STAFF BOOKINGS */
+
+/**
+ * Updates the party size and dietary requirements without changing the owner,
+ * meal slot or special requests. Seat allocation and timing are checked in
+ * the same transaction as the update.
+ *
+ * @param {number} bookingId
+ * @param {{ partySize: number, dietaryRequirements: string }} details
+ * @returns {Promise<BookingDTO>}
+ */
+export async function updateStaffBookingDetails(
+  bookingId,
+  { partySize, dietaryRequirements },
+) {
+  validateBookingFields(partySize, "");
+
+  return withTransaction(async (queries) => {
+    const booking = await queries.getAsync(
+      `SELECT hiker_id AS hikerId, booking_date AS bookingDate,
+              slot_id AS slotId, special_requests AS specialRequests
+       FROM bookings WHERE id = ? AND status = 'confirmed'`,
+      [bookingId],
+    );
+
+    if (!booking) {
+      throw new BookingError(
+        "BOOKING_NOT_FOUND",
+        "The requested booking was not found.",
+      );
+    }
+
+    return saveBooking(
+      queries,
+      { ...booking, partySize, dietaryRequirements },
+      true,
+      bookingId,
+    );
+  });
+}
 
 /**
  * Inserts a hiker created by staff when the email is free, or turns the
