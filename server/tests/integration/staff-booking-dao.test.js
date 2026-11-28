@@ -747,7 +747,7 @@ describe('staff reservation listing and details', () => {
     await runAsync("UPDATE bookings SET status = 'cancelled' WHERE id = ?", [second.booking.id]);
 
     // This booking has a different date and slot: it must not leak into the result.
-    await createStaffBooking({
+    const other = await createStaffBooking({
       hiker: { existingHikerId },
       bookingDate: timedDate,
       slotId: timedSlotId,
@@ -783,6 +783,15 @@ describe('staff reservation listing and details', () => {
     expect(await listStaffReservations({ bookingDate })).toHaveLength(2);
     expect(await listStaffReservations({ bookingDate: timedDate, slotId }))
       .toEqual([]);
+
+    const ids = [first.booking.id, second.booking.id, other.booking.id];
+    const unfiltered = (await listStaffReservations())
+      .filter(({ id }) => ids.includes(id));
+    expect(unfiltered.map(({ id, status }) => ({ id, status }))).toEqual([
+      { id: first.booking.id, status: 'confirmed' },
+      { id: second.booking.id, status: 'cancelled' },
+      { id: other.booking.id, status: 'confirmed' },
+    ]);
   });
 
   it('reads temporary hiker details and all table allocations', async () => {
