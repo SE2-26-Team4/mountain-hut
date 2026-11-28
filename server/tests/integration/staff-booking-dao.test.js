@@ -17,6 +17,8 @@ import {
   createStaffBooking,
   getBookingsByDateAndSlot,
   getBookingsByHiker,
+  getStaffReservationById,
+  listStaffReservations,
   registerHiker,
 } from '../../dao/booking-dao.js';
 import {
@@ -721,4 +723,102 @@ describe('temporary hikers who left an email', () => {
       ).toBe(0);
     }
   );
+});
+
+
+describe('staff reservation listing and details', () => {
+  it('returns an empty list for filters with no matching reservations', async () => {
+    expect(
+      await listStaffReservations({ bookingDate, slotId: timedSlotId })
+    ).toEqual([]);
+    expect(await listStaffReservations({ bookingDate: '2098-01-01' }))
+      .toEqual([]);
+    expect(await getStaffReservationById(Number.MAX_SAFE_INTEGER))
+      .toBeNull();
+  });
+
+  it('filters by both date and slot, and includes confirmed and cancelled statuses', async () => {
+    const first = await createStaffBooking(
+      staffBooking({ existingHikerId }, { partySize: 2 })
+    );
+    const second = await createStaffBooking(
+      staffBooking({ newHiker: temporaryHikerRecord() }, { partySize: 1 })
+    );
+    await runAsync("UPDATE bookings SET status = 'cancelled' WHERE id = ?", [second.booking.id]);
+
+    // This booking has a different date and slot: it must not leak into the result.
+    await createStaffBooking({
+      hiker: { existingHikerId },
+      bookingDate: timedDate,
+      slotId: timedSlotId,
+      partySize: 1,
+    });
+
+    const listed = await listStaffReservations({ bookingDate, slotId });
+    expect(listed.map(({ id }) => id)).toEqual([
+      first.booking.id,
+      second.booking.id,
+    ]);
+    expect(listed[0]).toMatchObject({
+      bookingDate,
+      slotId,
+      slotName: expect.any(String),
+      hikerId: existingHikerId,
+      hikerName: expect.any(String),
+      partySize: 2,
+      status: 'confirmed',
+    });
+    expect(listed[1]).toMatchObject({
+      bookingDate,
+      slotId,
+      hikerId: second.hiker.id,
+      hikerName: second.hiker.fullName,
+      hikerEmail: null,
+      isTemporaryHiker: 1,
+      partySize: 1,
+      status: 'cancelled',
+    });
+
+    expect(await listStaffReservations({ slotId })).toHaveLength(2);
+    expect(await listStaffReservations({ bookingDate })).toHaveLength(2);
+    expect(await listStaffReservations({ bookingDate: timedDate, slotId }))
+      .toEqual([]);
+  });
+
+  it('reads temporary hiker details and all table allocations', async () => {
+    await runAsync(
+      'INSERT INTO slot_tables (slot_id, table_id) VALUES (?, ?)',
+      [slotId, sixSeatTableId]
+    );
+    const { booking, hiker } = await createStaffBooking(
+      staffBooking({ newHiker: temporaryHikerRecord() }, {
+        partySize: 8,
+        dietaryRequirements: 'Vegetarian',
+        specialRequests: 'Near window',
+      })
+    );
+
+    const detail = await getStaffReservationById(booking.id);
+    expect(detail).toMatchObject({
+      id: booking.id,
+      bookingDate,
+      slotId,
+      hikerId: hiker.id,
+      hikerName: hiker.fullName,
+      hikerEmail: null,
+      isTemporaryHiker: 1,
+      partySize: 8,
+      status: 'confirmed',
+      dietaryRequirements: 'Vegetarian',
+      specialRequests: 'Near window',
+    });
+    expect(detail.allocations).toHaveLength(2);
+    expect(detail.allocations.reduce((sum, allocation) => sum + allocation.seatsReserved, 0))
+      .toBe(8);
+    expect(detail.allocations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ tableId: fourSeatTableId, tableName: expect.any(String) }),
+      expect.objectContaining({ tableId: sixSeatTableId, tableName: expect.any(String) }),
+    ]));
+    expect(detail).not.toHaveProperty('passwordHash');
+  });
 });
